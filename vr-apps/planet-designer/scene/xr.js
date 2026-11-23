@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=11';
-import { createVRPanel } from '../ui/vrpanel.js?v=11';
-import { rOf, aOf } from './orrery.js?v=11';
-import { t } from '../i18n.js?v=11';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=12';
+import { createVRPanel } from '../ui/vrpanel.js?v=12';
+import { rOf, aOf } from './orrery.js?v=12';
+import { t } from '../i18n.js?v=12';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -94,7 +94,27 @@ export function createXR(V) {
   S.xr = { togglePanel, exit: () => VR.session && VR.session.end(),
     resetSun: () => { ws.forgeGroup.position.copy(LAYOUT.forge); },
     setSmoothTurn: (v) => { VR.smoothTurn = v; }, get smoothTurn() { return !!VR.smoothTurn; },
-    setZoom: (z) => { VR.tableZoom = z; }, get zoom() { return VR.tableZoom || 1; } };
+    setZoom: (z) => setZoom(z), get zoom() { return VR.tableZoom || 1; } };
+  /* Two views. The workshop (x1): the big star at the forge, the planet in the cradle, the small system on the table.
+   * Inside the system (x30): the table's system grows thirty times; the forge and the cradle go away, so there is one
+   * star (the system's own) and one planet: the real, rendered planet sits in its orbit where its bead was. The system
+   * is anchored once (the selected planet over the middle of the table) and then stays put: dragging the planet or
+   * turning the distance dial moves the planet, not the star. Time goes to real time, so nothing races round. */
+  function setZoom(z) {
+    const was = VR.tableZoom || 1;
+    VR.tableZoom = z;
+    const bd = V.orrery.beads.find((x) => x.index === S.sel);
+    if (z > 1) {
+      VR.zoomAnchor = bd ? { x: bd.mesh.position.x, z: bd.mesh.position.z } : { x: 0, z: 0 };
+      if (was === 1) { VR.savedTime = { ts: V.state.timeScale, paused: V.state.paused }; V.state.timeScale = 1 / 3.15576e7; V.state.paused = false; }
+    } else if (was > 1 && VR.savedTime) { V.state.timeScale = VR.savedTime.ts; V.state.paused = VR.savedTime.paused; }
+    const inside = z > 1;
+    ws.forgeGroup.visible = !inside;
+    for (const o of ws.cradleParts) o.visible = !inside;
+    for (const o of ws.tableParts) o.visible = !inside;
+    ws.cradleLabel.visible = !inside;
+    if (!inside) { V.planet.group.position.set(0, 0, 0); V.planet.group.scale.setScalar(1); }
+  }
   function panelPx(origin, dir) {
     if (!panel.mesh.visible) return null;
     panel.mesh.updateMatrixWorld(true);
@@ -316,6 +336,7 @@ export function createXR(V) {
     V.system.traverse((o) => { if (o.isPointLight) { saved.oLight = saved.oLight || [o, o.intensity, o.decay]; o.intensity = 1.2; o.decay = 1; o.distance = 2.2; } });
   }
   function exitWorkshop() {
+    if ((VR.tableZoom || 1) > 1) setZoom(1);
     ws.release('system', V.system);
     ws.release('planet', V.planet.group);
     V.planetBay.visible = saved.planetBayVis;
@@ -383,17 +404,30 @@ export function createXR(V) {
     /* the planets stand still while a ray rests on one (so they can be caught) or one is being dragged */
     if (!VR.hands.some((h) => h.mode === 'bead' || h.mode === 'handle' || (h.hover && (h.hover.kind === 'bead' || h.hover.kind === 'handle' || h.hover.kind === 'slot')))) V.orbitAdvance(dt);
     V.orrery.tick(V.orbitClock(), tsec);
-    /* table zoom: the system grows round the selected planet, which stays over the middle of the table */
+    /* the two views (see setZoom): inside the system the anchor is fixed, so the star does not move */
     const z = VR.tableZoom || 1;
     ws.tableSlot.scale.setScalar(LAYOUT.tableScale * z);
-    if (z > 1) {
-      const bd = V.orrery.beads.find((x) => x.index === S.sel);
-      if (bd) ws.tableSlot.position.set(LAYOUT.table.x - bd.mesh.position.x * LAYOUT.tableScale * z, LAYOUT.table.y + 0.15, LAYOUT.table.z - bd.mesh.position.z * LAYOUT.tableScale * z);
-    } else ws.tableSlot.position.copy(LAYOUT.table);
-    V.orrery.beads.forEach((b, k) => { const l = beadLabels[k]; if (!l) return; l.visible = true; b.mesh.getWorldPosition(l.position); l.position.y += 0.07; });
+    if (z > 1 && VR.zoomAnchor) ws.tableSlot.position.set(LAYOUT.table.x - VR.zoomAnchor.x * LAYOUT.tableScale * z, LAYOUT.table.y + 0.15, LAYOUT.table.z - VR.zoomAnchor.z * LAYOUT.tableScale * z);
+    else ws.tableSlot.position.copy(LAYOUT.table);
+    ws.tableSlot.updateMatrixWorld(true);
+    const selBead = V.orrery.beads.find((x) => x.index === S.sel);
+    V.orrery.beads.forEach((b, k) => {
+      const inPlace = z > 1 && b === selBead;
+      b.mesh.visible = !inPlace;
+      const l = beadLabels[k]; if (!l) return;
+      l.visible = true; b.mesh.getWorldPosition(l.position); l.position.y += inPlace ? 0.62 : 0.07;
+    });
     ws.cradleSlot.updateMatrixWorld(true);
     ws.forgeGroup.updateMatrixWorld(true);
-    sunDir.copy(ws.forgeGroup.getWorldPosition(new THREE.Vector3())).sub(ws.cradleSlot.getWorldPosition(new THREE.Vector3())).normalize();
+    if (z > 1 && selBead) {
+      /* the real planet in its orbit, 0.5 m across in radius, lit by the system's own star at the centre */
+      const wp = selBead.mesh.getWorldPosition(new THREE.Vector3());
+      V.planet.group.position.copy(ws.cradleSlot.worldToLocal(wp.clone()));
+      V.planet.group.scale.setScalar(0.5 / LAYOUT.planetR);
+      sunDir.copy(ws.tableSlot.getWorldPosition(new THREE.Vector3())).sub(wp).normalize();
+    } else {
+      sunDir.copy(ws.forgeGroup.getWorldPosition(new THREE.Vector3())).sub(ws.cradleSlot.getWorldPosition(new THREE.Vector3())).normalize();
+    }
     const xrCam = renderer.xr.getCamera();
     V.state.chunks = V.planet.tick(tsec, xrCam, sunDir, V.state.spinOn, 0.0011 * VR.S);
     V.planet.bakeStep(renderer);

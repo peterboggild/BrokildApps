@@ -1,6 +1,6 @@
 /* The habitable zone (Kopparapu et al. 2013, 2014) and the continuously habitable zone. */
-import { HZ_COEFFS, HZ_TEFF_MIN, HZ_TEFF_MAX } from '../data/hz.js?v=11';
-import { starAt, lifetimeGyr } from './star.js?v=11';
+import { HZ_COEFFS, HZ_TEFF_MIN, HZ_TEFF_MAX } from '../data/hz.js?v=12';
+import { starAt, lifetimeGyr } from './star.js?v=12';
 
 function seffPoly(c, teff) {
   const t = teff - 5780;

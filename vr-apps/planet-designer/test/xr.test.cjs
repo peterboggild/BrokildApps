@@ -156,9 +156,17 @@ function aimQuat(dir) {
   if (out) await p.screenshot({ path: out + '/xr-5-tools.png' });
 
   /* table zoom: the system grows round the selected planet */
-  await ev(() => window.__pd.xr.setZoom(10)); await xrFrames(2);
-  const zs = await ev(() => window.__pd.view.xr.ws.tableSlot.scale.x);
-  ok('table zoom x10 enlarges the orrery round the selected planet', Math.abs(zs / 0.046 - 10) < 0.01, `scale ${zs.toFixed(3)}`);
+  await ev(() => window.__pd.loadPreset('solar')); await xrFrames(2);
+  await ev(() => window.__pd.xr.setZoom(30)); await xrFrames(3);
+  const zi = await ev(() => { const X = window.__pd.view.xr; return { s: X.ws.tableSlot.scale.x, forge: X.ws.forgeGroup.visible, star: X.ws.tableSlot.position.toArray(), ts: window.__pd.view.state.timeScale }; });
+  ok('"Into the system": the system x30, the forge hidden, time at real time', Math.abs(zi.s / 0.046 - 30) < 0.01 && !zi.forge && zi.ts < 1e-7, JSON.stringify(zi));
+  /* the star stays put while the planet's distance changes */
+  await ev(() => window.__pd.set('planet.orbit.aAU', 1.03)); await xrFrames(3);
+  const star2 = await ev(() => window.__pd.view.xr.ws.tableSlot.position.toArray());
+  ok('the star stays put while the orbit changes', Math.hypot(star2[0] - zi.star[0], star2[2] - zi.star[2]) < 1e-6);
+  const pp = await ev(() => { const v = window.__pd.view; return v.planet.group.getWorldPosition(v.planet.group.position.clone()).distanceTo(v.xr.ws.tableSlot.getWorldPosition(v.xr.ws.tableSlot.position.clone())); });
+  ok('the real planet sits in its orbit, away from the star', pp > 3, `${pp.toFixed(1)} m from the star`);
+  if (out) await p.screenshot({ path: out + '/xr-6-inside.png' });
   await ev(() => window.__pd.xr.setZoom(1));
 
   /* leave */

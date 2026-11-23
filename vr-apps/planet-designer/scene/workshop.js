@@ -6,8 +6,8 @@
  * The star's colour lights the whole platform. Desktop groups are re-parented in here while in VR and put back
  * afterwards. Metres; the floor at y = 0. */
 import * as THREE from 'three';
-import { createStar } from './star.js?v=11';
-import { t } from '../i18n.js?v=11';
+import { createStar } from './star.js?v=12';
+import { t } from '../i18n.js?v=12';
 
 export const LAYOUT = {
   forge: new THREE.Vector3(0, 4.2, -15), forgeR: 2.2,
@@ -111,9 +111,7 @@ export function createWorkshop() {
   forge.uniforms.uGain.value = 1.15;            /* no bloom in VR: keep the colour below white so it reads */
   forgeGroup.add(forge.group, starLight);
   forge.group.children[0].userData = { kind: 'sun' };
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(LAYOUT.forgeR * 1.75, 0.09, 16, 128), new THREE.MeshStandardMaterial({ color: 0x3b4552, metalness: 0.9, roughness: 0.25, emissive: 0x112233 }));
-  forgeGroup.add(ring);
-  const ring2 = ring.clone(); ring2.rotation.y = Math.PI / 2; forgeGroup.add(ring2);
+  /* (the dark containment rings read as a black ring round the star in the headset; removed) */
   const forgeLabel = textSprite('', { size: 0.45 }); forgeLabel.position.set(0, LAYOUT.forgeR * 2.2, 0); forgeGroup.add(forgeLabel);
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.05, 0.5), new THREE.MeshStandardMaterial({ color: 0x1c2229, metalness: 0.6, roughness: 0.45 }));
   pedestal.position.set(LAYOUT.dials.x, 0.52, LAYOUT.dials.z - 0.2); root.add(pedestal);
@@ -141,13 +139,14 @@ export function createWorkshop() {
 
   /* Planet Cradle: a gantry of two rings around the planet */
   const cradleSlot = new THREE.Group(); cradleSlot.position.copy(LAYOUT.cradle); cradleSlot.scale.setScalar(LAYOUT.planetR); root.add(cradleSlot);
+  const cradleParts = [];
   for (const rot of [[0, 0, 0], [0, Math.PI / 2, 0.25]]) {
     const g = new THREE.Mesh(new THREE.TorusGeometry(LAYOUT.planetR * 1.32, 0.05, 12, 128, Math.PI * 1.35), rim.material);
     g.position.copy(LAYOUT.cradle); g.rotation.set(rot[0], rot[1], rot[2] - Math.PI * 0.175 - Math.PI / 2);
-    root.add(g);
+    root.add(g); cradleParts.push(g);
   }
   const cradleBase = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 0.3, 32), pedestal.material);
-  cradleBase.position.set(LAYOUT.cradle.x, 0.15, LAYOUT.cradle.z); root.add(cradleBase);
+  cradleBase.position.set(LAYOUT.cradle.x, 0.15, LAYOUT.cradle.z); root.add(cradleBase); cradleParts.push(cradleBase);
   const cradleLabel = textSprite('', { size: 0.2 }); cradleLabel.position.copy(LAYOUT.cradle).add(new THREE.Vector3(0, LAYOUT.planetR * 1.55, 0)); root.add(cradleLabel);
 
   /* Ledger Board: a canvas on the left wall, facing the middle */
@@ -188,7 +187,7 @@ export function createWorkshop() {
 
   const holds = {};
   return {
-    root, forge, forgeGroup, starLight, massDial, ageDial, distDial, tableSlot, cradleSlot, board, drawBoard, forgeLabel, cradleLabel, LAYOUT,
+    root, forge, forgeGroup, starLight, cradleParts, tableParts: [table, leg], massDial, ageDial, distDial, tableSlot, cradleSlot, board, drawBoard, forgeLabel, cradleLabel, LAYOUT,
     /* move the desktop groups in (and out again) */
     adopt(name, obj) { holds[name] = { parent: obj.parent, pos: obj.position.clone(), quat: obj.quaternion.clone(), scale: obj.scale.clone(), vis: obj.visible }; },
     release(name, obj) { const h = holds[name]; if (!h) return; h.parent.add(obj); obj.position.copy(h.pos); obj.quaternion.copy(h.quat); obj.scale.copy(h.scale); obj.visible = h.vis; },
