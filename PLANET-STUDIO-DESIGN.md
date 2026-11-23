@@ -769,9 +769,8 @@ The six open questions were answered; they are binding for the build.
    Because the app is now called "Designer", the middle level needs another name (see 3).
 3. **Audience: upper secondary students (gymnasium) *and* university students in sustainability and in
    physics, with several levels.** Consequences:
-   - The three levels stay, but the middle one is renamed so it does not clash with the app's name; proposal
-     **Explorer / Student / Scientist** (Danish: *Opdager / Studerende / Forsker*). Ask the owner to confirm the
-     names when M0 shows them.
+   - The three levels stay, but the middle one is renamed so it does not clash with the app's name: **Explorer / Student /
+     Scientist** (Danish: *Opdager / Studerende / Forsker*), confirmed by the owner.
    - The sustainability students make the climate side matter as much as the astrophysics: the carbon–silicate
      thermostat (§5.10), CO₂ forcing, ice–albedo feedback, the runaway greenhouse and the human wet-bulb limits
      deserve good explanation cards and at least one challenge each (§9). A link from "why Earth works" to "what
