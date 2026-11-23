@@ -70,11 +70,41 @@ function aimQuat(dir) {
   /* the star-mass dial: aim at its left side and hold the trigger: the mass goes down */
   const dial = await ev(() => window.__pd.view.xr.dialLocal('mass'));
   const sm0 = await ev(() => window.__pd.design.star.massSun);
-  await aimAt('right', [dial[0] - 0.25, dial[1] + 0.05, dial[2] + 0.02]);
-  await btn('right', 'trigger', 1); await xrFrames(3); await btn('right', 'trigger', 0); await xrFrames(2);
+  /* the dial is relative: grab it at the top, sweep the ray to the left side: the mass goes down, a little */
+  await aimAt('right', [dial[0], dial[1] + 0.2, dial[2] + 0.02]);
+  await btn('right', 'trigger', 1); await xrFrames(2);
+  await aimAt('right', [dial[0] - 0.22, dial[1] + 0.05, dial[2] + 0.02]); await xrFrames(2);
+  await btn('right', 'trigger', 0); await xrFrames(2);
   const sm1 = await ev(() => window.__pd.design.star.massSun);
-  ok('turning the mass dial changes the star', Math.abs(sm1 - sm0) > 0.01, `${sm0.toFixed(3)} -> ${sm1.toFixed(3)} Msun`);
+  ok('turning the mass dial changes the star, finely (relative dial)', sm1 < sm0 - 0.02 && sm1 > 0.25, `${sm0.toFixed(3)} -> ${sm1.toFixed(3)} Msun`);
   if (out) await p.screenshot({ path: out + '/xr-3-dial.png' });
+
+  /* the VR tab: move the planet to a temperate place in the zone, then "Start with Earth" */
+  await press('right', 'b-button');
+  const panelClick = async (prefix) => { const w = await ev((p) => window.__pd.view.xr.widgetLocal(p), prefix); if (!w) return false; await aimAt('right', w); await press('right', 'trigger'); return true; };
+  await panelClick('tab:vr');
+  const toZone = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); const w = ws.state.widgets.find((x) => x.id.includes('Flyt til') || x.id.includes('Move to')); return w ? w.id : null; });
+  await panelClick(toZone);
+  const pos = await ev(() => window.__pd.derivedPlanet().hzPos);
+  ok('"Move to a temperate place in the zone" puts the planet in the zone', pos === 'cons', `${pos} at ${sm1.toFixed(2)} Msun`);
+  const earthBtn = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); const w = ws.state.widgets.find((x) => x.id.includes('Start med Jorden') || x.id.includes('Start with Earth')); return w ? w.id : null; });
+  await panelClick(earthBtn);
+  await ev(() => new Promise((res) => { const tk = () => (window.__pd.derivedPlanet().ebm ? res() : setTimeout(tk, 200)); tk(); }));
+  const earth = await ev(() => ({ m: window.__pd.design.star.massSun, lamps: window.__pd.ledgerFor(window.__pd.derivedPlanet()).pass[5] }));
+  ok('"Start with Earth" from the VR panel gives an Earth twin', earth.m === 1 && earth.lamps, JSON.stringify(earth));
+  /* moons and planets from VR */
+  await panelClick('tab:moons');
+  const nm0 = await ev(() => window.__pd.planet().moons.length);
+  const addMoon = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); const w = ws.state.widgets.find((x) => x.id.includes('Tilføj måne') || x.id.includes('Add moon')); return w ? w.id : null; });
+  await panelClick(addMoon);
+  ok('a moon can be added in VR', (await ev(() => window.__pd.planet().moons.length)) === nm0 + 1);
+  await panelClick('tab:system');
+  const np0 = await ev(() => window.__pd.design.planets.length);
+  const addPl = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); const w = ws.state.widgets.find((x) => x.id.includes('Tilføj planet') || x.id.includes('Add planet')); return w ? w.id : null; });
+  await panelClick(addPl);
+  ok('a planet can be added in VR', (await ev(() => window.__pd.design.planets.length)) === np0 + 1);
+  if (out) await p.screenshot({ path: out + '/xr-4-system.png' });
+  await press('right', 'b-button');
 
   /* two grips pulled apart: the world gets bigger (the rig scale S falls) */
   const down = aimQuat([0, -1, -0.3]);

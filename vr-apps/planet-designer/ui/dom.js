@@ -1,11 +1,11 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=6';
-import { t, fmt, esc, getLang } from '../i18n.js?v=6';
-import { CARDS, CARD_LABELS } from './cards.js?v=6';
-import { nodeForRow } from './causality.js?v=6';
-import { esi } from '../physics/esi.js?v=6';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=6';
+import { TABS, LEVELS } from './schema.js?v=7';
+import { t, fmt, esc, getLang } from '../i18n.js?v=7';
+import { CARDS, CARD_LABELS } from './cards.js?v=7';
+import { nodeForRow } from './causality.js?v=7';
+import { esi } from '../physics/esi.js?v=7';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=7';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -89,6 +89,12 @@ export function renderPanel(root, S) {
       const c = el('div', 'chartbox');
       const upd = () => { c.innerHTML = row.value(S.derived, S.derivedPlanet(), S.design); };
       upd(); S.live.push(upd); body.appendChild(c);
+    }
+    else if (row.kind === 'action') {
+      const w = el('div', 'row picker');
+      const b = el('button', 'btn', t(row.label));
+      b.onclick = () => row.act(S);
+      w.append(b); body.appendChild(w);
     }
     else if (row.kind === 'seed') {
       const w = el('div', 'row picker');

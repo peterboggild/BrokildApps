@@ -7,10 +7,10 @@
  *   { kind: 'planets' } | { kind: 'moons' } | { kind: 'system' }   (custom widgets)
  * level: 1 = Explorer, 2 = Student, 3 = Scientist; a row shows at its level and above.
  * Paths: 'star.*' on the design, 'planet.*' on the selected planet. */
-import { t, fmt, esc } from '../i18n.js?v=6';
-import { ECC_MAX } from '../physics/orbit.js?v=6';
-import { rgbToCss } from '../physics/star.js?v=6';
-import { climateChart, shorelineChart } from './charts.js?v=6';
+import { t, fmt, esc } from '../i18n.js?v=7';
+import { ECC_MAX } from '../physics/orbit.js?v=7';
+import { rgbToCss } from '../physics/star.js?v=7';
+import { climateChart, shorelineChart } from './charts.js?v=7';
 
 const f = fmt;
 const u = (k) => t('u.' + k);
@@ -41,6 +41,7 @@ export const TABS = [
   { id: 'orbit', rows: [
     { kind: 'planets' },
     { kind: 'slider', path: 'planet.orbit.aAU', min: 0.01, max: 50, log: true, unit: 'AU', level: 1, digits: 3 },
+    { kind: 'action', label: 'act.toZone', hz: true, act: (S) => S.toZone() },
     { kind: 'slider', path: 'planet.orbit.e', min: 0, max: ECC_MAX, step: 0.005, unit: '', level: 1, digits: 3 },
     { kind: 'slider', path: 'planet.orbit.incDeg', min: 0, max: 10, step: 0.1, unit: 'deg', level: 3, digits: 2 },
     { kind: 'slider', path: 'planet.spin.dayHours', min: 4, max: 10000, log: true, unit: 'h', level: 1, digits: 3, hz: true },

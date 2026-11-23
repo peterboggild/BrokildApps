@@ -77,6 +77,13 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Efter første test i Quest 3 (styrt):** den levende landskabs-shader var for tung for brillerne. Ved "lav" (altid i VR og på Quest-browserens flade side) bliver planetens overflade nu **bagt** til billeder på 2048 × 1024 (farve og ruhed, normal og højde). Det sker 16 rækker pr. billede, så intet enkelt billede bliver tungt, og billederne tegnes på en kugle. Skyerne bliver bagt på samme måde, og Mælkevejen regnes pr. hjørne i stedet for pr. pixel. I VR-panelet kan man kun vælge lav eller middel. Går grafikken ned, står der nu en tydelig besked på siden.
 - Test: `test/xr.test.cjs` i en emuleret Quest 3 (IWER).
 
+## Efter første test i brillerne (ejerens ønsker)
+
+- **VR-fanen** begynder med **"Start fra"**: Start med Jorden, K-dværg, rød dværg, lille tør verden og drivhusverden. Derefter kommer knappen **"Flyt til et tempereret sted i zonen"**, som også findes på PC under Bane. Den sætter den valgte planet der, hvor den får cirka lige så meget lys som Jorden (S ≈ 0,95), inden for den forsigtige zone og med banens excentricitet regnet med.
+- **Måner og planeter kan tilføjes og fjernes i VR**: fanen Måner har skydere for masse og afstand. Fanen Solsystem kan vælge en planet, gøre den beboelig eller til en anden planet, fjerne den (to tryk) og tilføje en ny.
+- **Drejeknapperne er relative og fine.** Man griber skiven og drejer fra der, hvor den står, og en hel drejning flytter værdien et halvt spænd. **Træk på bordet** er også relativt (en fjerdedel af bevægelsen), fordi hele den beboelige zone kun er cirka 3 cm på bordet.
+- Fanerne i VR-panelet skrumper, så alle ni kan være der (VR-fanen lå uden for kanten).
+
 ## Filer
 
 | Fil | Indhold |
@@ -95,7 +102,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=6`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=7`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
