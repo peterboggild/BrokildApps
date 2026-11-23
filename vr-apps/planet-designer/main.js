@@ -1,11 +1,12 @@
 /* Planet Designer, milestone M0: boot, state, the desktop page (parameter panel and ledger as text).
  * The 3D workshop (M1+) and VR (M5) attach to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=1';
-import { derive } from './physics/derive.js?v=1';
-import { ledger } from './physics/ledger.js?v=1';
-import { renderPanel, renderLedger } from './ui/dom.js?v=1';
-import { t, setLang, getLang } from './i18n.js?v=1';
+  earthPlanet, otherPlanet } from './design.js?v=2';
+import { derive } from './physics/derive.js?v=2';
+import { ledger } from './physics/ledger.js?v=2';
+import { renderPanel, renderLedger } from './ui/dom.js?v=2';
+import { t, setLang, getLang } from './i18n.js?v=2';
+import { createView } from './scene/view.js?v=2';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,7 +34,7 @@ const S = {
     this.recompute();
     saveLocal(this.design);
     if (full) this.redraw();
-    else { for (const f of this.live) f(); renderLedger($('ledger'), this); }
+    else { for (const f of this.live) f(); renderLedger($('ledger'), this); if (this.view) this.view.refresh(); }
     scheduleHash();
   },
   redraw() {
@@ -41,6 +42,17 @@ const S = {
     renderPanel($('panel'), this);
     renderLedger($('ledger'), this);
     renderHeader();
+    if (this.view) this.view.refresh();
+  },
+  /* the orrery's glowing slot: a new habitable-zone planet at a stable distance */
+  addHzAt(aAU) {
+    if (this.design.planets.filter((p) => p.role === 'hz').length >= MAX_HZ || this.design.planets.length >= MAX_PLANETS) return;
+    let n = this.design.planets.length + 1, id;
+    do { id = 'h' + n++; } while (this.design.planets.some((p) => p.id === id));
+    const p = earthPlanet(id, getLang() === 'da' ? 'Ny verden' : 'New world');
+    p.orbit.aAU = aAU; p.orbit.e = 0.01; p.surface.terrainSeed = 1 + Math.floor(Math.random() * 99998);
+    if (this.design.star.massSun < 0.85) p.moons[0].aEarthRadii = 30;
+    this.structural(() => { this.design.planets.push(p); this.sel = this.design.planets.length - 1; });
   },
   makeHz(i) {
     if (this.design.planets.filter((p) => p.role === 'hz').length >= MAX_HZ) return;
@@ -143,7 +155,9 @@ async function boot() {
   S.design = validate(d || defaultDesign());
   S.sel = Math.max(0, S.design.planets.findIndex((p) => p.role === 'hz'));
   wire();
+  S.recompute();
+  try { S.view = createView($('view'), S); } catch (e) { console.error(e); $('view').textContent = 'WebGL: ' + e.message; }
   S.redraw();
-  window.__pd = S;    // test hook
+  window.__pd = S;    /* test hook */
 }
 boot();

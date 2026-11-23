@@ -1,13 +1,14 @@
 /* derive(design) -> every derived number the panel and the ledger show. Pure; recomputed on every change. */
 import { starAt, parRelativeToSun, snowLineAU, peakWavelength, blackbodyRGB, activityAuto, spectralLetter,
-  STAR_MASS_HZ_VALID } from './star.js?v=1';
-import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=1';
+  STAR_MASS_HZ_VALID } from './star.js?v=2';
+import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=2';
 import { periodYears, fluxEarth, eccMeanFactor, periApoFlux, hillRadiusAU, mutualHillSpacing, tidalLockBand,
-  moonInfo } from './orbit.js?v=1';
-import { bulk, layers } from './structure.js?v=1';
+  moonInfo } from './orbit.js?v=2';
+import { bulk, layers } from './structure.js?v=2';
 import { composition, atmosphereMass, scaleHeight, jeansLambda, T_EXO_EARTH, satVapourPa, boilingPointK,
-  hasOzone, climate0D, bondAlbedo, landFraction, TRIPLE_POINT_PA } from './atmosphere.js?v=1';
-import { MOLAR, OCEAN_MASS, M_EARTH } from './const.js?v=1';
+  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=2';
+import { seaLevel, reliefMeters } from './terrain.js?v=2';
+import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=2';
 
 /* Default bulk densities for the simplified planets (kg/m^3), giving a radius from the mass:
  * rocky like Earth, icy like Ganymede/Callisto-type bodies, ice giant like Neptune, gas giant like Jupiter. */
@@ -83,9 +84,15 @@ function derivePlanet(p, d, star) {
   out.obliquityStable = out.moons.some((m) => m.stabilises && !m.insideRoche && !m.unbound);
 
   /* Surface */
+  /* Surface: the sea level follows from the ocean volume and the terrain's hypsometry (physics/terrain.js). */
   out.oceans = p.surface.oceansEarth;
-  out.landFrac = landFraction(p.surface.oceansEarth);
-  out.oceanDepthKm = out.layers.oceanDepthKm;
+  out.terrainSeed = p.surface.terrainSeed;
+  out.reliefM = reliefMeters(b.gEarth);
+  const sea = seaLevel(p.surface.terrainSeed, p.surface.oceansEarth * OCEAN_MASS / RHO_WATER, b.R, out.reliefM);
+  out.sea = sea;
+  out.landFrac = sea.landFrac;
+  out.oceanDepthKm = sea.meanDepth / 1e3;
+  out.highestKm = sea.maxAbove / 1e3;
 
   /* Atmosphere, with water vapour from the climate (iterate twice: vapour depends on temperature) */
   const albedo = bondAlbedo(out.landFrac, p.surface.landAlbedo);

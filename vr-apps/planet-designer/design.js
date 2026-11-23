@@ -1,8 +1,8 @@
 /* The design object: defaults, presets, validation (hard limits), save/load, JSON export/import, share link.
  * SI-friendly units as named in the keys. Derived values are never stored here. */
-import { ECC_MAX } from './physics/orbit.js?v=1';
-import { STAR_MASS_MIN, STAR_MASS_MAX } from './physics/star.js?v=1';
-import { PLANET_MASS_MIN, PLANET_MASS_MAX } from './physics/structure.js?v=1';
+import { ECC_MAX } from './physics/orbit.js?v=2';
+import { STAR_MASS_MIN, STAR_MASS_MAX } from './physics/star.js?v=2';
+import { PLANET_MASS_MIN, PLANET_MASS_MAX } from './physics/structure.js?v=2';
 
 export const APP_ID = 'PlanetDesigner';
 export const DESIGN_VERSION = 1;
@@ -16,7 +16,7 @@ export function earthPlanet(id = 'p1', name = 'Tellus') {
     orbit: { aAU: 1.0, e: 0.0167, incDeg: 0 },
     spin: { dayHours: 23.93, obliquityDeg: 23.44 },
     bulk: { massEarth: 1.0, coreMassFraction: 0.325, waterMassFraction: 0.0002, radiogenicRel: 1.0 },
-    surface: { oceansEarth: 1.0, landAlbedo: 0.25 },
+    surface: { oceansEarth: 1.0, landAlbedo: 0.25, terrainSeed: 3 },
     atmosphere: { pN2bar: 0.78, pO2bar: 0.21, pCO2bar: 0.00042, pH2Obar: 'auto', pArbar: 0.0093, pCH4bar: 0.0000019 },
     moons: [{ massMoon: 1.0, aEarthRadii: 60.3 }],
   };
@@ -44,19 +44,21 @@ export const PRESETS = {
     d.planets[0].moons[0].aEarthRadii = 40;   /* a closer moon: at 60 Earth radii the K dwarf would pull it away */
     d.planets[1].orbit.aAU = 3.5; return d;
   },
-  mars: () => {
-    const d = defaultDesign(); d.name = 'Mars';
-    const p = d.planets[0]; p.name = 'Mars';
+  /* Teaching start points. Their numbers are taken from Mars and Venus, but in a DIY system they are new worlds
+   * with names of their own (owner: "there is no Mars in a DIY solar system"). */
+  dryworld: () => {
+    const d = defaultDesign(); d.name = 'Ferrox';
+    const p = d.planets[0]; p.name = 'Ferrox';
     Object.assign(p.orbit, { aAU: 1.524, e: 0.0934 });
     Object.assign(p.spin, { dayHours: 24.62, obliquityDeg: 25.19 });
-    Object.assign(p.bulk, { massEarth: 0.107, coreMassFraction: 0.24, waterMassFraction: 0 });
+    Object.assign(p.bulk, { massEarth: 0.107, coreMassFraction: 0.25, waterMassFraction: 0 });   /* InSight: core ~1830 km */
     Object.assign(p.surface, { oceansEarth: 0, landAlbedo: 0.25 });
     Object.assign(p.atmosphere, { pN2bar: 0.00017, pO2bar: 0.0000013, pCO2bar: 0.0061, pArbar: 0.00012, pCH4bar: 0 });
     p.moons = []; return d;
   },
-  venus: () => {
-    const d = defaultDesign(); d.name = 'Venus';
-    const p = d.planets[0]; p.name = 'Venus';
+  hothouse: () => {
+    const d = defaultDesign(); d.name = 'Calida';
+    const p = d.planets[0]; p.name = 'Calida';
     Object.assign(p.orbit, { aAU: 0.723, e: 0.0068 });
     Object.assign(p.spin, { dayHours: 5832.5, obliquityDeg: 177.4 });
     Object.assign(p.bulk, { massEarth: 0.815, coreMassFraction: 0.30, waterMassFraction: 0 });
@@ -97,7 +99,8 @@ export function validate(input) {
     let role = p.role === 'hz' ? 'hz' : 'other';
     if (role === 'hz' && ++hz > MAX_HZ) role = 'other';
     const o = p.orbit || {};
-    const orbit = { aAU: clamp(o.aAU, 0.01, 50, 1), e: clamp(o.e, 0, ECC_MAX, 0), incDeg: clamp(o.incDeg, 0, 10, 0) };
+    const orbit = { aAU: clamp(o.aAU, 0.01, 50, 1), e: clamp(o.e, 0, ECC_MAX, 0), incDeg: clamp(o.incDeg, 0, 10, 0),
+      argPeriDeg: clamp(o.argPeriDeg, -360, 360, 0) };
     if (role === 'other') {
       const type = OTHER_TYPES.includes(p.type) ? p.type : 'rocky';
       return { id, name, role, type, orbit, bulk: { massEarth: clamp(p.bulk && p.bulk.massEarth, 0.01, 4000, 1) } };
@@ -113,7 +116,8 @@ export function validate(input) {
         waterMassFraction: clamp(b.waterMassFraction, 0, 0.5, 0.0002),
         radiogenicRel: clamp(b.radiogenicRel, 0.1, 3, 1),
       },
-      surface: { oceansEarth: clamp(su.oceansEarth, 0, 50, 1), landAlbedo: clamp(su.landAlbedo, 0.1, 0.4, 0.25) },
+      surface: { oceansEarth: clamp(su.oceansEarth, 0, 50, 1), landAlbedo: clamp(su.landAlbedo, 0.1, 0.4, 0.25),
+        terrainSeed: Math.round(clamp(su.terrainSeed, 1, 99999, 3)) },
       atmosphere: {
         pN2bar: clamp(a.pN2bar, 0, 10, e.atmosphere.pN2bar), pO2bar: clamp(a.pO2bar, 0, 2, e.atmosphere.pO2bar),
         pCO2bar: clamp(a.pCO2bar, 0, 100, e.atmosphere.pCO2bar), pH2Obar: 'auto',

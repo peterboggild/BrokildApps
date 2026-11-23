@@ -658,6 +658,27 @@ sky colour from the star's spectrum and the air's column, vegetation only where 
 - **Space**: a real star field and the Milky Way band for depth; the other planets as lit spheres with their own
   types (banded gas giants, blue ice giants, cratered rock, bright ice).
 
+**Detail on every scale, procedurally (owner's suggestion, 23 November 2026).** No stored textures for the
+planet: every scale is generated from the design's seed, so a share link rebuilds the same world, and detail never
+runs out as you zoom in. The rules for doing it well:
+
+- **Octaves per scale.** Each scale has its own layer with its own character: continents and ocean basins (a few
+  thousand km), mountain ranges and rift valleys (hundreds of km), ridges, river valleys and craters (km), rock
+  outcrops, dunes and scree (metres, only near the Lander). A layer is added only when its features are larger
+  than a pixel, and faded in over a range, so nothing pops.
+- **Not plain noise.** Ridged multifractal for mountains, domain warping for coastlines and folded strata,
+  erosion-like terms (slope- and flow-dependent) so valleys drain downhill, Voronoi/Worley cells for craters,
+  basalt columns and cracked ice, and a different recipe for each material.
+- **Physics sets the knobs.** Gravity scales mountain height (lower g, taller peaks), age and air set crater
+  density and erosion, the climate sets ice and vegetation, water sets coastlines and sediment.
+- **The same detail in the textures.** Normals, colour and roughness are computed from the same functions per
+  pixel, so the shading carries detail the mesh does not have; the far scales are baked into a texture once per
+  edit and the near ones computed live.
+- **Precision.** At planet scale 32-bit floats wobble at metre level: positions are camera-relative per chunk
+  and the noise is evaluated in chunk-local coordinates (or with split high/low parts), so the Lander's ground
+  is steady.
+- **No visible repetition**: rotated and offset octaves, never a tiled texture.
+
 **Platform honesty.** The PC gets the full quality (high resolution, ray-marched clouds, full-resolution
 scattering). The Quest 3 gets the same planet with a lower LOD, cloud shells instead of ray-marched clouds, the
 scattering at reduced resolution and baked textures, held at 72 Hz with a quality setting (as in Illusion

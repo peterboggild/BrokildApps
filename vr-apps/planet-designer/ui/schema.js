@@ -7,9 +7,9 @@
  *   { kind: 'planets' } | { kind: 'moons' } | { kind: 'system' }   (custom widgets)
  * level: 1 = Explorer, 2 = Student, 3 = Scientist; a row shows at its level and above.
  * Paths: 'star.*' on the design, 'planet.*' on the selected planet. */
-import { t, fmt, esc } from '../i18n.js?v=1';
-import { ECC_MAX } from '../physics/orbit.js?v=1';
-import { rgbToCss } from '../physics/star.js?v=1';
+import { t, fmt, esc } from '../i18n.js?v=2';
+import { ECC_MAX } from '../physics/orbit.js?v=2';
+import { rgbToCss } from '../physics/star.js?v=2';
 
 const f = fmt;
 const u = (k) => t('u.' + k);
@@ -77,7 +77,9 @@ export const TABS = [
     { kind: 'planets' },
     { kind: 'slider', path: 'planet.surface.oceansEarth', min: 0, max: 50, step: 0.01, sqrt: true, unit: '', level: 1, digits: 3 },
     { kind: 'slider', path: 'planet.surface.landAlbedo', min: 0.1, max: 0.4, step: 0.01, unit: '', level: 2, digits: 2 },
+    { kind: 'seed' },
     { kind: 'readout', label: 'r.land', level: 1, value: (D, P) => `${f(P.landFrac * 100, 3)} %` },
+    { kind: 'readout', label: 'r.highest', level: 1, value: (D, P) => `${f(P.highestKm, 3)} ${u('km')}` },
     { kind: 'readout', label: 'r.oceanDepth', level: 1, value: (D, P) => `${f(P.oceanDepthKm, 3)} ${u('km')}` },
     { kind: 'readout', label: 'r.albedo', level: 2, value: (D, P) => f(P.albedo, 2) },
   ] },
