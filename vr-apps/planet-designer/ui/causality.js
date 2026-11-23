@@ -1,8 +1,11 @@
 /* The Causality Map (spec §7): parameters and derived quantities as nodes in columns from the star to humans,
  * edges for "this drives that". Nodes carry their current value and the colour of the ledger rows they feed.
  * Selecting a node lights everything downstream; a change sends a pulse along the edges it touched. Inline SVG,
- * drawn in an overlay over the 3D view. Labels sit inside their own boxes, never over the edges' ends. */
-import { t, fmt, esc } from '../i18n.js?v=13';
+ * drawn in an overlay over the 3D view. Labels sit inside their own boxes, never over the edges' ends.
+ * Edges end in arrowheads; a selected box shows what it drives (blue) and what drives it (orange). The "i" on each
+ * box opens a small card: what the quantity is, how to read its value, and its direct causes and effects. */
+import { t, fmt, esc, getLang } from '../i18n.js?v=14';
+import { CM_INFO } from './cminfo.js?v=14';
 
 /* [id, column, label key, value(P, D), ledger rows whose worst status colours the node] */
 const NODES = [
@@ -62,6 +65,11 @@ export function nodeForRow(rowId) {
 }
 
 const RANK = { green: 0, na: 0, amber: 1, red: 2 };
+function upstream(id) {
+  const out = new Set([id]), q = [id];
+  while (q.length) { const a = q.shift(); for (const [s, d] of EDGES) if (d === a && !out.has(s)) { out.add(s); q.push(s); } }
+  return out;
+}
 function downstream(id) {
   const out = new Set([id]), q = [id];
   while (q.length) { const a = q.shift(); for (const [s, d] of EDGES) if (s === a && !out.has(d)) { out.add(d); q.push(d); } }
@@ -69,7 +77,28 @@ function downstream(id) {
 }
 
 export function createCausality(container, S) {
-  const state = { selected: null, prev: {} };
+  const state = { selected: null, prev: {}, info: null, infoAt: null };
+  const pop = document.createElement('div');
+  pop.className = 'cm-pop'; pop.hidden = true;
+  (container.parentElement || container).appendChild(pop);
+  const label = (id) => { const n = NODES.find((x) => x[0] === id); return n ? t(n[2]) : id; };
+  function renderPop(vals) {
+    if (!state.info) { pop.hidden = true; return; }
+    const id = state.info, n = NODES.find((x) => x[0] === id);
+    const info = CM_INFO[id], text = info ? info[getLang() === 'en' ? 1 : 0] : '';
+    const from = EDGES.filter(([, d]) => d === id).map(([s2]) => label(s2));
+    const to = EDGES.filter(([s2]) => s2 === id).map(([, d]) => label(d));
+    const v = vals && vals[id] ? ` <span class="cm-pop-v">${esc(vals[id])}</span>` : '';
+    pop.innerHTML = `<button class="cm-pop-x" aria-label="${esc(t('close'))}">×</button><strong>${esc(t(n[2]))}</strong>${v}`
+      + `<p>${esc(text)}</p>`
+      + (from.length ? `<p class="cm-pop-l"><span class="up">← ${esc(t('cm.from'))}</span> ${esc(from.join(', '))}</p>` : '')
+      + (to.length ? `<p class="cm-pop-l"><span class="dn">→ ${esc(t('cm.to'))}</span> ${esc(to.join(', '))}</p>` : '');
+    pop.hidden = false;
+    const r = pop.getBoundingClientRect(), [cx, cy] = state.infoAt || [innerWidth / 2, innerHeight / 2];
+    pop.style.left = Math.max(8, Math.min(innerWidth - r.width - 8, cx + 12)) + 'px';
+    pop.style.top = Math.max(8, Math.min(innerHeight - r.height - 8, cy + 12)) + 'px';
+    pop.querySelector('.cm-pop-x').onclick = () => { state.info = null; renderPop(); };
+  }
   const W = 1180, colW = W / 9, boxW = 112, boxH = 38;
 
   function render() {
@@ -97,8 +126,11 @@ export function createCausality(container, S) {
     const pulsing = new Set();
     for (const c of changed) for (const d of downstream(c)) pulsing.add(d);
     const sel = state.selected ? downstream(state.selected) : null;
+    const up = state.selected ? upstream(state.selected) : null;
 
-    let g = `<svg class="cmap" viewBox="0 0 ${W} ${height}" role="img" aria-label="${esc(t('cm.title'))}">`;
+    let g = `<svg class="cmap" viewBox="0 0 ${W} ${height}" role="img" aria-label="${esc(t('cm.title'))}">`
+      + '<defs>' + [['a', '#3e5068'], ['on', '#6fb7ff'], ['up', '#ffb36b'], ['pulse', '#8ff0b0']].map(([k, c]) =>
+        `<marker id="cmh-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="${c}"/></marker>`).join('') + '</defs>';
     COLUMNS.forEach((k, c) => { g += `<text class="cm-col" x="${colW * c + colW / 2}" y="22" text-anchor="middle">${esc(t(k))}</text>`; });
     for (const [s, d] of EDGES) {
       const a = pos[s], b = pos[d];
@@ -109,24 +141,34 @@ export function createCausality(container, S) {
         ? `M${a.x + boxW / 2},${a.y + boxH} C${a.x + boxW / 2},${a.y + boxH + 30} ${b.x + boxW / 2},${b.y + boxH + 30} ${b.x + boxW / 2},${b.y + boxH}`
         : `M${x1},${y1} C${x1 + 40},${y1} ${x2 - 40},${y2} ${x2},${y2}`;
       const on = sel ? sel.has(s) && sel.has(d) : false;
+      const isUp = up ? up.has(s) && up.has(d) && !on : false;
       const pulse = changed.has(s) || (pulsing.has(s) && pulsing.has(d));
-      g += `<path class="cm-edge${on ? ' on' : ''}${sel && !on ? ' dim' : ''}${pulse ? ' pulse' : ''}" d="${path}" style="animation-delay:${(NODES.find((n) => n[0] === s)[1]) * 0.12}s"/>`;
+      const head = on ? 'on' : isUp ? 'up' : pulse ? 'pulse' : 'a';
+      g += `<path class="cm-edge${on ? ' on' : ''}${isUp ? ' up' : ''}${sel && !on && !isUp ? ' dim' : ''}${pulse ? ' pulse' : ''}" d="${path}" marker-end="url(#cmh-${head})" style="animation-delay:${(NODES.find((n) => n[0] === s)[1]) * 0.12}s"/>`;
     }
     for (const n of NODES) {
       const [id, , key, , rows] = n;
       const p = pos[id];
       let st = 'none';
       for (const r of rows) if (status[r] && (st === 'none' || RANK[status[r]] > RANK[st])) st = status[r];
-      const dim = sel && !sel.has(id);
-      g += `<g class="cm-node ${st}${dim ? ' dim' : ''}${state.selected === id ? ' sel' : ''}${changed.has(id) ? ' changed' : ''}" data-id="${id}" transform="translate(${p.x},${p.y})">`;
-      g += `<rect width="${boxW}" height="${boxH}" rx="7"/><text class="cm-l" x="8" y="15">${esc(t(key))}</text>`;
-      g += `<text class="cm-v" x="8" y="30">${esc(vals[id])}</text></g>`;
+      const dim = sel && !sel.has(id) && !up.has(id);
+      g += `<g class="cm-node ${st}${dim ? ' dim' : ''}${up && up.has(id) && !sel.has(id) ? ' upn' : ''}${state.selected === id ? ' sel' : ''}${changed.has(id) ? ' changed' : ''}" data-id="${id}" transform="translate(${p.x},${p.y})">`;
+      g += `<rect width="${boxW}" height="${boxH}" rx="7"/><text class="cm-l" x="8" y="15"${t(key).length * 6.1 > boxW - 30 ? ` textLength="${boxW - 30}" lengthAdjust="spacingAndGlyphs"` : ''}>${esc(t(key))}</text>`;
+      g += `<text class="cm-v" x="8" y="30">${esc(vals[id])}</text>`;
+      g += `<g class="cm-info" data-info="${id}" role="button" aria-label="info"><circle cx="${boxW - 11}" cy="11" r="8"/><text x="${boxW - 11}" y="15" text-anchor="middle">i</text></g></g>`;
     }
     g += '</svg>';
-    container.innerHTML = `<div class="cm-head"><strong>${esc(t('cm.title'))}</strong> · ${esc(P.name)}<span class="cm-hint">${esc(t('cm.hint'))}</span></div>` + g;
+    const legend = `<span class="cm-legend"><span class="dn">→ ${esc(t('cm.legDn'))}</span> <span class="up">→ ${esc(t('cm.legUp'))}</span> <span class="ii">i</span> ${esc(t('cm.legInfo'))}</span>`;
+    container.innerHTML = `<div class="cm-head"><strong>${esc(t('cm.title'))}</strong> · ${esc(P.name)}<span class="cm-hint">${esc(t('cm.hint'))}</span>${legend}</div>` + g;
     container.querySelectorAll('.cm-node').forEach((e) => {
-      e.addEventListener('click', () => { const id = e.dataset.id; state.selected = state.selected === id ? null : id; render(); });
+      e.addEventListener('click', (ev) => {
+        const id = e.dataset.id;
+        if (ev.target.closest('.cm-info')) { state.info = state.info === id ? null : id; state.infoAt = [ev.clientX, ev.clientY]; state.selected = id; }
+        else state.selected = state.selected === id ? null : id;
+        render();
+      });
     });
+    renderPop(vals);
   }
-  return { render, select(id) { state.selected = id; render(); }, state };
+  return { render, select(id) { state.selected = id; render(); }, info(id, x, y) { state.info = id; state.infoAt = [x, y]; render(); }, hide() { state.info = null; renderPop(); }, state };
 }

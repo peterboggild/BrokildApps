@@ -164,6 +164,19 @@
   .cm-edge { fill: none; stroke: #2c3a4c; stroke-width: 1.3; }
   .cm-edge.on { stroke: #6fb7ff; stroke-width: 2; }
   .cm-edge.dim { opacity: 0.25; }
+  .cm-edge.up { stroke: #ffb36b; stroke-width: 2; }
+  .cm-node.upn rect { fill: #2a1f12; }
+  .cm-info { cursor: help; }
+  .cm-info circle { fill: #1b2a3c; stroke: #6fb7ff; stroke-width: 1.2; }
+  .cm-info text { fill: #cfe6ff; font-size: 11px; font-weight: 700; font-style: italic; font-family: Georgia, serif; }
+  .cm-info:hover circle { fill: #2c4a6a; }
+  .cm-legend { display: block; margin-top: 4px; font-size: 12.5px; color: var(--dim); }
+  .cm-legend .dn, .cm-pop .dn { color: #6fb7ff; font-weight: 600; } .cm-legend .up, .cm-pop .up { color: #ffb36b; font-weight: 600; }
+  .cm-legend .ii { display: inline-block; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; border: 1px solid #6fb7ff; color: #cfe6ff; font: italic 700 11px Georgia, serif; margin-left: 10px; }
+  .cm-pop { position: fixed; z-index: 60; width: min(340px, calc(100vw - 16px)); background: #121a25; border: 1px solid #6fb7ff; border-radius: 10px; padding: 12px 14px; font-size: 13.5px; line-height: 1.45; box-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+  .cm-pop p { margin: 8px 0 0; } .cm-pop-l { font-size: 12.5px; color: #c4cfdb; }
+  .cm-pop-v { color: var(--dim); margin-left: 6px; }
+  .cm-pop-x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: #c4cfdb; font-size: 20px; cursor: pointer; }
   .cm-edge.pulse { stroke: #8ff0b0; stroke-width: 2; stroke-dasharray: 6 10; animation: cmpulse 1.2s linear 2; }
   @keyframes cmpulse { from { stroke-dashoffset: 32; } to { stroke-dashoffset: 0; } }
   .cm-node { cursor: pointer; }
@@ -215,6 +228,6 @@
   <footer id="foot"></footer>
   <div id="toast" hidden></div>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
-  <script type="module" src="main.js?v=13"></script>
+  <script type="module" src="main.js?v=14"></script>
 </body>
 </html>

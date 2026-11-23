@@ -1,7 +1,7 @@
 /* The star: limb darkening, animated granulation, spots for active stars, and a corona with streamers.
  * Colour from the black-body colour of its effective temperature (physics/star.js). HDR values feed the bloom. */
 import * as THREE from 'three';
-import { NOISE } from './glsl.js?v=13';
+import { NOISE } from './glsl.js?v=14';
 
 export function createStar() {
   const uniforms = {

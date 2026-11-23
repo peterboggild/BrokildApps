@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=13';
-import { t, fmt } from '../i18n.js?v=13';
+import { TABS, LEVELS } from './schema.js?v=14';
+import { t, fmt } from '../i18n.js?v=14';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -242,7 +242,8 @@ export function createVRPanel(S) {
         rr(x, y + 4, w, 46, 10); ctx.fillStyle = o.on ? '#1d3550' : state.hover && state.hover.id === id ? '#1b2430' : '#151c26'; ctx.fill();
         ctx.strokeStyle = o.on ? '#6fb7ff' : '#2a3646'; ctx.lineWidth = 2; ctx.stroke();
         ctx.fillStyle = '#dfe7ef'; ctx.fillText(o.label, x + 15, y + 27);
-        state.widgets.push({ id, x, y: y + 4, w, h: 46, act: o.act });
+        /* a switched setting answers with two notes (falling for no/off), on top of the press click */
+        state.widgets.push({ id, x, y: y + 4, w, h: 46, act: () => { const was = o.on; o.act(); if (S.audio && !was) S.audio.toggle(!/^(nej|no|fra|off)$/i.test(o.label)); } });
         x += w + 8;
       });
       return;

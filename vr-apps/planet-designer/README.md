@@ -117,6 +117,14 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **En ændret bane flytter ikke planeten rundt**: planeten bliver stående på samme sted rundt om stjernen, og dens
   bevægelse starter forfra derfra (gælder både PC og VR).
 
+## Årsagskort med forklaringer og tydeligere lyd
+
+- Årsagskortet har pilespidser. En valgt boks viser blåt, hvad den påvirker, og orange, hvad der påvirker den.
+  Hver boks har et **i**, der åbner et lille kort med, hvad størrelsen er, hvordan værdien læses (× = gange Jordens),
+  og dens direkte årsager og virkninger (`ui/cminfo.js`).
+- Lyd: tydeligere tik ved ændringer, et "tag fat" og "slip" (knapper, planeter, stjernen, verden), to toner når
+  en indstilling skiftes, et sus ved trinvis drejning, og i VR en lille vibration i hånden ved greb og trin.
+
 ## Lyd (`audio.js`)
 
 Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
@@ -153,7 +161,7 @@ Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges l
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=13`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=14`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

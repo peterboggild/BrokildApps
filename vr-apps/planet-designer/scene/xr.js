@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=13';
-import { createVRPanel } from '../ui/vrpanel.js?v=13';
-import { rOf, aOf } from './orrery.js?v=13';
-import { t } from '../i18n.js?v=13';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=14';
+import { createVRPanel } from '../ui/vrpanel.js?v=14';
+import { rOf, aOf } from './orrery.js?v=14';
+import { t } from '../i18n.js?v=14';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -81,6 +81,7 @@ export function createXR(V) {
   function togglePanel(open) {
     VR.panelOpen = open === undefined ? !VR.panelOpen : open;
     panel.mesh.visible = VR.panelOpen;
+    if (open === undefined && S.audio) S.audio.toggle(VR.panelOpen);
     if (VR.panelOpen) {
       /* in front of the head, a little low, facing it (dolly-local coordinates) */
       const head = camera.position.clone();
@@ -93,7 +94,9 @@ export function createXR(V) {
   }
   S.xr = { togglePanel, exit: () => VR.session && VR.session.end(),
     resetSun: () => { ws.forgeGroup.position.copy(LAYOUT.forge); },
-    setSmoothTurn: (v) => { VR.smoothTurn = v; }, get smoothTurn() { return !!VR.smoothTurn; },
+    setSmoothTurn: (v) => { VR.smoothTurn = v; },
+    /* a value step felt in the hand that is changing it */
+    tickHaptic: () => { for (const h of VR.hands) if (h.mode && h.mode !== 'world') buzz(h, 0.15, 10); }, get smoothTurn() { return !!VR.smoothTurn; },
     setZoom: (z) => setZoom(z), get zoom() { return VR.tableZoom || 1; } };
   /* Two views. The workshop (x1): the big star at the forge, the planet in the cradle, the small system on the table.
    * Inside the system (x30): the table's system grows thirty times; the forge and the cradle go away, so there is one
@@ -196,16 +199,23 @@ export function createXR(V) {
     if (hs.hover) hs.dot.position.copy(dolly.worldToLocal(hs.hover.point.clone()));
   }
 
+  /* a short vibration in a hand's controller, so a grab or a step is felt as well as heard */
+  function buzz(hs, strength, ms) {
+    const gp = hs && hs.src && hs.src.gamepad;
+    const h = gp && gp.hapticActuators && gp.hapticActuators[0];
+    try { if (h && h.pulse) h.pulse(strength, ms); } catch (e) { /* no haptics */ }
+  }
+  const grabbed = (hs) => { if (S.audio) S.audio.grab(); buzz(hs, 0.5, 30); };
   function onPress(hs, kind) {
-    if (kind === 'squeeze') { hs.mode = 'world'; hs.modeBy = kind; VR.grab = null; return; }
+    if (kind === 'squeeze') { hs.mode = 'world'; hs.modeBy = kind; VR.grab = null; grabbed(hs); return; }
     updateHover(hs);
     const hv = hs.hover;
     if (!hv) return;
-    if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; if (S.audio) S.audio.click(); } return; }
+    if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; if (S.audio) S.audio.click(); buzz(hs, 0.3, 15); } return; }
     if (hv.kind === 'dial') {
       /* relative and fine: turning the dial by a whole sweep moves the value by half its range */
       const { o, d } = rayOf(hs);
-      hs.mode = 'dial'; hs.modeBy = kind; hs.dial = hv.dial;
+      hs.mode = 'dial'; hs.modeBy = kind; hs.dial = hv.dial; grabbed(hs);
       hs.dialA0 = dialAngle(hv.dial, o, d) || 0;
       hs.dialV0 = hv.dial === ws.massDial ? S.design.star.massSun : hv.dial === ws.ageDial ? S.design.star.ageGyr : S.planet().orbit.aAU;
       return;
@@ -213,14 +223,14 @@ export function createXR(V) {
     /* the star: carry it round with the ray (at the distance it was grabbed), to light the planet from any side */
     if (hv.kind === 'sun') {
       const { o } = rayOf(hs);
-      hs.mode = 'sun'; hs.modeBy = kind; if (S.audio) S.audio.click();
+      hs.mode = 'sun'; hs.modeBy = kind; grabbed(hs);
       hs.sunDist = o.distanceTo(ws.forgeGroup.getWorldPosition(new THREE.Vector3()));
       return;
     }
-    if (hv.kind === 'slot') { S.addHzAt(hv.data.a); return; }
+    if (hv.kind === 'slot') { buzz(hs, 0.5, 40); S.addHzAt(hv.data.a); return; }
     if (hv.kind === 'bead' || hv.kind === 'handle') {
       S.sel = hv.data.index; if (S.redrawAll) S.redrawAll();
-      hs.mode = hv.kind; hs.modeBy = kind;
+      hs.mode = hv.kind; hs.modeBy = kind; grabbed(hs);
       /* relative and fine: the bead moves by a fraction of the pointer's movement on the table */
       const lp = tablePoint(hs);
       hs.drag0 = lp ? Math.hypot(lp.x, lp.z) : null;
@@ -230,6 +240,7 @@ export function createXR(V) {
   function onRelease(hs, kind) {
     if (hs.modeBy !== kind) return;
     if (hs.mode === 'ui') panel.up();
+    else if (hs.mode) { if (S.audio) S.audio.release(); buzz(hs, 0.2, 15); }
     if (hs.mode === 'bead' || hs.mode === 'handle' || hs.mode === 'dial') { if (S.redrawAll) S.redrawAll(); }
     if (hs.mode === 'world') VR.grab = null;
     hs.mode = null; hs.modeBy = null;
@@ -316,7 +327,7 @@ export function createXR(V) {
       } else if (hs.handed === 'right') {
         const turnBy = (a) => { const h = headWorld(); const p = dolly.position.clone().sub(h).applyAxisAngle(UP, a).add(h); setDolly(p, VR.yaw + a, VR.S); };
         if (VR.smoothTurn) { if (Math.abs(ax[0]) > 0.2) turnBy(-ax[0] * 1.6 * dt); }
-        else if (Math.abs(ax[0]) > 0.7 && !hs.turned) { hs.turned = true; turnBy(-Math.sign(ax[0]) * Math.PI / 6); }
+        else if (Math.abs(ax[0]) > 0.7 && !hs.turned) { hs.turned = true; turnBy(-Math.sign(ax[0]) * Math.PI / 6); if (S.audio) S.audio.swish(); }
         else if (Math.abs(ax[0]) < 0.3) hs.turned = false;
         if (Math.abs(ax[1]) > 0.3) dolly.position.y += -ax[1] * 1.4 * Math.max(0.3, 1 / VR.S) * dt;
       }

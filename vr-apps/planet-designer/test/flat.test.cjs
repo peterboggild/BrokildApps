@@ -83,6 +83,19 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('Cutaway labels the four layers of Earth', labels.length === 4, JSON.stringify(labels));
   if (out) await p.screenshot({ path: out + '/t-cut.png' });
 
+  /* the cause map: arrowheads, and the i on a box opens a card explaining it */
+  await p.evaluate(() => window.__pd.view.showCausality());
+  await frames(p, 2);
+  const nHeads = await p.evaluate(() => document.querySelectorAll('.cm-edge[marker-end]').length);
+  check('Cause map edges have arrowheads', nHeads > 40, `${nHeads}`);
+  await p.click('.cm-info[data-info="flux"]');
+  const pop = await p.evaluate(() => { const e = document.querySelector('.cm-pop'); return { shown: !e.hidden, text: e.textContent, up: document.querySelectorAll('.cm-edge.up').length, cards: document.querySelectorAll('.cm-info').length }; });
+  check('The i opens a card that explains the box', pop.shown && /gange det, Jorden får/.test(pop.text) && /Påvirkes af/.test(pop.text) && pop.up > 0 && pop.cards === 31, JSON.stringify({ ...pop, text: pop.text.slice(0, 60) }));
+  if (out) await p.screenshot({ path: out + '/t-cmap.png' });
+  await p.click('.cm-pop-x');
+  check('The card closes', await p.evaluate(() => document.querySelector('.cm-pop').hidden));
+  await p.keyboard.press('Escape');
+
   /* sound: the first click starts it; a value change ticks; the music plays; a tier lost and regained sings */
   await p.click('#fxBtn'); await p.click('#fxBtn');
   await p.evaluate(() => new Promise((res) => setTimeout(res, 300)));
