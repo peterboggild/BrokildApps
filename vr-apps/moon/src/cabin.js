@@ -39,11 +39,12 @@ export function makeCabin() {
   };
 
   /* ---------------- the conical wall, with the window openings left out */
-  const NA = 200, NZ = 80, pos = [], nor = [], idx = [];
+  const NA = 200, NZ = 80, pos = [], nor = [], idx = [], wuv = [];
   for (let j = 0; j <= NZ; j++) for (let i = 0; i <= NA; i++) {
     const z = Z_BASE + (Z_APEX + 0.05 - Z_BASE) * j / NZ, a = i / NA * 360;
     const p = point(a, z), ar = a * Math.PI / 180;
     pos.push(p.x, p.y, p.z);
+    wuv.push(1 - i / NA, j / NZ);          /* mirrored: the wall is seen from inside */
     nor.push(-Math.cos(ar) * Math.cos(ALPHA), -Math.sin(ar) * Math.cos(ALPHA), Math.sin(ALPHA));
   }
   const inWindow = (a, z) => WINDOWS.some(w => {
@@ -59,9 +60,13 @@ export function makeCabin() {
   }
   const wg = new THREE.BufferGeometry();
   wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); wg.setIndex(idx);
-  g.add(new THREE.Mesh(wg, wall));
+  wg.setAttribute('uv', new THREE.Float32BufferAttribute(wuv, 2));
+  const wallTex = makeWallTexture();
+  g.add(new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ map: wallTex, ...CABIN_STENCIL })));
   /* aft bulkhead behind you, and the tunnel end ahead */
-  const aft = new THREE.Mesh(new THREE.CircleGeometry(R_BASE, 64), wall); aft.position.set(AX, AY, Z_BASE); aft.rotation.y = Math.PI; g.add(aft);
+  const aft = new THREE.Mesh(new THREE.CircleGeometry(R_BASE, 64), new THREE.MeshLambertMaterial({ map: makeLockerTexture(), ...CABIN_STENCIL }));
+  aft.position.set(AX, AY, Z_BASE); aft.rotation.y = Math.PI; g.add(aft);
+  dress(g, point, { metal, dark, bezel });
   const fwd = new THREE.Mesh(new THREE.CircleGeometry(0.4, 32), dark); fwd.position.set(AX, AY, Z_APEX + 0.06); g.add(fwd);
 
   /* ---------------- windows: a deep reveal through the wall, a bezel round it, and the boost protective cover
@@ -190,19 +195,201 @@ export function makeCabin() {
 }
 
 /* a crewman in a pressure suit, visor down, seated as you are */
+/* A crewman in an Apollo pressure suit as worn for launch: white suit with the red and blue hose connectors on
+ * the chest, wrist rings, grey-blue gloves, and the clear bubble helmet over the black-and-white communications cap
+ * ("Snoopy cap"). Seated as you are: thighs forward, shins down. The face is kept plain on purpose: at arm's
+ * length a detailed face that does not move is worse than none. */
+let _suitTex = null, _flagTex = null;
 function makeCrewman() {
   const g = new THREE.Group();
-  const suit = new THREE.MeshLambertMaterial({ color: 0xd6d3c8, ...CABIN_STENCIL });
-  const visor = new THREE.MeshStandardMaterial({ color: 0x6a4a10, metalness: 0.9, roughness: 0.15, emissive: 0x1a1204, ...CABIN_STENCIL });
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.32, 6, 12), suit); torso.position.set(0, -0.42, 0.12); g.add(torso);
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.155, 24, 16), suit); helmet.position.set(0, 0.0, 0.1); g.add(helmet);
-  const v = new THREE.Mesh(new THREE.SphereGeometry(0.158, 24, 16, Math.PI * 0.2, Math.PI * 0.6, Math.PI * 0.28, Math.PI * 0.42), visor);
-  v.position.copy(helmet.position); v.rotation.y = Math.PI; g.add(v);
-  for (const s of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 4, 8), suit);
-    arm.position.set(s * 0.24, -0.45, 0.0); arm.rotation.x = 0.9; g.add(arm);
+  if (!_suitTex) { _suitTex = makeSuitTexture(); _flagTex = makeFlagTexture(); }
+  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...CABIN_STENCIL, ...o });
+  const suit = L(0xffffff, { map: _suitTex }), glove = L(0x5f6f86), ringB = L(0x2c4fa8), ringR = L(0xa8322c), black = L(0x121212), grey = L(0x8d9096);
+  const skin = L(0xc79f84), capW = L(0xe9e6dc);
+  const cap = (r, len, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 6, 14), m);
+  const put = (o, x, y, z, rx = 0, ry = 0, rz = 0) => { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+  /* torso, a little reclined into the couch, with the bulk of the suit at the chest */
+  const torso = put(cap(0.175, 0.30, suit), 0, -0.43, 0.13, 0.08); torso.scale.set(1.12, 1, 0.92);
+  put(new THREE.Mesh(new THREE.SphereGeometry(0.19, 20, 14), suit), 0, -0.26, 0.11).scale.set(1.15, 0.7, 0.85);     /* shoulders */
+  /* neck ring and helmet */
+  put(new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.016, 10, 32), ringR), 0, -0.135, 0.085, Math.PI / 2 - 0.15);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.05, 28), grey), 0, -0.155, 0.088, -0.15);
+  /* the head: the white cap covers it all but the face; black earphone cups and chin strap; microphone booms */
+  const head = put(new THREE.Mesh(new THREE.SphereGeometry(0.094, 24, 18), capW), 0, 0.0, 0.09); head.scale.set(0.88, 1.08, 1.0);
+  const face = put(new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 16), skin), 0, -0.012, 0.045); face.scale.set(0.82, 1.05, 0.72);
+  put(new THREE.Mesh(new THREE.TorusGeometry(0.072, 0.007, 6, 24, Math.PI), black), 0, -0.02, 0.07, Math.PI / 2 + 0.1, 0, Math.PI);   /* chin strap */
+  for (const sx of [-1, 1]) {
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.03, 14, 10), black), sx * 0.079, -0.008, 0.088).scale.set(0.45, 1.2, 1.0);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.07, 6), black), sx * 0.058, -0.05, 0.03, 1.0, 0, sx * 0.3);
   }
+  put(new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 8), skin), 0, -0.015, -0.008, -1.4);
+  /* the bubble: clear polycarbonate, seen by its reflections */
+  const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.152, 32, 24), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, ...CABIN_STENCIL,
+    vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
+      vec3 r = reflect(-normalize(vV), normalize(vN)); float hl = pow(max(dot(r, normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 60.0);
+      gl_FragColor = vec4(vec3(0.95, 0.96, 1.0), 0.05 + 0.5 * f + 0.8 * hl); }` }));
+  put(bubble, 0, 0.005, 0.085); bubble.renderOrder = 5;
+  /* arms: upper arms down the sides, forearms forward onto the armrests; wrist rings; gloves */
+  for (const sx of [-1, 1]) {
+    put(cap(0.062, 0.2, suit), sx * 0.245, -0.36, 0.12, 0.25, 0, -sx * 0.1);
+    put(cap(0.055, 0.2, suit), sx * 0.265, -0.5, -0.02, 1.45);
+    put(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.011, 8, 22), sx < 0 ? ringR : ringB), sx * 0.265, -0.515, -0.15);
+    put(cap(0.043, 0.07, glove), sx * 0.265, -0.52, -0.215, 1.5).scale.set(1.15, 1, 0.8);
+  }
+  /* legs: thighs forward, shins down, boots */
+  for (const sx of [-1, 1]) {
+    put(cap(0.085, 0.3, suit), sx * 0.105, -0.63, -0.1, 1.5);
+    put(cap(0.07, 0.3, suit), sx * 0.105, -0.86, -0.32, 0.12);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.26), grey), sx * 0.105, -1.08, -0.38);
+  }
+  /* chest: oxygen in (blue) and out (red) and the electrical connector, hoses leading down to the side */
+  for (const [x, y, m] of [[-0.085, -0.34, ringB], [0.085, -0.34, ringR], [-0.085, -0.43, ringR], [0.085, -0.43, ringB]]) {
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.03, 16), m), x, y, -0.045, Math.PI / 2);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.035, 12), grey), x, y, -0.065, Math.PI / 2);
+  }
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.028, 14), grey), 0, -0.385, -0.05, Math.PI / 2);
+  for (const [x0, y0, sx] of [[-0.085, -0.34, -1], [0.085, -0.43, 1]]) {
+    const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x0, y0, -0.08), new THREE.Vector3(x0 + sx * 0.05, y0 - 0.1, -0.13), new THREE.Vector3(x0 + sx * 0.2, y0 - 0.26, -0.06), new THREE.Vector3(x0 + sx * 0.27, y0 - 0.36, 0.1)]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 18, 0.016, 8), L(0x2f3a4a)));
+  }
+  /* the flag on the left shoulder */
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.045), new THREE.MeshLambertMaterial({ map: _flagTex, ...CABIN_STENCIL }));
+  put(flag, -0.312, -0.3, 0.1, 0, -Math.PI / 2, 0);
   return g;
+}
+
+/* things on the walls: the hatch with its latch gear, handholds, cable runs, floodlights, couch struts */
+function dress(g, point, M) {
+  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...CABIN_STENCIL, ...o });
+  const tube = (pts, r, m) => { const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 6, r, 8), m); g.add(t); return t; };
+  const bar = (a, b, r, m) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 8), m); o.position.copy(a).add(b).multiplyScalar(0.5);
+    o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); g.add(o); return o; };
+  /* the unified hatch: a rounded frame round the hatch window, the latch gearbox and its pump handle */
+  const hp = (dphi, dz, out) => point(90 + dphi, -0.85 + dz, out);
+  const frame = [];
+  for (let k = 0; k <= 40; k++) { const a = k / 40 * Math.PI * 2, sx = Math.sign(Math.cos(a)) * Math.pow(Math.abs(Math.cos(a)), 0.45), sy = Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), 0.45); frame.push(hp(sx * 21, sy * 0.36, -0.012)); }
+  tube(frame, 0.016, M.metal);
+  const gb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), L(0x8a8f96)); gb.position.copy(hp(-13, 0.02, -0.04)); gb.lookAt(gb.position.clone().add(new THREE.Vector3(0, -1, 0.5))); g.add(gb);
+  bar(hp(-13, 0.02, -0.07), hp(-13, 0.2, -0.12), 0.011, L(0xb8322a));
+  for (const d of [-17, 17]) for (const z of [-0.26, 0.0, 0.26]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.03, 0.05), M.dark); l.position.copy(hp(d, z, -0.02)); g.add(l); }
+  /* handholds by the windows and along the wall */
+  const hold = (phi, z0, z1) => { const a = point(phi, z0, -0.006), b = point(phi, z1, -0.006), a2 = point(phi, z0, -0.055), b2 = point(phi, z1, -0.055);
+    bar(a2, b2, 0.011, L(0xc9c6bb)); bar(a, a2, 0.009, M.metal); bar(b, b2, 0.009, M.metal); };
+  hold(150, -0.2, -0.5); hold(30, -0.2, -0.5); hold(112, -0.35, -0.6); hold(68, -0.35, -0.6); hold(200, -0.6, -0.9); hold(-20, -0.6, -0.9);
+  /* cable and plumbing runs round the cone */
+  for (const [z, r, col, a0, a1] of [[0.32, 0.014, 0x2a2c30, -40, 220], [0.27, 0.009, 0x7a6a3a, -40, 220], [-1.42, 0.011, 0x2a2c30, 20, 160], [0.05, 0.008, 0x3a4a5a, 150, 215], [0.05, 0.008, 0x3a4a5a, -35, 30]]) {
+    const pts = []; for (let a = a0; a <= a1; a += 6) pts.push(point(a, z, -0.012));
+    tube(pts, r, L(col));
+    for (let a = a0 + 9; a < a1; a += 24) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.012), M.metal); c.position.copy(point(a, z, -0.012)); c.lookAt(AX, AY, z); g.add(c); }
+  }
+  /* floodlight fixtures */
+  for (const [phi, z] of [[105, -0.1], [75, -0.1], [160, -0.75], [20, -0.75]]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, 0.05), M.bezel); f.position.copy(point(phi, z, -0.02)); f.lookAt(AX, AY, z + 0.2); g.add(f);
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.03), new THREE.MeshBasicMaterial({ color: 0xfff1d6, ...CABIN_STENCIL })); lens.position.set(0, 0, 0.0265); f.add(lens);
+  }
+  /* couch struts down to the aft bulkhead and out to the walls */
+  for (const x of [-0.3, 0.33, 0.97, 1.6]) {
+    bar(new THREE.Vector3(x, -0.3, 0.3), new THREE.Vector3(x, -0.2, Z_BASE), 0.016, M.metal);
+    bar(new THREE.Vector3(x, -0.95, 0.25), new THREE.Vector3(x, -1.05, Z_BASE), 0.016, M.metal);
+  }
+  bar(new THREE.Vector3(-0.3, -0.7, 0.25), point(190, 0.15, -0.01), 0.02, M.metal);
+  bar(new THREE.Vector3(1.6, -0.7, 0.25), point(-10, 0.15, -0.01), 0.02, M.metal);
+}
+
+/* the painted inner wall: panels with seams and fasteners, Velcro patches, stencilled markings, wear */
+function makeWallTexture() {
+  const W = 4096, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  let seed = 41;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  x.fillStyle = '#a7a498'; x.fillRect(0, 0, W, H);
+  /* mottling: paint is never even */
+  for (let k = 0; k < 2600; k++) {
+    const r = 20 + rnd() * 120, px = rnd() * W, py = rnd() * H, g = x.createRadialGradient(px, py, 0, px, py, r), d = rnd() < 0.5;
+    g.addColorStop(0, d ? 'rgba(60,56,48,0.05)' : 'rgba(235,232,220,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(px - r, py - r, 2 * r, 2 * r);
+  }
+  /* panels: rows along the cone, staggered; a dark seam, a light edge, fasteners at the corners and along the edges */
+  const rows = [0, 150, 330, 520, 700, 860, H];
+  for (let r = 0; r < rows.length - 1; r++) {
+    let px = -rnd() * 200;
+    while (px < W) {
+      const pw = 190 + rnd() * 260, y0 = rows[r], y1 = rows[r + 1];
+      const tone = 150 + Math.floor(rnd() * 26), warm = rnd() < 0.2;
+      x.fillStyle = warm ? `rgba(${tone + 16},${tone + 8},${tone - 14},0.35)` : `rgba(${tone},${tone - 2},${tone - 12},0.3)`;
+      x.fillRect(px + 2, y0 + 2, pw - 4, y1 - y0 - 4);
+      x.strokeStyle = 'rgba(40,38,34,0.75)'; x.lineWidth = 3; x.strokeRect(px + 1.5, y0 + 1.5, pw - 3, y1 - y0 - 3);
+      x.strokeStyle = 'rgba(230,228,215,0.35)'; x.lineWidth = 1.5; x.strokeRect(px + 5, y0 + 5, pw - 10, y1 - y0 - 10);
+      x.fillStyle = 'rgba(52,50,46,0.9)';
+      for (let fx = px + 14; fx < px + pw - 8; fx += 44) for (const fy of [y0 + 13, y1 - 13]) { x.beginPath(); x.arc(fx, fy, 3.2, 0, 7); x.fill(); }
+      for (let fy = y0 + 13; fy < y1 - 8; fy += 44) for (const fx of [px + 14, px + pw - 14]) { x.beginPath(); x.arc(fx, fy, 3.2, 0, 7); x.fill(); }
+      const k = rnd();
+      if (k < 0.3) {                 /* Velcro: the blue and tan squares that were everywhere */
+        for (let q = 0; q < 1 + Math.floor(rnd() * 3); q++) { x.fillStyle = rnd() < 0.6 ? '#3d4f7c' : '#b89f72'; x.fillRect(px + 30 + rnd() * (pw - 110), y0 + 30 + rnd() * (y1 - y0 - 100), 44, 44); }
+      } else if (k < 0.5) {          /* a stencilled marking */
+        x.font = 'bold 20px Arial'; x.fillStyle = 'rgba(30,30,30,0.8)'; x.textAlign = 'left';
+        x.fillText(['R' + (1 + Math.floor(rnd() * 13)), 'L' + (1 + Math.floor(rnd() * 3)), 'U' + (1 + Math.floor(rnd() * 4)), 'A' + (1 + Math.floor(rnd() * 8)), 'O2', 'H2O', 'ECS', 'PGA'][Math.floor(rnd() * 8)], px + 26, y0 + 44);
+      } else if (k < 0.58) {         /* a caution stripe */
+        for (let q = 0; q < 6; q++) { x.fillStyle = q % 2 ? '#1c1c1c' : '#c9a227'; x.fillRect(px + 30 + q * 16, y1 - 46, 16, 14); }
+      }
+      px += pw;
+    }
+  }
+  /* wear: scuffs where hands and boots go, fine scratches */
+  x.strokeStyle = 'rgba(70,66,58,0.22)'; x.lineWidth = 1;
+  for (let k = 0; k < 900; k++) { const px = rnd() * W, py = rnd() * H, l = 10 + rnd() * 60, a = rnd() * 6.28; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
+
+/* the aft bulkhead behind the couches: stowage lockers */
+function makeLockerTexture() {
+  const S = 2048, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  let seed = 5;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  x.fillStyle = '#9a978b'; x.fillRect(0, 0, S, S);
+  for (let j = 0; j < 9; j++) for (let i = 0; i < 9; i++) {
+    const w = S / 9, px = i * w, py = j * w, t = 140 + Math.floor(rnd() * 30);
+    x.fillStyle = `rgb(${t},${t - 2},${t - 12})`; x.fillRect(px + 6, py + 6, w - 12, w - 12);
+    x.strokeStyle = '#3a3834'; x.lineWidth = 4; x.strokeRect(px + 6, py + 6, w - 12, w - 12);
+    x.fillStyle = '#2b2a27'; x.fillRect(px + w / 2 - 26, py + w - 40, 52, 12);
+    x.font = 'bold 24px Arial'; x.fillStyle = '#262626'; x.textAlign = 'left'; x.fillText('A' + (j * 9 + i + 1), px + 20, py + 44);
+    if (rnd() < 0.3) { x.fillStyle = '#3d4f7c'; x.fillRect(px + w - 80, py + 22, 46, 46); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+
+/* suit cloth: a fine weave, seams, a little soiling */
+function makeSuitTexture() {
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d'), im = x.createImageData(S, S);
+  let seed = 23;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const weave = ((i % 4 < 2) !== (j % 4 < 2)) ? 6 : -6, v = 226 + weave + (rnd() - 0.5) * 10, k = (j * S + i) * 4;
+    im.data[k] = v; im.data[k + 1] = v - 2; im.data[k + 2] = v - 9; im.data[k + 3] = 255;
+  }
+  x.putImageData(im, 0, 0);
+  x.strokeStyle = 'rgba(120,116,104,0.7)'; x.lineWidth = 2;
+  for (const y of [90, 250, 410]) { x.beginPath(); x.moveTo(0, y); x.lineTo(S, y); x.stroke(); x.setLineDash([6, 5]); x.beginPath(); x.moveTo(0, y + 6); x.lineTo(S, y + 6); x.stroke(); x.setLineDash([]); }
+  for (const xx of [128, 384]) { x.beginPath(); x.moveTo(xx, 0); x.lineTo(xx, S); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.anisotropy = 4;
+  return t;
+}
+
+function makeFlagTexture() {
+  const c = document.createElement('canvas'); c.width = 190; c.height = 100;
+  const x = c.getContext('2d');
+  for (let k = 0; k < 13; k++) { x.fillStyle = k % 2 ? '#f4f2ec' : '#b22234'; x.fillRect(0, k * 100 / 13, 190, 100 / 13 + 0.5); }
+  x.fillStyle = '#3c3b6e'; x.fillRect(0, 0, 76, 54);
+  x.fillStyle = '#f4f2ec';
+  for (let j = 0; j < 9; j++) for (let i = 0; i < (j % 2 ? 5 : 6); i++) { x.beginPath(); x.arc(7 + i * 12.5 + (j % 2 ? 6.2 : 0), 5.5 + j * 5.4, 1.7, 0, 7); x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 /* ---------------------------------------------------------------- textures made in code */

@@ -8,11 +8,11 @@
  * URL: ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)  ?still (clock stopped)  ?shot
  *      ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=5';
-import { makeOutside } from './earth.js?v=5';
-import { makeCabin } from './cabin.js?v=5';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=5';
-import { makeRadio } from './radio.js?v=5';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=7';
+import { makeOutside } from './earth.js?v=7';
+import { makeCabin } from './cabin.js?v=7';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=7';
+import { makeRadio } from './radio.js?v=7';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

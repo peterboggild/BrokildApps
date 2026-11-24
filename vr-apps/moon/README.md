@@ -44,8 +44,13 @@ beyond. You sit upright; the cabin is turned round you so the main display conso
   centre couch, two rendezvous windows looking forward, a side window each side), set deep in the wall; the main
   display console as three panels with a generated panel face and a few hundred 3D toggle switches; the DSKY showing
   the real launch programs (P02 on the pad, then P11, verb 06 noun 62: velocity, altitude rate, altitude); the
-  mission event timer; an attitude ball that turns with the spacecraft; the couches, your crewmates in pressure
-  suits with visors down.
+  mission event timer; an attitude ball that turns with the spacecraft. The walls are painted, riveted panels with
+  Velcro patches, stencilled markings and wear (a generated texture), with the hatch and its latch gear, handholds,
+  cable runs, floodlights and couch struts on them, and stowage lockers on the aft bulkhead. Your crewmates wear
+  the launch suit: white, with the red and blue hose connectors and hoses, wrist rings, gloves, the flag on the
+  shoulder, and the clear bubble helmet over the communications cap. Their faces are kept plain on purpose.
+- **Seating in VR**: the headset's own origin is wherever the Quest was last recentred, so the couch is brought to
+  you when the session starts (`seat()` in `src/launch.js`); a thumbstick press re-seats you.
 - **The cover**: until the escape tower is jettisoned (T+3:18) the boost protective cover blinds every window except
   a 20 cm hole over the hatch window; then the windows open onto a sky already going black.
 - **Outside** (`src/earth.js`, `src/sky-worker.js`): the sky and the air in front of the ground by single
