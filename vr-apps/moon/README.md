@@ -32,6 +32,16 @@ On the surface (added after the first headset test):
   (`gridHeight` in `src/moon.js`), not the finer data behind its shading. Rocks take the lowest point under their
   footprint and are bedded in, so none hangs in the air on a slope or a crater rim.
 
+## The briefing (`briefing.html`, optional, not authentic)
+
+A dark room with one large curved screen and a 1:60 model of the Apollo-Saturn V on a pedestal (the same model as
+the outside view, `src/vehicle.js`). Twelve boards drawn in code (`src/briefing-slides.js`) walk through the whole
+mission, each narrated (`tools/script/briefing.json`, Windows voice for now): the crew, the vehicle, launch to
+orbit, Earth orbit and trans-lunar injection, transposition and docking, the coast, lunar orbit, into the Lunar
+Module, the powered descent, Taurus-Littrow, the way home, and the non-authentic controls. On the vehicle and launch
+boards the model turns and runs through its staging. Trigger or A: next board; B or X: back; the last board leads
+to the launch. Test: `test/briefing.test.cjs`; screenshots `tools/shot-brief.cjs`.
+
 ## Chapter 1: the launch (`launch.html`)
 
 **Curiosity, not authentic** (the owner's wish: authentic, but allowing curiosity):

@@ -1,0 +1,92 @@
+{
+  "about": "The mission briefing (not authentic: a summary for the visitor, one narration per slide). BO: the briefing officer.",
+  "channels": {
+    "BO": "room"
+  },
+  "lines": [
+    {
+      "id": "s01",
+      "t": 0,
+      "who": "BO",
+      "text": "Good morning, Commander. This briefing walks you through the whole mission, from the pad to the floor of the Taurus-Littrow valley, and home again. Take your time with each board. Pull the trigger when you are ready for the next one.",
+      "dur": 11.69
+    },
+    {
+      "id": "s02",
+      "t": 0,
+      "who": "BO",
+      "text": "This is your vehicle. The Saturn Five stands a hundred and ten metres tall and weighs close to three thousand tonnes on the pad. Three rocket stages lift the Apollo spacecraft: the Service Module, your Command Module on top, and the Lunar Module, folded away inside the adapter beneath them. The escape tower at the very top can pull your capsule clear if anything goes wrong at launch.",
+      "dur": 20.75
+    },
+    {
+      "id": "s03",
+      "t": 0,
+      "who": "BO",
+      "text": "The first stage burns for two minutes and forty one seconds and takes you to sixty seven kilometres. Its five engines leave you, the second stage lights, and half a minute later the escape tower is jettisoned, taking the cover off your windows. The second stage burns for six and a half minutes, and the third stage puts you into Earth orbit at a hundred and sixty seven kilometres, eleven minutes and fifty three seconds after liftoff.",
+      "dur": 23.48
+    },
+    {
+      "id": "s04",
+      "t": 0,
+      "who": "BO",
+      "text": "You circle the Earth one and a half times, about ninety minutes per orbit, while you and Houston check every system. Then the third stage lights a second time. In under six minutes it adds three kilometres per second, and you leave Earth orbit at nearly eleven kilometres per second. That burn is called trans-lunar injection.",
+      "dur": 17.39
+    },
+    {
+      "id": "s05",
+      "t": 0,
+      "who": "BO",
+      "text": "Half an hour later, your Command Module Pilot separates the Command and Service Module from the third stage, turns it around, and docks nose to nose with the Lunar Module. The adapter panels have already fallen away. The docked spacecraft then pulls the Lunar Module free, and the spent third stage is sent away on its own path.",
+      "dur": 17.86
+    },
+    {
+      "id": "s06",
+      "t": 0,
+      "who": "BO",
+      "text": "The coast to the Moon takes three days and covers three hundred and eighty thousand kilometres. Earth's gravity slows you down the whole way, until the Moon's gravity takes over and pulls you in. The path is chosen so that, if your engine failed, you would swing round the Moon and fall back to Earth. To keep the sunlight from cooking one side, the spacecraft rolls slowly, like a barbecue spit.",
+      "dur": 20.73
+    },
+    {
+      "id": "s07",
+      "t": 0,
+      "who": "BO",
+      "text": "Behind the Moon, out of radio contact with Earth, the Service Module's engine fires for six minutes and puts you into lunar orbit. A day later a second burn lowers the low point of the orbit to about fifteen kilometres, right above the valley's approach.",
+      "dur": 13.83
+    },
+    {
+      "id": "s08",
+      "t": 0,
+      "who": "BO",
+      "text": "You and your Lunar Module Pilot crawl through the docking tunnel into the Lunar Module. There are no seats: you fly it standing, held by cables. Your Command Module Pilot stays behind in the Command Module, and the two spacecraft separate.",
+      "dur": 13.24
+    },
+    {
+      "id": "s09",
+      "t": 0,
+      "who": "BO",
+      "text": "The powered descent takes twelve and a half minutes. First the braking phase, flying windows up, with only Earth and black sky outside. At high gate, two kilometres up, the Lunar Module pitches over and the valley swings into view. The computer flies the approach while you choose the landing spot. In the last hundred and fifty metres you may take over, as every Apollo commander did. Watch the shadow of the Lunar Module coming towards you, and expect the dust.",
+      "dur": 25.69
+    },
+    {
+      "id": "s10",
+      "t": 0,
+      "who": "BO",
+      "text": "You land in Taurus-Littrow, a valley between mountain walls more than two kilometres high: the South Massif, the North Massif and the Sculptured Hills. The Sun is only thirteen degrees above the eastern horizon, so every rock throws a long shadow. Walk carefully, and enjoy the view.",
+      "dur": 16.21
+    },
+    {
+      "id": "s11",
+      "t": 0,
+      "who": "BO",
+      "text": "To come home, the ascent stage lifts off from the descent stage, which stays behind as a launch pad. You meet the Command Module in lunar orbit, move back across, and fire the main engine behind the Moon for the three-day trip home. Only the Command Module returns, hitting the atmosphere at eleven kilometres per second and coming down under three parachutes in the Pacific.",
+      "dur": 20.26
+    },
+    {
+      "id": "s12",
+      "t": 0,
+      "who": "BO",
+      "text": "And a few things no real astronaut had. The Y button opens a large window to your left. Hold B to step outside and look at the spacecraft. In the couch, A runs time faster when nothing critical is happening. On the Moon, the trigger lets you jump. That is all, Commander. Good luck, and enjoy the ride.",
+      "dur": 17.4
+    }
+  ]
+}
