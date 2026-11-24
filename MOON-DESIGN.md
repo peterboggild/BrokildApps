@@ -525,6 +525,17 @@ page for all; the crew are present (suits, visors down) rather than voices only;
 NASA's cloud composite is no longer published. Weak points the owner should judge: the clouds and the open ocean
 from orbit (candidates for a Fable pass, or real cloud imagery), and the cabin walls, which are bare.
 
+### 12.4 Stage 2 as built (25 November 2026)
+
+Chapter 2 (`vr-apps/moon/orbit.html`), Earth orbit to the Moon's sphere of influence; the README describes it.
+Departures from §10: the coast is two-body Kepler round the Earth with the Moon on a circle placed to meet it, not
+an ephemeris with the Moon's pull (honest enough to the Moon's distance; chapter 3 needs the patched conic or a
+proper integration); the Sun is fixed. Not built from the stage's list: the cuff checklist (A/X, Y and B do the
+work), night lights. Found on the way and fixed in chapter 1 as well: the Command Module's hull and the boost
+cover were wound inside out (from the front you saw through the CM). Weak points the owner should judge: how
+docking reads from the couch (the rendezvous windows look forward along the nose, so one must lean up to them),
+and the coast's long stretches at high warp.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

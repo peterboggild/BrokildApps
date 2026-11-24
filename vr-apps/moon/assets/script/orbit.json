@@ -1,0 +1,241 @@
+{
+  "about": "Radio and intercom for chapter 2: Earth orbit, trans-lunar injection, transposition and docking, the coast. t = GET (seconds from liftoff). Original lines in the style of Apollo procedure; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "LMP": "intercom",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "o01",
+      "t": 760,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You're in a good orbit, ninety by ninety. You are go for orbit operations.",
+      "dur": 6.38
+    },
+    {
+      "id": "o02",
+      "t": 790,
+      "who": "CMP",
+      "text": "Roger, Houston. Helmets and gloves are coming off.",
+      "dur": 3.29
+    },
+    {
+      "id": "o03",
+      "t": 880,
+      "who": "LMP",
+      "text": "Look at that. The whole coastline, and not a cloud over it.",
+      "dur": 3.13
+    },
+    {
+      "id": "o04",
+      "t": 1500,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. All your systems look good from here. We'll have your TLI numbers for you shortly.",
+      "dur": 6.56
+    },
+    {
+      "id": "o05",
+      "t": 5100,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. One minute to loss of signal. We'll pick you up again over Carnarvon.",
+      "dur": 5.84
+    },
+    {
+      "id": "o06",
+      "t": 7800,
+      "who": "LMP",
+      "text": "Sunrise coming up. It takes your breath away every time.",
+      "dur": 3.15
+    },
+    {
+      "id": "o07",
+      "t": 10200,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go for TLI.",
+      "dur": 3.29
+    },
+    {
+      "id": "o08",
+      "t": 10210,
+      "who": "CMP",
+      "text": "Roger, go for TLI. Thank you, Houston.",
+      "dur": 3.29
+    },
+    {
+      "id": "o09",
+      "t": 11480,
+      "who": "CMP",
+      "text": "Ullage. Here we go again.",
+      "dur": 1.84
+    },
+    {
+      "id": "o10",
+      "t": 11562,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. We see ignition. Thrust is go.",
+      "dur": 3.89
+    },
+    {
+      "id": "o11",
+      "t": 11720,
+      "who": "LMP",
+      "text": "You can see the Earth getting smaller already.",
+      "dur": 2.19
+    },
+    {
+      "id": "o12",
+      "t": 11908,
+      "who": "CMP",
+      "text": "Shutdown.",
+      "dur": 0.88
+    },
+    {
+      "id": "o13",
+      "t": 11916,
+      "who": "CAPCOM",
+      "text": "Roger, shutdown. Apollo, you are on your way to the Moon.",
+      "dur": 4.21
+    },
+    {
+      "id": "o14",
+      "t": 13300,
+      "who": "CMP",
+      "text": "Stand by for separation.",
+      "dur": 1.7
+    },
+    {
+      "id": "o15",
+      "t": 13320,
+      "who": "CMP",
+      "text": "Sep.",
+      "dur": 0.91
+    },
+    {
+      "id": "o16",
+      "t": 13330,
+      "who": "LMP",
+      "text": "The panels are gone. There she is.",
+      "dur": 2.11
+    },
+    {
+      "id": "o17",
+      "t": 13385,
+      "who": "CMP",
+      "text": "Pitching around now.",
+      "dur": 1.29
+    },
+    {
+      "id": "o18",
+      "t": 13520,
+      "who": "CMP",
+      "text": "I have the LM in the window. Coming in slow.",
+      "dur": 2.61
+    },
+    {
+      "id": "o19",
+      "t": 13770,
+      "who": "LMP",
+      "text": "Ten metres. Five. Looking good.",
+      "dur": 2.42
+    },
+    {
+      "id": "o20",
+      "t": 13838,
+      "who": "CMP",
+      "text": "Contact. Capture.",
+      "dur": 1.6
+    },
+    {
+      "id": "o21",
+      "t": 13860,
+      "who": "LMP",
+      "text": "Hard dock. All twelve latches.",
+      "dur": 2.15
+    },
+    {
+      "id": "o22",
+      "t": 17080,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go for LM extraction.",
+      "dur": 3.73
+    },
+    {
+      "id": "o23",
+      "t": 17105,
+      "who": "CMP",
+      "text": "Springs are firing. We're free of the third stage.",
+      "dur": 2.8
+    },
+    {
+      "id": "o24",
+      "t": 18400,
+      "who": "LMP",
+      "text": "Houston, the whole Earth fits in the window now. All of it, in one look.",
+      "dur": 4.01
+    },
+    {
+      "id": "o25",
+      "t": 18420,
+      "who": "CAPCOM",
+      "text": "We'd trade places with you for that view, Apollo.",
+      "dur": 3.22
+    },
+    {
+      "id": "o26",
+      "t": 21600,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You're cleared to start passive thermal control.",
+      "dur": 4.35
+    },
+    {
+      "id": "o27",
+      "t": 21615,
+      "who": "CMP",
+      "text": "Roger. Starting the barbecue roll.",
+      "dur": 2.2
+    },
+    {
+      "id": "o28",
+      "t": 43200,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Good night from all of us. We'll keep an eye on things.",
+      "dur": 4.92
+    },
+    {
+      "id": "o29",
+      "t": 86400,
+      "who": "CAPCOM",
+      "text": "Good morning, Apollo. You're a hundred and eighty thousand kilometres out, and right on your path.",
+      "dur": 6.07
+    },
+    {
+      "id": "o30",
+      "t": 126000,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Midcourse correction two is not required. Your trajectory is right on.",
+      "dur": 6.01
+    },
+    {
+      "id": "o31",
+      "t": 172800,
+      "who": "CMP",
+      "text": "The Moon's a little bigger every time I look.",
+      "dur": 2.21
+    },
+    {
+      "id": "o32",
+      "t": 230000,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. In about eight hours you cross into the Moon's sphere of influence.",
+      "dur": 5.3
+    },
+    {
+      "id": "o33",
+      "t": 258700,
+      "who": "CAPCOM",
+      "text": "Apollo, the Moon's pull is now stronger than the Earth's. Welcome to lunar space.",
+      "dur": 5.06
+    }
+  ]
+}

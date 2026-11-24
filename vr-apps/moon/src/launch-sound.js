@@ -7,7 +7,7 @@
  *   firing above you; the third stage quiet.
  * - The controllers vibrate with it (the view itself is never shaken).
  * - The radio (radio.js) feeds in here, so all sound goes through one compressor. */
-import { EVENTS } from './ascent.js?v=11';
+import { EVENTS } from './ascent.js?v=12';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -148,7 +148,15 @@ export function makeLaunchSound() {
     once('stage2', E.siiCutoff + 0.8, () => bang(0.6, 0.6, 600));
   }
 
-  return { init, update, hatch, ambience, get ctx() { return ctx; }, get out() { return out; }, get ready() { return ready; } };
+  /* outside the launch: an engine running (k 0..1: the S-IVB's J-2 at 1, the SPS less), and single bangs */
+  function drive(k, warp = 1) {
+    if (!ready) return;
+    const now = ctx.currentTime, mute = warp > 1 ? 0.3 : 1;
+    rumbleG.gain.setTargetAtTime(0.42 * k * mute, now, 0.15); rumbleG.wob.gain.setTargetAtTime(0.06 * k * mute, now, 0.3);
+    roarG.gain.setTargetAtTime(0.1 * k * mute, now, 0.15); crackleG.gain.setTargetAtTime(0, now, 0.1);
+  }
+  function thump(level = 0.5, dur = 0.4, freq = 600) { if (ready) bang(level, dur, freq); }
+  return { init, update, hatch, ambience, drive, thump, get ctx() { return ctx; }, get out() { return out; }, get ready() { return ready; } };
 }
 
 /* controller vibration with the rocket */

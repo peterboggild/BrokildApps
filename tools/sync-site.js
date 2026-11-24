@@ -91,6 +91,10 @@ const EXTRA = {
     alt: "Journey to the Moon: Launch — the countdown and the climb to orbit from the Commander's couch of an Apollo Command Module",
     type: "website",
   },
+  "vr-apps/moon/orbit.html": {
+    alt: "Journey to the Moon: To the Moon — Earth orbit, the burn towards the Moon, docking with the Lunar Module and the coast, from inside an Apollo Command Module",
+    type: "website",
+  },
   "vr-apps/moon/index.html": {
     alt: "Journey to the Moon — the Moon from NASA's orbiter data, seen from orbit and from the Apollo 17 landing site",
     type: "website",
