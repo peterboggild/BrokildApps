@@ -31,7 +31,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const eye = () => p.evaluate(() => new Promise(r => { __launch.afterFrame = () => {
     const e = __launch.camera.matrixWorld.elements, q = __launch.rig.quaternion.clone().invert();
     const f = new (__launch.camera.position.constructor)(-e[8], -e[9], -e[10]).applyQuaternion(q);
-    r({ pos: [e[12], e[13], e[14]], fwd: [f.x, f.y, f.z] }); }; }));
+    const rp = __launch.rig.position; r({ pos: [e[12] - rp.x, e[13] - rp.y, e[14] - rp.z], fwd: [f.x, f.y, f.z] }); }; }));
   let s0 = await eye();
   ok('seated: eyes at the eye point', Math.hypot(...s0.pos) < 0.03, JSON.stringify(s0.pos.map(v => +v.toFixed(3))));
   /* move the headset 1.2 m away and turn it, as if the Quest's origin were elsewhere; re-seat */
@@ -86,7 +86,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.evaluate(() => __launch.walkTo(0, -1.2));
   await p.waitForFunction(() => __launch.S.mode === 'seated' && __launch.SEAT.done, null, { timeout: 60000 });
   await frames(6);
-  const s1 = await p.evaluate(() => { const e = __launch.camera.matrixWorld.elements; return { pos: [e[12], e[13], e[14]], inRig: __launch.cabin.group.parent === __launch.rig, resumeAt: __launch.S.resumeAt > 0 }; });
+  const s1 = await p.evaluate(() => { const e = __launch.camera.matrixWorld.elements, rp = __launch.rig.position; return { pos: [e[12] - rp.x, e[13] - rp.y, e[14] - rp.z], inRig: __launch.cabin.group.parent === __launch.rig, resumeAt: __launch.S.resumeAt > 0 }; });
   ok('climbed in: seated at the eye point, the cabin round you, the count about to resume', Math.hypot(...s1.pos) < 0.05 && s1.inRig && s1.resumeAt, JSON.stringify(s1));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'board-seated.png') });
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));

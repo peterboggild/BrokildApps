@@ -4,7 +4,7 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=9';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=10';
 
 const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
@@ -71,7 +71,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=9', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=10', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -323,7 +323,7 @@ export function makeOutside(renderer) {
     arms.forEach(a => { a.rotation.y = -sw * 1.2; });
     /* escape tower leaving: forward along the old nose direction, its motor burning */
     const dt = t - events.towerJett;
-    les.visible = dt > 0 && dt < 12;
+    les.visible = false;                              /* vehicle.js flies the real tower now */
     if (les.visible) {
       const n = st.nose, hd = st.head, s = 3 + 30 * dt * dt + 6 * dt, side = 4 * dt;
       les.position.set(n[0] * s + hd[0] * side, n[1] * s + hd[1] * side, n[2] * s + hd[2] * side);

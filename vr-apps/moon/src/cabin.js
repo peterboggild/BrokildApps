@@ -8,6 +8,7 @@
  * centre couch, two forward-looking rendezvous windows, a side window each side); details are simplified.
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
+import { GLTFLoader } from '../vendor/GLTFLoader.js';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
@@ -51,7 +52,10 @@ export function makeCabin() {
   /* the unified crew hatch: a curved door in the wall round the hatch window, hinged on its +X side */
   const HD = { phi: 90, z0: -1.22, z1: -0.45, hu: 0.36 };
   const inHatch = (a, z) => { const da = ((a - HD.phi + 540) % 360) - 180; return Math.abs(da * Math.PI / 180 * rAt(z)) < HD.hu && z > HD.z0 && z < HD.z1; };
-  const doorIdx = [];
+  const doorIdx = [], cheatIdx = [];
+  /* the "cheat window": not in any Apollo spacecraft. A large opening in the wall to your left, opened with Y */
+  const CW = { a0: 152, a1: 208, z0: -0.95, z1: 0.12 };
+  const inCheat = (a, z) => a > CW.a0 && a < CW.a1 && z > CW.z0 && z < CW.z1;
   const inWindow = (a, z) => WINDOWS.some(w => {
     let da = ((a - w.phi + 540) % 360) - 180;
     const du = da * Math.PI / 180 * rAt(z), dv = (z - w.z) / Math.cos(ALPHA);
@@ -61,13 +65,25 @@ export function makeCabin() {
     const z = Z_BASE + (Z_APEX + 0.05 - Z_BASE) * (j + 0.5) / NZ, a = (i + 0.5) / NA * 360;
     if (inWindow(a, z)) continue;
     const p = j * (NA + 1) + i, q = p + NA + 1;
-    (inHatch(a, z) ? doorIdx : idx).push(p, p + 1, q, q, p + 1, q + 1);
+    (inHatch(a, z) ? doorIdx : inCheat(a, z) ? cheatIdx : idx).push(p, p + 1, q, q, p + 1, q + 1);
   }
   const wg = new THREE.BufferGeometry();
   wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); wg.setIndex(idx);
   wg.setAttribute('uv', new THREE.Float32BufferAttribute(wuv, 2));
   const wallTex = makeWallTexture(), wallMat = new THREE.MeshLambertMaterial({ map: wallTex, ...NO_STENCIL });
   g.add(new THREE.Mesh(wg, wallMat));
+  const cheatG = wg.clone(); cheatG.setIndex(cheatIdx);
+  const cheatWall = new THREE.Mesh(cheatG, wallMat); g.add(cheatWall);
+  /* its rim, shown when it is open */
+  const cheatRim = new THREE.Group(); cheatRim.visible = false; g.add(cheatRim);
+  {
+    const pts = [];
+    for (let a = CW.a0; a <= CW.a1; a += 2) pts.push(point(a, CW.z1, -0.01));
+    for (let z = CW.z1; z >= CW.z0; z -= 0.04) pts.push(point(CW.a1, z, -0.01));
+    for (let a = CW.a1; a >= CW.a0; a -= 2) pts.push(point(a, CW.z0, -0.01));
+    for (let z = CW.z0; z <= CW.z1; z += 0.04) pts.push(point(CW.a0, z, -0.01));
+    cheatRim.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 240, 0.03, 8, true), new THREE.MeshLambertMaterial({ color: 0x8a1c14 })));
+  }
   /* the door: the same wall cells, in a group that turns about the hinge line (a generator of the cone) */
   const hingeA = HD.phi - (HD.hu / rAt((HD.z0 + HD.z1) / 2)) * 180 / Math.PI;
   const h0 = point(hingeA, HD.z1), h1 = point(hingeA, HD.z0), hingeAxis = h1.clone().sub(h0).normalize();
@@ -84,7 +100,7 @@ export function makeCabin() {
 
   /* ---------------- windows: a deep reveal through the wall, a bezel round it, and the boost protective cover
    * outside (a dark surface 15 cm out; over the hatch window it has a 20 cm hole) */
-  const covers = [];
+  const covers = [], frames = {};
   for (const w of WINDOWS) {
     const centre = point(w.phi, w.z), a = w.phi * Math.PI / 180;
     const nOut = new THREE.Vector3(Math.cos(a) * Math.cos(ALPHA), Math.sin(a) * Math.cos(ALPHA), -Math.sin(ALPHA));
@@ -121,6 +137,7 @@ export function makeCabin() {
     cover.position.z = depth + 0.03; frame.add(cover); covers.push(cover);
     if (w.name === 'hatch') { frame.matrix.premultiply(new THREE.Matrix4().makeTranslation(-h0.x, -h0.y, -h0.z)); door.add(frame); }
     else g.add(frame);
+    frames[w.name] = frame;
   }
 
   /* ---------------- the main display console: three panels facing the three couches */
@@ -173,6 +190,7 @@ export function makeCabin() {
   const ballRim = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.064, 40), bezel); ballRim.position.set(0.05, 0.1, 0.03); panels[0].mesh.add(ballRim);
 
   /* ---------------- couches: yours (you see its headrest and armrests), and the other two, with the crew */
+  const crewmen = []; let body = null;
   for (const [x, crew] of [[0, false], [0.65, true], [1.3, true]]) {
     const c = new THREE.Group(); c.position.x = x; g.add(c);
     const rail = new THREE.CylinderGeometry(0.018, 0.018, 1, 8);
@@ -182,7 +200,8 @@ export function makeCabin() {
     }
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.07), cushion); head.position.set(0, 0.02, 0.25); c.add(head);
     const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.09), cushion); back.position.set(0, -0.55, 0.27); c.add(back);
-    if (crew) c.add(makeCrewman());
+    if (crew) { const m = makeCrewman({ variant: x > 1 ? 1 : 0 }); c.add(m); crewmen.push(m); }
+    else { body = makeCrewman({ player: true }); body.position.set(0, -0.09, 0.07); c.add(body); }
   }
   /* your hand controllers on the armrests */
   const hc = new THREE.Group(); g.add(hc);
@@ -197,9 +216,27 @@ export function makeCabin() {
   const sunIn = new THREE.DirectionalLight(0xfff6e8, 0);
   g.add(amb, flood1, flood2, sunIn, sunIn.target);
 
+  let cheatOn = false;
   return {
-    group: g, covers, dsky, timer, ball, sunIn, amb, panels,
-    setCovers(on) { covers.forEach(c => { c.visible = on; }); },
+    group: g, covers, dsky, timer, ball, sunIn, amb, panels, crewmen, get body() { return body; },
+    setCovers(on) { covers.forEach(c => { c.visible = on; }); if (cheatOn) frames['side-left'].visible = false; },
+    /* the cheat window */
+    setCheat(on) { cheatOn = on; cheatWall.visible = !on; cheatRim.visible = on; frames['side-left'].visible = !on; },
+    get cheat() { return cheatOn; },
+    setBody(on) { if (body) body.visible = on; },
+    /* small movements of the crew: they look about a little, now and then */
+    update(t) {
+      crewmen.forEach((m, k) => {
+        const h = m.userData.head; if (!h) return;
+        const ph = k * 2.7;
+        h.rotation.y = 0.18 * Math.sin(t * 0.11 + ph) + 0.12 * Math.sin(t * 0.37 + ph * 2) * Math.max(0, Math.sin(t * 0.05 + ph));
+        h.rotation.x = 0.06 * Math.sin(t * 0.17 + ph * 1.3);
+        /* the eyes lead the head: glance about, mostly at the panel */
+        const ey = m.userData.eyes; if (!ey) return;
+        const gx = 0.25 * Math.sin(t * 0.23 + ph * 3) * Math.sin(t * 0.07 + ph), gy = -0.15 + 0.1 * Math.sin(t * 0.19 + ph);
+        for (const e of ey) e.rotation.set(gy, gx, 0);
+      });
+    },
     /* the hatch: 0 closed, 1 open (swung out about its hinge) */
     setHatch(k) { door.quaternion.setFromAxisAngle(hingeAxis, -1.75 * k); },
     /* daylight through the open windows: a soft extra fill from the Sun's side */
@@ -216,7 +253,7 @@ export function makeCabin() {
  * ("Snoopy cap"). Seated as you are: thighs forward, shins down. The face is kept plain on purpose: at arm's
  * length a detailed face that does not move is worse than none. */
 let _suitTex = null, _flagTex = null;
-function makeCrewman() {
+function makeCrewman(opts = {}) {
   const g = new THREE.Group();
   if (!_suitTex) { _suitTex = makeSuitTexture(); _flagTex = makeFlagTexture(); }
   const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...o });
@@ -228,17 +265,55 @@ function makeCrewman() {
   const torso = put(cap(0.175, 0.30, suit), 0, -0.43, 0.13, 0.08); torso.scale.set(1.12, 1, 0.92);
   put(new THREE.Mesh(new THREE.SphereGeometry(0.19, 20, 14), suit), 0, -0.26, 0.11).scale.set(1.15, 0.7, 0.85);     /* shoulders */
   /* neck ring and helmet */
-  put(new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.016, 10, 32), ringR), 0, -0.135, 0.085, Math.PI / 2 - 0.15);
-  put(new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.05, 28), grey), 0, -0.155, 0.088, -0.15);
-  /* the head: the white cap covers it all but the face; black earphone cups and chin strap; microphone booms */
-  const head = put(new THREE.Mesh(new THREE.SphereGeometry(0.094, 24, 18), capW), 0, 0.0, 0.09); head.scale.set(0.88, 1.08, 1.0);
-  const face = put(new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 16), skin), 0, -0.012, 0.045); face.scale.set(0.82, 1.05, 0.72);
-  put(new THREE.Mesh(new THREE.TorusGeometry(0.072, 0.007, 6, 24, Math.PI), black), 0, -0.02, 0.07, Math.PI / 2 + 0.1, 0, Math.PI);   /* chin strap */
-  for (const sx of [-1, 1]) {
-    put(new THREE.Mesh(new THREE.SphereGeometry(0.03, 14, 10), black), sx * 0.079, -0.008, 0.088).scale.set(0.45, 1.2, 1.0);
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.07, 6), black), sx * 0.058, -0.05, 0.03, 1.0, 0, sx * 0.3);
+  if (!opts.player) {     /* your own neck ring would sit at your eyes */
+    put(new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.016, 10, 32), ringR), 0, -0.135, 0.085, Math.PI / 2 - 0.15);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.05, 28), grey), 0, -0.155, 0.088, -0.15);
   }
-  put(new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 8), skin), 0, -0.015, -0.008, -1.4);
+  /* the head, in a group that turns: the white communications cap over the back and top of the head, the black
+   * earphone cups and microphone booms, and the face: a photoscanned head (Lee Perry-Smith, CC BY 3.0) */
+  const headG = new THREE.Group(); headG.position.set(0, -0.005, 0.085); g.add(headG);
+  const hput = (o, x, y, z, rx = 0, ry = 0, rz = 0) => { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); headG.add(o); return o; };
+  if (!opts.player) {
+    /* the cap: white crown over the top and back, black over the ears, a chin strap */
+    const capM = hput(new THREE.Mesh(new THREE.SphereGeometry(0.1, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.56), capW), 0, 0.012, 0.03, 0.62);
+    capM.scale.set(0.9, 1.0, 1.12);
+    for (const sx of [-1, 1]) { const side = hput(new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), black), sx * 0.062, -0.01, 0.022); side.scale.set(0.6, 1.25, 1.1); }
+    /* the neck dam: the dark rubber collar sealing the suit round the neck */
+    hput(new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.09, 0.09, 24, 1, true), new THREE.MeshLambertMaterial({ color: 0x1c1c1c, side: THREE.DoubleSide, ...NO_STENCIL })), 0, -0.1, 0.015);
+    for (const sx of [-1, 1]) {
+      hput(new THREE.Mesh(new THREE.SphereGeometry(0.034, 16, 12), black), sx * 0.083, -0.012, 0.0).scale.set(0.5, 1.15, 1.0);
+      hput(new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.08, 6), black), sx * 0.06, -0.06, -0.05, 1.0, 0, sx * 0.3);
+    }
+    hput(new THREE.Mesh(new THREE.SphereGeometry(0.006, 10, 8), black), 0, -0.088, -0.085);              /* microphone */
+    g.userData.head = headG;
+    loadFace().then(f => {
+      if (!f) return;
+      const mat = new THREE.MeshStandardMaterial({ map: f.map, normalMap: f.normal, roughness: 0.6, metalness: 0,
+        color: opts.variant ? 0xe2c2ae : 0xfff2ea, ...NO_STENCIL });
+      /* the scan is a bust: cut it off below the neck (the neck dam of the suit takes over there) */
+      mat.onBeforeCompile = sh => {
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
+varying float vLy;`).replace('#include <begin_vertex>', `#include <begin_vertex>
+vLy = position.y;`);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying float vLy;`).replace('void main() {', `void main() {
+  if (vLy < -1.15) discard;
+  /* the scan's eyes are closed: open them, eyeballs behind */
+  vec2 e1 = (vMapUv - vec2(0.4297, 0.7125)) / vec2(0.029, 0.0118), e2 = (vMapUv - vec2(0.5729, 0.7125)) / vec2(0.029, 0.0118);
+  if (dot(e1, e1) < 1.0 || dot(e2, e2) < 1.0) discard;`);
+      };
+      const m = new THREE.Mesh(f.geometry, mat);
+      m.scale.set(f.scale * (opts.variant ? 0.95 : 1), f.scale * (opts.variant ? 1.03 : 1), f.scale);
+      m.rotation.y = Math.PI; m.position.set(0, -0.085, 0.02);
+      headG.add(m);
+      /* eyeballs (in the scan's own units; its face looks along +z), with a little movement of their own */
+      const eyeMat = new THREE.MeshStandardMaterial({ map: eyeTexture(opts.variant ? '#5a3a22' : '#4f6a80'), roughness: 0.12, metalness: 0, ...NO_STENCIL });
+      const eyes = [[-0.69, 1.70], [0.52, 1.68]].map(([x, y]) => {
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.43, 24, 16), eyeMat); e.position.set(x, y, 1.47); m.add(e); return e;
+      });
+      g.userData.eyes = eyes;
+    });
+  }
   /* the bubble: clear polycarbonate, seen by its reflections */
   const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.152, 32, 24), new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, ...NO_STENCIL,
@@ -246,9 +321,10 @@ function makeCrewman() {
     fragmentShader: `varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
       vec3 r = reflect(-normalize(vV), normalize(vN)); float hl = pow(max(dot(r, normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 60.0);
       gl_FragColor = vec4(vec3(0.95, 0.96, 1.0), 0.05 + 0.5 * f + 0.8 * hl); }` }));
-  put(bubble, 0, 0.005, 0.085); bubble.renderOrder = 5;
+  if (!opts.player) { put(bubble, 0, 0.005, 0.085); bubble.renderOrder = 5; }
   /* arms: upper arms down the sides, forearms forward onto the armrests; wrist rings; gloves */
   for (const sx of [-1, 1]) {
+    if (opts.player) { put(cap(0.062, 0.12, suit), sx * 0.25, -0.33, 0.14, 0.15, 0, -sx * 0.1); continue; }   /* only the upper arms */
     put(cap(0.062, 0.2, suit), sx * 0.245, -0.36, 0.12, 0.25, 0, -sx * 0.1);
     put(cap(0.055, 0.2, suit), sx * 0.265, -0.5, -0.02, 1.45);
     put(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.011, 8, 22), sx < 0 ? ringR : ringB), sx * 0.265, -0.515, -0.15);
@@ -276,6 +352,36 @@ function makeCrewman() {
   return g;
 }
 
+/* an eye: white, the iris and pupil where a sphere's +z points (u = 0.25, v = 0.5) */
+function eyeTexture(iris) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ece6de'; x.fillRect(0, 0, 256, 128);
+  x.strokeStyle = 'rgba(190,80,70,0.25)'; x.lineWidth = 1;
+  for (let k = 0; k < 14; k++) { x.beginPath(); x.moveTo(64 + Math.cos(k) * 60, 64 + Math.sin(k * 1.7) * 50); x.lineTo(64 + Math.cos(k) * 30, 64 + Math.sin(k * 1.7) * 26); x.stroke(); }
+  const g = x.createRadialGradient(64, 64, 2, 64, 64, 17);
+  g.addColorStop(0, '#111'); g.addColorStop(0.32, '#111'); g.addColorStop(0.36, iris); g.addColorStop(0.9, iris); g.addColorStop(1, '#2a2622');
+  x.fillStyle = g; x.beginPath(); x.ellipse(64, 64, 17, 17, 0, 0, 7); x.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+let _face = null;
+function loadFace() {
+  if (_face) return _face;
+  const base = new URL('../vendor/head/', import.meta.url).href, tl = new THREE.TextureLoader();
+  _face = Promise.all([
+    new GLTFLoader().loadAsync(base + 'LeePerrySmith.glb'),
+    tl.loadAsync(base + 'Map-COL.jpg'), tl.loadAsync(base + 'Infinite-Level_02_Tangent_SmoothUV.jpg')
+  ]).then(([gltf, map, normal]) => {
+    let geometry = null;
+    gltf.scene.traverse(o => { if (o.isMesh && !geometry) geometry = o.geometry; });
+    map.colorSpace = THREE.SRGBColorSpace;
+    return { geometry, map, normal, scale: 0.043 };
+  }).catch(e => { console.warn('face scan not loaded', e); return null; });
+  return _face;
+}
+
 /* things on the walls: the hatch with its latch gear, handholds, cable runs, floodlights, couch struts */
 function dress(g, point, M, door, h0) {
   const onDoor = o => { o.position.sub(h0); door.add(o); return o; };
@@ -294,15 +400,15 @@ function dress(g, point, M, door, h0) {
   /* handholds by the windows and along the wall */
   const hold = (phi, z0, z1) => { const a = point(phi, z0, -0.006), b = point(phi, z1, -0.006), a2 = point(phi, z0, -0.055), b2 = point(phi, z1, -0.055);
     bar(a2, b2, 0.011, L(0xc9c6bb)); bar(a, a2, 0.009, M.metal); bar(b, b2, 0.009, M.metal); };
-  hold(150, -0.2, -0.5); hold(30, -0.2, -0.5); hold(112, -0.35, -0.6); hold(68, -0.35, -0.6); hold(200, -0.6, -0.9); hold(-20, -0.6, -0.9);
+  hold(150, -0.2, -0.5); hold(30, -0.2, -0.5); hold(112, -0.35, -0.6); hold(68, -0.35, -0.6); hold(222, -0.6, -0.9); hold(-20, -0.6, -0.9);
   /* cable and plumbing runs round the cone */
-  for (const [z, r, col, a0, a1] of [[0.32, 0.014, 0x2a2c30, -40, 220], [0.27, 0.009, 0x7a6a3a, -40, 220], [-1.42, 0.011, 0x2a2c30, 20, 160], [0.05, 0.008, 0x3a4a5a, 150, 215], [0.05, 0.008, 0x3a4a5a, -35, 30]]) {
+  for (const [z, r, col, a0, a1] of [[0.32, 0.014, 0x2a2c30, -40, 220], [0.27, 0.009, 0x7a6a3a, -40, 220], [-1.42, 0.011, 0x2a2c30, 20, 160], [0.2, 0.008, 0x3a4a5a, 150, 215], [0.05, 0.008, 0x3a4a5a, -35, 30]]) {
     const pts = []; for (let a = a0; a <= a1; a += 6) pts.push(point(a, z, -0.012));
     tube(pts, r, L(col));
     for (let a = a0 + 9; a < a1; a += 24) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.012), M.metal); c.position.copy(point(a, z, -0.012)); c.lookAt(AX, AY, z); g.add(c); }
   }
   /* floodlight fixtures */
-  for (const [phi, z] of [[105, -0.1], [75, -0.1], [160, -0.75], [20, -0.75]]) {
+  for (const [phi, z] of [[105, -0.1], [75, -0.1], [140, -0.75], [20, -0.75]]) {
     const f = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, 0.05), M.bezel); f.position.copy(point(phi, z, -0.02)); f.lookAt(AX, AY, z + 0.2); g.add(f);
     const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.03), new THREE.MeshBasicMaterial({ color: 0xfff1d6, ...NO_STENCIL })); lens.position.set(0, 0, 0.0265); f.add(lens);
   }
