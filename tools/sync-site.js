@@ -83,6 +83,10 @@ const EXTRA = {
     alt: "Lysrytme — light that flickers in a chosen rhythm in a Quest 3, with patterns, colours and sound in step",
     type: "website",
   },
+  "vr-apps/moon/index.html": {
+    alt: "Journey to the Moon — the Moon from NASA's orbiter data, seen from orbit and from the Apollo 17 landing site",
+    type: "website",
+  },
 };
 
 /* Redirect stubs and internal tools: a preview for a page whose only job is to
