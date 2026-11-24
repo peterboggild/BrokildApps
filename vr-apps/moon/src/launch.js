@@ -67,7 +67,7 @@ const hud = (() => {
     g.fillStyle = '#d8d8d8'; g.font = '28px monospace';
     g.fillText(S.calls + ' calls  ' + (S.tris / 1000).toFixed(0) + 'k tris', 20, 126);
     g.fillText(phase(S.t) + (S.warp > 1 ? '   x' + S.warp : ''), 20, 168);
-    g.fillStyle = '#8a8a8a'; g.font = '22px monospace'; g.fillText('A/X time x1/x4/x16 (after T+3:20)  B/Y hide', 20, 240);
+    g.fillStyle = '#8a8a8a'; g.font = '20px monospace'; g.fillText('A/X time x4/x16 (after 3:20) B/Y hide  stick: re-seat', 12, 240);
     tex.needsUpdate = true;
   } };
 })();
@@ -98,11 +98,28 @@ function readControllers() {
   const s = renderer.xr.getSession(); if (!s) return;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
-    const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed;
+    const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
     if (a && !pad.prev[k + 'a']) cycleWarp();
     if (b && !pad.prev[k + 'b']) hud.on = !hud.on;
-    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b;
+    if (st && !pad.prev[k + 's']) SEAT.pending = 1;
+    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st;
   }
+}
+
+/* Seating. The headset reports your head relative to its own origin, which is wherever the Quest was last
+ * recentred: it can be metres from where you sit now, and at another height. So the couch is brought to you:
+ * `head` (the parent of the camera and the controllers) is moved and turned so that your eyes, as they are now,
+ * are at the Commander's eye point looking at the panel. Done when the session starts, and again whenever a
+ * thumbstick is pressed. */
+const SEAT = { pending: 0, done: false };
+const _e = new THREE.Euler();
+function seat() {
+  /* after renderer.xr.updateCamera, camera.position and .quaternion are the headset's pose in `head`'s frame */
+  _e.setFromQuaternion(camera.quaternion, 'YXZ');
+  const yaw = _e.y, c = Math.cos(-yaw), s = Math.sin(-yaw), p = camera.position;
+  head.rotation.set(0, -yaw, 0);
+  head.position.set(-(c * p.x + s * p.z), -p.y, -(-s * p.x + c * p.z));
+  SEAT.done = true;
 }
 
 /* ---------------------------------------------------------------- rendering */
@@ -114,7 +131,13 @@ function setPlanes(n, f) {
 let st = state(S.t);
 function render() {
   scene.updateMatrixWorld(true);
-  if (renderer.xr.isPresenting) renderer.xr.updateCamera(camera);
+  if (renderer.xr.isPresenting) {
+    renderer.xr.updateCamera(camera);
+    if (SEAT.pending && camera.position.lengthSq() + Math.abs(camera.quaternion.w - 1) > 0) {
+      /* wait a few frames for a real pose, then seat and apply at once */
+      if (++SEAT.pending > 4) { seat(); SEAT.pending = 0; scene.updateMatrixWorld(true); renderer.xr.updateCamera(camera); }
+    }
+  }
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
@@ -179,7 +202,6 @@ function frame(now) {
   if (radio && S.running) radio.update(S.t, S.warp);
   if (xr) haptics(renderer.xr.getSession(), S.t, S.shake, now / 1000);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  else head.position.set(0, 0, 0);
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : ''; }
   if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now);
@@ -206,11 +228,13 @@ async function enterVR() {
   const hz = +($('hz')?.value || 72);
   if (session.updateTargetFrameRate && session.supportedFrameRates?.includes(hz)) session.updateTargetFrameRate(hz).catch(() => {});
   for (const i of [0, 1]) {
-    const grip = renderer.xr.getControllerGrip(i); rig.add(grip);
+    const grip = renderer.xr.getControllerGrip(i); head.add(grip);       /* the same frame as the camera */
     grip.addEventListener('connected', e => { if (e.data && e.data.handedness === 'left') grip.add(hud.mesh); });
   }
   hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
   S.yaw = 0; S.pitch = 0;
+  head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
+  SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
   setTimeout(() => { S.running = true; S.started = true; }, 2500);     /* a moment to settle in before the count resumes */
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
@@ -233,5 +257,5 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__launch = { S, renderer, camera, rig, cabin, outside, afterFrame: null, setTime, get radio() { return radio; },
+window.__launch = { S, renderer, camera, rig, head, cabin, outside, afterFrame: null, setTime, SEAT, get radio() { return radio; },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; } };

@@ -26,6 +26,23 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.click('#vr');
   await p.waitForFunction(() => __launch.renderer.xr.isPresenting, null, { timeout: 60000 });
   ok('VR session runs', true);
+  /* seating: wherever the headset's origin is, your eyes end up at the Commander's eye point, looking at the panel */
+  await p.waitForFunction(() => __launch.SEAT.done, null, { timeout: 60000 });
+  const eye = () => p.evaluate(() => new Promise(r => { __launch.afterFrame = () => {
+    const e = __launch.camera.matrixWorld.elements, q = __launch.rig.quaternion.clone().invert();
+    const f = new (__launch.camera.position.constructor)(-e[8], -e[9], -e[10]).applyQuaternion(q);
+    r({ pos: [e[12], e[13], e[14]], fwd: [f.x, f.y, f.z] }); }; }));
+  let s0 = await eye();
+  ok('seated: eyes at the eye point', Math.hypot(...s0.pos) < 0.03, JSON.stringify(s0.pos.map(v => +v.toFixed(3))));
+  /* move the headset 1.2 m away and turn it, as if the Quest's origin were elsewhere; re-seat */
+  await p.evaluate(() => { __dev.position.set(1.2, 0.9, -0.7); __dev.quaternion.set(0, Math.sin(0.55), 0, Math.cos(0.55)); });
+  await p.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  const moved = await eye();
+  await p.evaluate(() => { __launch.SEAT.done = false; __launch.SEAT.pending = 1; });
+  await p.waitForFunction(() => __launch.SEAT.done, null, { timeout: 60000 });
+  s0 = await eye();
+  ok('re-seated after the headset origin moved', Math.hypot(...moved.pos) > 0.5 && Math.hypot(...s0.pos) < 0.03 && s0.fwd[2] < -0.9,
+    JSON.stringify({ before: moved.pos.map(v => +v.toFixed(2)), after: s0.pos.map(v => +v.toFixed(3)), fwd: s0.fwd.map(v => +v.toFixed(2)) }));
   await p.waitForFunction(() => __launch.radio && __launch.radio.lines.every(l => l.dur > 0), null, { timeout: 60000 });
   const loaded = await p.evaluate(() => __launch.radio.lines.length);
   ok('voices loaded', loaded > 50, loaded + ' lines');
