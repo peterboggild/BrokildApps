@@ -32,6 +32,49 @@ On the surface (added after the first headset test):
   (`gridHeight` in `src/moon.js`), not the finer data behind its shading. Rocks take the lowest point under their
   footprint and are bedded in, so none hangs in the air on a slope or a crater rim.
 
+## Chapter 1: the launch (`launch.html`)
+
+From the Commander's couch (the left one) on top of the Saturn V: T−3:30 to orbit insertion at T+11:53 and a minute
+beyond. You sit upright; the cabin is turned round you so the main display console is in front, the hatch above.
+
+- **The flight** (`src/ascent.js`): altitude, speed and pitch against time from published Apollo flight data,
+  downrange integrated from them; Apollo 17's event times. The roll program turns you from facing the tower to
+  facing downrange; you fly heads down, so the Earth's horizon comes into the windows above your head.
+- **The cabin** (`src/cabin.js`): the 33° cone with its five windows where they were (the hatch window over the
+  centre couch, two rendezvous windows looking forward, a side window each side), set deep in the wall; the main
+  display console as three panels with a generated panel face and a few hundred 3D toggle switches; the DSKY showing
+  the real launch programs (P02 on the pad, then P11, verb 06 noun 62: velocity, altitude rate, altitude); the
+  mission event timer; an attitude ball that turns with the spacecraft; the couches, your crewmates in pressure
+  suits with visors down.
+- **The cover**: until the escape tower is jettisoned (T+3:18) the boost protective cover blinds every window except
+  a 20 cm hole over the hatch window; then the windows open onto a sky already going black.
+- **Outside** (`src/earth.js`, `src/sky-worker.js`): the sky and the air in front of the ground by single
+  scattering (Rayleigh and Mie), computed in a Worker as a table for the current altitude, packed round the limb
+  (the thin blue line on the Earth's edge from orbit comes out of it); the Earth from NASA's Blue Marble (December)
+  with a sharper map of Florida and the Atlantic down the launch track, sun glint on the oceans, generated clouds;
+  on the pad, the ground and the red launch umbilical tower with its swing arms; the escape tower and cover flying
+  away ahead at jettison.
+- **Drawn through the windows only**: the cabin is drawn first and writes the stencil; the outside is drawn only
+  where it did not, in two more passes with their own near and far planes.
+- **Sound** (`src/launch-sound.js`, `src/radio.js`): the rocket through the structure (rumble, roar, crackle;
+  loudest in the first half minute and through max Q, silence at staging), the separation charges, the escape
+  motor; cabin fans and pumps. The radio: 63 lines (`tools/script/launch.json`) in five voices on four channels,
+  Launch Control and the pad loop band-limited, Houston with the Quindar tones, your crewmates on the intercom.
+  Original lines in the style of Apollo procedure, not quotes. Voices are Windows voices rendered by
+  `tools/tts.ps1` (run it in PowerShell 7: Windows PowerShell 5 does not see all the voices); your own recordings
+  replace them file for file in `assets/script/voice/`.
+- **Shaking**: the cabin shakes round you (a few millimetres, the S-IC cutoff jolt); your view never does. The
+  controllers vibrate with the rocket. A setting on the start page: as it was, half, none.
+- **Time**: A or X runs it ×4 or ×16 once the windows are clear, never across the staging or the shutdown.
+
+Earth textures: `tools/earth.py` from NASA's Blue Marble Next Generation, December
+(https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/december/). NASA's cloud
+composite is no longer to be found there; the clouds are generated (climate bands, weather systems) and are the
+weakest part of the picture.
+
+Test aids: `launch.html?t=` (start time), `?still`, `?nocabin` (the outside without the spacecraft), `?shot`;
+`tools/shot-launch.cjs`; `test/launch.test.cjs` (emulated Quest 3). Hooks on `window.__launch`.
+
 ## How the Moon is drawn
 
 Seven nested levels centred on the landing site, each a grid mesh with one RGBA map, built offline by

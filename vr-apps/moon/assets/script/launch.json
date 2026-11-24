@@ -1,0 +1,453 @@
+{
+  "about": "Radio and intercom for the launch chapter. t = seconds from liftoff. Original lines in the style of Apollo launch procedure; not quotes of real people. The player is the Commander and does not speak: the Command Module Pilot (CMP) and Lunar Module Pilot (LMP) make the callouts. Speakers: LC launch control (public affairs loop), STC spacecraft test conductor (pad loop), CAPCOM (Houston, with Quindar tones), CMP and LMP (intercom).",
+  "channels": {
+    "LMP": "intercom",
+    "STC": "pad",
+    "LC": "loop",
+    "CAPCOM": "houston",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "lc01",
+      "t": -210,
+      "who": "LC",
+      "text": "This is Apollo-Saturn Launch Control. T minus three minutes, thirty seconds and counting. All elements are go for the terminal count.",
+      "dur": 7.87
+    },
+    {
+      "id": "stc01",
+      "t": -196,
+      "who": "STC",
+      "text": "Apollo, this is the spacecraft test conductor. Final status check. Give me a go when your board is ready.",
+      "dur": 7.17
+    },
+    {
+      "id": "cmp01",
+      "t": -188,
+      "who": "CMP",
+      "text": "Board looks good, STC. We are go up here.",
+      "dur": 3.18
+    },
+    {
+      "id": "lc02",
+      "t": -183,
+      "who": "LC",
+      "text": "T minus three minutes. The firing command is coming in now. From here on, the count is on the automatic sequencer.",
+      "dur": 6.77
+    },
+    {
+      "id": "stc02",
+      "t": -170,
+      "who": "STC",
+      "text": "Apollo, confirm launch escape motor armed, and the abort handle in neutral.",
+      "dur": 5.18
+    },
+    {
+      "id": "lmp01",
+      "t": -163,
+      "who": "LMP",
+      "text": "Escape motor armed. Abort handle neutral.",
+      "dur": 2.54
+    },
+    {
+      "id": "lc03",
+      "t": -150,
+      "who": "LC",
+      "text": "T minus two minutes thirty. The first stage fuel tanks are now pressurizing. The vents are closing.",
+      "dur": 5.84
+    },
+    {
+      "id": "cmp02",
+      "t": -136,
+      "who": "CMP",
+      "text": "You can hear it. The whole stack is coming alive under us.",
+      "dur": 3.04
+    },
+    {
+      "id": "lc04",
+      "t": -120,
+      "who": "LC",
+      "text": "T minus two minutes. The crew are strapped in, visors down. The spacecraft is on internal power.",
+      "dur": 6.1
+    },
+    {
+      "id": "stc03",
+      "t": -106,
+      "who": "STC",
+      "text": "Apollo, STC. Oxygen flow is good, cabin pressure good. Have a good flight, gentlemen.",
+      "dur": 7.42
+    },
+    {
+      "id": "cmp03",
+      "t": -99,
+      "who": "CMP",
+      "text": "Thank you, STC. See you in a couple of weeks.",
+      "dur": 3.27
+    },
+    {
+      "id": "lc05",
+      "t": -90,
+      "who": "LC",
+      "text": "T minus ninety seconds. Third stage tanks pressurizing.",
+      "dur": 3.91
+    },
+    {
+      "id": "lmp02",
+      "t": -76,
+      "who": "LMP",
+      "text": "Fuel cells look good. Main bus voltages twenty eight point two.",
+      "dur": 3.64
+    },
+    {
+      "id": "lc06",
+      "t": -60,
+      "who": "LC",
+      "text": "T minus sixty seconds. All stages now show pressurized.",
+      "dur": 4.1
+    },
+    {
+      "id": "lc07",
+      "t": -50,
+      "who": "LC",
+      "text": "T minus fifty. Power transfer is complete. The launch vehicle is on internal power.",
+      "dur": 5.13
+    },
+    {
+      "id": "lc08",
+      "t": -40,
+      "who": "LC",
+      "text": "T minus forty seconds. All still go.",
+      "dur": 2.91
+    },
+    {
+      "id": "lc09",
+      "t": -30,
+      "who": "LC",
+      "text": "Thirty seconds.",
+      "dur": 1.31
+    },
+    {
+      "id": "cmp04",
+      "t": -25,
+      "who": "CMP",
+      "text": "Here we go.",
+      "dur": 0.9
+    },
+    {
+      "id": "lc10",
+      "t": -17.5,
+      "who": "LC",
+      "text": "T minus seventeen. Guidance is internal.",
+      "dur": 2.83
+    },
+    {
+      "id": "n15",
+      "t": -15,
+      "who": "LC",
+      "text": "Fifteen.",
+      "dur": 0.91
+    },
+    {
+      "id": "n14",
+      "t": -14,
+      "who": "LC",
+      "text": "fourteen.",
+      "dur": 0.97
+    },
+    {
+      "id": "n13",
+      "t": -13,
+      "who": "LC",
+      "text": "thirteen.",
+      "dur": 0.9
+    },
+    {
+      "id": "n12",
+      "t": -12,
+      "who": "LC",
+      "text": "twelve.",
+      "dur": 0.9
+    },
+    {
+      "id": "n11",
+      "t": -11,
+      "who": "LC",
+      "text": "eleven.",
+      "dur": 0.77
+    },
+    {
+      "id": "n10",
+      "t": -10,
+      "who": "LC",
+      "text": "ten.",
+      "dur": 0.71
+    },
+    {
+      "id": "lc11",
+      "t": -9.2,
+      "who": "LC",
+      "text": "Ignition sequence start.",
+      "dur": 1.64
+    },
+    {
+      "id": "n6",
+      "t": -6,
+      "who": "LC",
+      "text": "six.",
+      "dur": 0.86
+    },
+    {
+      "id": "n5",
+      "t": -5,
+      "who": "LC",
+      "text": "five.",
+      "dur": 0.78
+    },
+    {
+      "id": "n4",
+      "t": -4,
+      "who": "LC",
+      "text": "four.",
+      "dur": 0.71
+    },
+    {
+      "id": "n3",
+      "t": -3,
+      "who": "LC",
+      "text": "three.",
+      "dur": 0.76
+    },
+    {
+      "id": "n2",
+      "t": -2,
+      "who": "LC",
+      "text": "two.",
+      "dur": 0.67
+    },
+    {
+      "id": "n1",
+      "t": -1,
+      "who": "LC",
+      "text": "one.",
+      "dur": 0.65
+    },
+    {
+      "id": "n0",
+      "t": 0,
+      "who": "LC",
+      "text": "zero.",
+      "dur": 0.79
+    },
+    {
+      "id": "lc12",
+      "t": 0.9,
+      "who": "LC",
+      "text": "All engines running.",
+      "dur": 1.28
+    },
+    {
+      "id": "lc13",
+      "t": 2.6,
+      "who": "LC",
+      "text": "Liftoff. We have liftoff.",
+      "dur": 2.12
+    },
+    {
+      "id": "cmp05",
+      "t": 10.5,
+      "who": "CMP",
+      "text": "Tower clear.",
+      "dur": 0.98
+    },
+    {
+      "id": "cap01",
+      "t": 12.5,
+      "who": "CAPCOM",
+      "text": "Roger, clear of the tower. Houston has it.",
+      "dur": 3.09
+    },
+    {
+      "id": "cmp06",
+      "t": 14,
+      "who": "CMP",
+      "text": "Roll and pitch program.",
+      "dur": 1.51
+    },
+    {
+      "id": "cap02",
+      "t": 17,
+      "who": "CAPCOM",
+      "text": "Roger, roll and pitch.",
+      "dur": 1.99
+    },
+    {
+      "id": "cmp07",
+      "t": 32,
+      "who": "CMP",
+      "text": "Roll complete.",
+      "dur": 1.04
+    },
+    {
+      "id": "cap03",
+      "t": 48,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Thrust is go, all engines. You are looking good.",
+      "dur": 5.04
+    },
+    {
+      "id": "lmp03",
+      "t": 66,
+      "who": "LMP",
+      "text": "Through Mach one.",
+      "dur": 1.05
+    },
+    {
+      "id": "cap04",
+      "t": 83,
+      "who": "CAPCOM",
+      "text": "Through max Q. Mode one Charlie.",
+      "dur": 2.11
+    },
+    {
+      "id": "cap05",
+      "t": 118,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go for staging.",
+      "dur": 3.22
+    },
+    {
+      "id": "cmp08",
+      "t": 139.5,
+      "who": "CMP",
+      "text": "Inboard out.",
+      "dur": 0.9
+    },
+    {
+      "id": "cmp09",
+      "t": 161.5,
+      "who": "CMP",
+      "text": "Staging.",
+      "dur": 0.87
+    },
+    {
+      "id": "lmp04",
+      "t": 164,
+      "who": "LMP",
+      "text": "And we have ignition. Five good engines on the second stage.",
+      "dur": 3.15
+    },
+    {
+      "id": "cap06",
+      "t": 191,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Skirt separation is confirmed. Go for tower jettison.",
+      "dur": 5.32
+    },
+    {
+      "id": "cmp10",
+      "t": 196.5,
+      "who": "CMP",
+      "text": "Tower jettison.",
+      "dur": 1.11
+    },
+    {
+      "id": "lmp05",
+      "t": 201.5,
+      "who": "LMP",
+      "text": "There it is. Look at that horizon.",
+      "dur": 2.06
+    },
+    {
+      "id": "cmp11",
+      "t": 207,
+      "who": "CMP",
+      "text": "The sky is going black already.",
+      "dur": 1.9
+    },
+    {
+      "id": "cap07",
+      "t": 232,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go at four minutes. Mode two.",
+      "dur": 4.16
+    },
+    {
+      "id": "cap08",
+      "t": 300,
+      "who": "CAPCOM",
+      "text": "Go at five minutes. All systems nominal.",
+      "dur": 2.96
+    },
+    {
+      "id": "lmp06",
+      "t": 362,
+      "who": "LMP",
+      "text": "Cabin pressure holding at five point one.",
+      "dur": 2.26
+    },
+    {
+      "id": "cap09",
+      "t": 420,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go at seven minutes. Third stage to orbit capability.",
+      "dur": 5.46
+    },
+    {
+      "id": "cmp12",
+      "t": 461,
+      "who": "CMP",
+      "text": "Center engine out on the second stage.",
+      "dur": 2.16
+    },
+    {
+      "id": "cmp13",
+      "t": 559.5,
+      "who": "CMP",
+      "text": "Second stage shutdown. Staging.",
+      "dur": 2.32
+    },
+    {
+      "id": "lmp07",
+      "t": 563.5,
+      "who": "LMP",
+      "text": "Third stage ignition. Smooth as silk.",
+      "dur": 2.37
+    },
+    {
+      "id": "cap10",
+      "t": 600,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go at ten minutes. Everything looks great from here.",
+      "dur": 5.17
+    },
+    {
+      "id": "cmp14",
+      "t": 713.5,
+      "who": "CMP",
+      "text": "Shutdown.",
+      "dur": 0.88
+    },
+    {
+      "id": "cap11",
+      "t": 716,
+      "who": "CAPCOM",
+      "text": "Roger, shutdown. Apollo, we have you in a ninety by ninety orbit. Welcome to space.",
+      "dur": 6.14
+    },
+    {
+      "id": "lmp08",
+      "t": 726,
+      "who": "LMP",
+      "text": "Would you look at that. Clouds and ocean all the way to the horizon.",
+      "dur": 3.12
+    },
+    {
+      "id": "cmp15",
+      "t": 734,
+      "who": "CMP",
+      "text": "Your spacecraft, Commander.",
+      "dur": 1.96
+    }
+  ]
+}
