@@ -79,6 +79,10 @@ const EXTRA = {
     alt: "Ræs i Bordbyen — draw a toy town on your real table, then shrink down into it and race, in mixed reality",
     type: "website",
   },
+  "vr-apps/lysrytme/index.html": {
+    alt: "Lysrytme — light that flickers in a chosen rhythm in a Quest 3, with patterns, colours and sound in step",
+    type: "website",
+  },
 };
 
 /* Redirect stubs and internal tools: a preview for a page whose only job is to
