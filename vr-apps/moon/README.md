@@ -3,7 +3,8 @@
 A realistic Apollo-style flight to the Taurus-Littrow valley for the Meta Quest 3 browser. Design, decisions and
 stages: `MOON-DESIGN.md` in the repository root. This file describes what is built.
 
-**State: stage 0, the Moon test.** Three views of one baked Moon, to judge realism and frame rate in the headset
+**State: stages 0 to 2.** The Moon test (below), the briefing, chapter 1 (the launch) and chapter 2 (to the Moon).
+The Moon test: three views of one baked Moon, to judge realism and frame rate in the headset
 before anything else is built:
 
 | View | What it tests |
@@ -118,6 +119,37 @@ day was picked for a clear sky over Florida and a frontal band and fields of cum
 
 Test aids: `launch.html?t=` (start time), `?still`, `?nocabin` (the outside without the spacecraft), `?shot`;
 `tools/shot-launch.cjs`; `test/launch.test.cjs` (emulated Quest 3). Hooks on `window.__launch`.
+
+## Chapter 2: to the Moon (`orbit.html`)
+
+From Earth orbit to the edge of lunar space, GET 0:12 to about 71:53, in the Commander's couch. The same cabin,
+spacecraft and Earth as chapter 1; the pad frame of the launch, frozen at liftoff, is the inertial frame.
+
+- **The flight** (`src/space.js`): a circular 167 km parking orbit in the plane the ascent ended in; the S-IVB's
+  second burn at GET 3:12:36 (5 min 51 s), integrated step by step with its thrust scaled so the coast reaches
+  410,000 km (cutoff at 10.83 km/s, 322 km up); then two-body Kepler propagation, exact at any time warp. The Moon
+  moves on a circle in the same plane, placed so the coast meets it. Its gravity is not modelled: the chapter ends
+  where it would take over, 66,000 km from the Moon. The Earth turns (15° an hour); the Sun stays put.
+- **Transposition and docking** (`src/orbit.js`, `src/vehicle.js`): the CSM separates, the four adapter panels
+  open and drift away, the CSM pitches round, closes in and docks with the LM (probe, capture, the twelve latches),
+  then pulls it out of the S-IVB on springs; the S-IVB drifts off and is gone after 8 km. Bangs at each event.
+  The rendezvous windows look forward along the nose: to see the LM coming, raise your head to the window, as the
+  pilot did at the sighting device, or hold B for the outside view.
+- **The coast**: the attitude follows the procedure (nose along the velocity before the burn, the Earth overhead;
+  from GET 6:00 the slow roll of passive thermal control, never faster than 1.4° a second to look at). In the
+  Earth's shadow the Sun goes out, outside and in the cabin. The Moon (`assets/earth/moon2k.jpg`, from the colour
+  map of NASA's CGI Moon Kit) is lit like regolith, its near side to the Earth.
+- **Time**: A or X: ×10, ×100, ×1000, ×10,000. The warp stops short of the burn, the docking and the extraction
+  and runs them at real time. The start page and the keys 1–6 jump to the chapter's points.
+- **Radio**: 33 lines (`tools/script/orbit.json`), Houston and the intercom, as in chapter 1.
+- **The end**: A (or N on the screen) leaves VR and opens the Moon page, until the lunar orbit and the landing
+  are built. Chapter 1 ends the same way, with A taking you to chapter 2.
+
+Not in it yet: the cuff checklist, midcourse corrections, the Moon's pull, city lights on the night side.
+
+Test aids: `orbit.html?t=` (GET, s), `?still`, `?shot`, `?out&od=&oa=&oe=` (outside view: distance, azimuth,
+elevation), `?yaw=&pitch=`; `tools/shot-orbit.cjs`; `test/orbit.test.cjs` (emulated Quest 3). Hooks on
+`window.__orbit`.
 
 ## How the Moon is drawn
 

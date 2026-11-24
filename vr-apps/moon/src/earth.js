@@ -4,7 +4,7 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=11';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=12';
 
 const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
@@ -71,7 +71,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=11', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=12', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -331,5 +331,41 @@ export function makeOutside(renderer) {
       flame.visible = dt < 4; flameMat.opacity = 0.9 * Math.max(0, 1 - dt / 4);
     }
   }
-  return { far, near, shared, update, ready, dome, earth, tower, pad };
+  /* ---------------- the Earth turning (chapter 2 and later): the pad frame is then an inertial frame, frozen at
+   * liftoff; the Earth has turned by `ang` radians about its pole since then */
+  const PAD0 = new THREE.Matrix3().set(...PAD_TO_ECEF), _rot = new THREE.Matrix4(), _r3 = new THREE.Matrix3();
+  const POLE = new THREE.Vector3(0, Math.sin(28.608 * Math.PI / 180), -Math.cos(28.608 * Math.PI / 180));
+  function setSpin(ang) {
+    _r3.setFromMatrix4(_rot.makeRotationAxis(POLE, -ang));
+    earthU.uPadToEcef.value.multiplyMatrices(PAD0, _r3);
+  }
+
+  /* ---------------- the Moon in the sky: the CGI Moon Kit's colour, lit like regolith (no limb darkening), its near
+   * side towards the Earth */
+  const moonTex = loader.load(base + 'moon2k.jpg'); moonTex.colorSpace = THREE.SRGBColorSpace; moonTex.anisotropy = 4;
+  const moonU = { uMap: { value: moonTex }, uSunDir: shared.uSunDir, uExposure: shared.uExposure, uToEarth: { value: new THREE.Vector3(1, 0, 0) }, uNorth: { value: new THREE.Vector3(0, 1, 0) } };
+  const moonMat = new THREE.ShaderMaterial({
+    uniforms: moonU,
+    vertexShader: `varying vec3 vN; varying vec3 vP; void main(){ vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `precision highp float; uniform sampler2D uMap; uniform vec3 uSunDir; uniform vec3 uToEarth; uniform vec3 uNorth; varying vec3 vN; varying vec3 vP; ${DISPLAY}
+      void main(){
+        vec3 n = normalize(vN), ex = normalize(uToEarth), ez = normalize(uNorth - ex * dot(uNorth, ex)), ey = cross(ez, ex);
+        float lat = asin(clamp(dot(n, ez), -1.0, 1.0)), lon = atan(dot(n, ey), dot(n, ex));
+        vec3 alb = texture2D(uMap, vec2(lon / 6.2831853 + 0.5, lat / 3.14159265 + 0.5)).rgb;
+        vec3 V = normalize(-vP), L = normalize(uSunDir);
+        float mu0 = max(dot(n, L), 0.0), mu = max(dot(n, V), 0.05);
+        float ls = 2.0 * mu0 / (mu0 + mu);
+        vec3 c = alb * ls * 1.6 + alb * 0.004;
+        gl_FragColor = vec4(display(c), 1.0);
+      }`
+  });
+  const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(1737400, 96, 64), moonMat);
+  moonMesh.frustumCulled = false; moonMesh.visible = false; far.add(moonMesh);
+  /* rel: the Moon's centre relative to your eye; toEarth: from the Moon towards the Earth; north: the orbit's normal */
+  function setMoon(rel, toEarth, north) {
+    moonMesh.visible = true; moonMesh.position.copy(rel);
+    moonU.uToEarth.value.copy(toEarth); moonU.uNorth.value.copy(north);
+  }
+
+  return { far, near, shared, update, ready, dome, earth, tower, pad, setSpin, setMoon, moonMesh };
 }

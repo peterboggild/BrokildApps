@@ -12,14 +12,14 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=11';
-import { makeOutside } from './earth.js?v=11';
-import { makeCabin } from './cabin.js?v=11';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=11';
-import { makeRadio } from './radio.js?v=11';
-import { makePad, ARM, WR } from './pad.js?v=11';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=11';
-import { createHand } from './hands.js?v=11';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=12';
+import { makeOutside } from './earth.js?v=12';
+import { makeCabin } from './cabin.js?v=12';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=12';
+import { makeRadio } from './radio.js?v=12';
+import { makePad, ARM, WR } from './pad.js?v=12';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=12';
+import { createHand } from './hands.js?v=12';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -92,7 +92,8 @@ const hud = (() => {
     g.fillStyle = S.fps > 68 ? '#9fe6a0' : S.fps > 55 ? '#f0d070' : '#ff8a70'; g.font = 'bold 70px monospace'; g.fillText(S.fps.toFixed(0) + ' fps', 20, 80);
     g.fillStyle = '#d8d8d8'; g.font = '28px monospace';
     g.fillText(S.calls + ' calls  ' + (S.tris / 1000).toFixed(0) + 'k tris', 20, 126);
-    g.fillText(phase(S.t) + (S.warp > 1 ? '   x' + S.warp : ''), 20, 168);
+    if (S.t >= END) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 1.  A: chapter 2', 20, 168); }
+    else g.fillText(phase(S.t) + (S.warp > 1 ? '   x' + S.warp : ''), 20, 168);
     g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 214);
     g.fillText('left stick press: panel  right stick press: re-seat', 12, 240);
     tex.needsUpdate = true;
@@ -108,6 +109,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE' && S.mode === 'boarding') boardNow();
   if (e.code === 'KeyC' && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO' && S.mode === 'seated') OUT.want = !OUT.want;
+  if (e.code === 'KeyN' && S.t >= END) nextChapter('orbit.html');
   const jump = { Digit1: -210, Digit2: -30, Digit3: 185, Digit4: 540, Digit5: 700 }[e.code];
   if (jump !== undefined) setTime(jump);
 });
@@ -123,13 +125,15 @@ renderer.domElement.addEventListener('pointermove', e => {
 function warpAllowed(t) { return t > EVENTS.towerJett + 20 && !(t > EVENTS.siiCutoff - 15 && t < EVENTS.sivbIgnition + 8) && t < EVENTS.seco - 12; }
 function cycleWarp() { S.warp = !warpAllowed(S.t) ? 1 : S.warp === 1 ? 4 : S.warp === 4 ? 16 : 1; }
 function setTime(t) { S.t = t; S.warp = 1; }
+/* the chapter's end: A (or N on the screen) goes on; a page change must leave VR first */
+function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
 const pad = { prev: {} };
 function readControllers() {
   const s = renderer.xr.getSession(); if (!s) return;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed, tr = gp.buttons[0]?.pressed;
-    if (a && !pad.prev[k + 'a'] && S.mode === 'seated') cycleWarp();
+    if (a && !pad.prev[k + 'a'] && S.mode === 'seated') { if (S.t >= END) nextChapter('orbit.html'); else cycleWarp(); }
     /* Y (left): the cheat window; B (right), held: outside; stick presses: left the panel, right re-seat */
     if (k === 'left' && b && !pad.prev[k + 'b'] && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
     if (k === 'right') OUT.want = !!b && S.mode === 'seated';
@@ -369,6 +373,7 @@ function frame(now) {
   if (S.running && !S.still) {
     if (!warpAllowed(S.t)) S.warp = 1;
     S.t = Math.min(END, S.t + dt * S.warp);
+    if (S.t >= END && !S.endShown) { S.endShown = true; hud.on = true; }      /* the way on is on the wrist */
   }
   st = state(S.t, st);
   placeRig();

@@ -125,7 +125,14 @@ export function makeCabin() {
       sh.holes.push(hole);
       return sh;
     };
-    const reveal = new THREE.Mesh(new THREE.ExtrudeGeometry(ring(0, 0.012), { depth, bevelEnabled: false, curveSegments: 40 }), bezel);
+    const revealGeo = new THREE.ExtrudeGeometry(ring(0, 0.012), { depth, bevelEnabled: false, curveSegments: 40 });
+    if (w.name.startsWith('rendezvous')) {
+      /* the rendezvous windows look forward: their reveal runs along the line from your eye (the origin) through
+       * the window, not straight out through the wall, or its sides would hide the view */
+      const dx = centre.dot(tU), dy = centre.dot(tV), dz = Math.max(0.3, centre.dot(nOut));
+      revealGeo.applyMatrix4(new THREE.Matrix4().set(1, 0, dx / dz, 0, 0, 1, dy / dz, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+    }
+    const reveal = new THREE.Mesh(revealGeo, bezel);
     frame.add(reveal);
     const bz = new THREE.Mesh(new THREE.ShapeGeometry(ring(0, 0.05), 40), metal); bz.position.z = -0.006; bz.rotation.y = Math.PI; bz.scale.x = -1; frame.add(bz);
     /* the pane, a faint reflection only: it must not hide the world, so it writes no stencil and draws last */
@@ -224,6 +231,8 @@ export function makeCabin() {
     setCheat(on) { cheatOn = on; cheatWall.visible = !on; cheatRim.visible = on; frames['side-left'].visible = !on; },
     get cheat() { return cheatOn; },
     setBody(on) { if (body) body.visible = on; },
+    /* helmets on (launch) or off (in orbit) */
+    setHelmets(on) { crewmen.forEach(m => { if (m.userData.bubble) m.userData.bubble.visible = on; }); },
     /* small movements of the crew: they look about a little, now and then */
     update(t) {
       crewmen.forEach((m, k) => {
@@ -321,7 +330,7 @@ varying float vLy;`).replace('void main() {', `void main() {
     fragmentShader: `varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
       vec3 r = reflect(-normalize(vV), normalize(vN)); float hl = pow(max(dot(r, normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 60.0);
       gl_FragColor = vec4(vec3(0.95, 0.96, 1.0), 0.05 + 0.5 * f + 0.8 * hl); }` }));
-  if (!opts.player) { put(bubble, 0, 0.005, 0.085); bubble.renderOrder = 5; }
+  if (!opts.player) { put(bubble, 0, 0.005, 0.085); bubble.renderOrder = 5; g.userData.bubble = bubble; }
   /* arms: upper arms down the sides, forearms forward onto the armrests; wrist rings; gloves */
   for (const sx of [-1, 1]) {
     if (opts.player) { put(cap(0.062, 0.12, suit), sx * 0.25, -0.33, 0.14, 0.15, 0, -sx * 0.1); continue; }   /* only the upper arms */
