@@ -4,7 +4,7 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=4';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=5';
 
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
   stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp, stencilWriteMask: 0 };
@@ -70,7 +70,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=4', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=5', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -115,11 +115,11 @@ export function makeOutside(renderer) {
   /* ---------------- the Earth */
   const loader = new THREE.TextureLoader(), base = new URL('../assets/earth/', import.meta.url).href;
   const tex = (n, srgb) => { const t = loader.load(base + n); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 4; return t; };
-  const earthTex = tex('earth.jpg', true), regionTex = tex('region.jpg', true), cloudTex = tex('clouds.png', false);
+  const earthTex = tex('earth.jpg', true), regionTex = tex('region.jpg', true), cloudTex = tex('clouds.jpg', false), cloudRegionTex = tex('clouds-region.jpg', false);
   earthTex.wrapS = cloudTex.wrapS = THREE.RepeatWrapping;
   const earthU = {
     ...shared,
-    uEarth: { value: earthTex }, uRegion: { value: regionTex }, uClouds: { value: cloudTex },
+    uEarth: { value: earthTex }, uRegion: { value: regionTex }, uClouds: { value: cloudTex }, uCloudsRegion: { value: cloudRegionTex },
     uRegionBox: { value: new THREE.Vector4(23, 41, -84, -48) },
     uDetail: { value: detailTexture() },
     uPadToEcef: { value: new THREE.Matrix3().set(...PAD_TO_ECEF) },
@@ -129,7 +129,7 @@ export function makeOutside(renderer) {
     uniforms: earthU, ...OUTSIDE_STENCIL,
     vertexShader: `varying vec3 vPos; varying vec3 vN; void main(){ vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vPos = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `precision highp float;
-      uniform sampler2D uEarth; uniform sampler2D uRegion; uniform sampler2D uClouds; uniform sampler2D uDetail; uniform vec4 uRegionBox; uniform mat3 uPadToEcef;
+      uniform sampler2D uEarth; uniform sampler2D uRegion; uniform sampler2D uClouds; uniform sampler2D uCloudsRegion; uniform sampler2D uDetail; uniform vec4 uRegionBox; uniform mat3 uPadToEcef;
       varying vec3 vPos; varying vec3 vN;
       ${SKY_GLSL} ${DISPLAY}
       void main(){
@@ -138,32 +138,41 @@ export function makeOutside(renderer) {
         float lat = asin(clamp(e.z, -1.0, 1.0)), lon = atan(e.y, e.x);
         vec2 uv = vec2(lon / 6.2831853 + 0.5, lat / 3.14159265 + 0.5);
         vec3 alb = texture2D(uEarth, uv).rgb;
+        /* real clouds of one December day; a sharper map (1 km) of the region the ascent flies over */
+        float c0 = texture2D(uClouds, uv).r;
         vec2 ld = vec2(lat, lon) * 57.29578;
         vec2 ruv = vec2((ld.y - uRegionBox.z) / (uRegionBox.w - uRegionBox.z), (ld.x - uRegionBox.x) / (uRegionBox.y - uRegionBox.x));
+        float inReg = 0.0;
         if (ruv.x > 0.0 && ruv.x < 1.0 && ruv.y > 0.0 && ruv.y < 1.0) {
           vec2 eb = min(ruv, 1.0 - ruv);
-          alb = mix(alb, texture2D(uRegion, ruv).rgb, smoothstep(0.0, 0.03, min(eb.x, eb.y)));
+          inReg = smoothstep(0.0, 0.03, min(eb.x, eb.y));
+          alb = mix(alb, texture2D(uRegion, ruv).rgb, inReg);
+          c0 = mix(c0, texture2D(uCloudsRegion, ruv).r, inReg);
         }
-        /* the cloud map is 10 km a pixel: fine cloud detail on top, which also gives the edges their crispness */
-        float c0 = texture2D(uClouds, uv).r;
+        /* below the map's resolution: a little structure in the cloud tops and edges */
         float sx = cos(lat);
-        float d1 = texture2D(uDetail, uv * vec2(520.0 * sx, 260.0)).r, d2 = texture2D(uDetail, uv * vec2(4100.0 * sx, 2050.0) + 0.37).r;
-        float cd = c0 + ((d1 - 0.5) * 0.5 + (d2 - 0.5) * 0.18) * smoothstep(0.0, 0.35, c0) * smoothstep(1.05, 0.55, c0);
-        float cl = smoothstep(0.12, 0.72, cd);
+        float d1 = texture2D(uDetail, uv * vec2(2600.0 * sx, 1300.0)).r;
+        float cl = clamp(c0 + (d1 - 0.5) * 0.22 * smoothstep(0.02, 0.3, c0) * smoothstep(1.0, 0.6, c0), 0.0, 1.0);
+        cl = smoothstep(0.03, 0.85, cl);
         vec3 sun = normalize(uSunDir);
         float mu = dot(n, sun);
         float day = smoothstep(-0.03, 0.12, mu);
         /* sunlight reaching the ground: dimmed and reddened by the air towards a low Sun */
         vec3 sunT = exp(-vec3(5.8e-6, 13.5e-6, 33.1e-6) * 8000.0 / max(mu + 0.15, 0.05) - 0.08 / max(mu + 0.15, 0.05));
         vec3 V = normalize(-vPos);
-        float ocean = smoothstep(0.06, 0.02, dot(alb, vec3(0.3, 0.5, 0.2))) * step(alb.r, alb.b + 0.02);
+        float lum = dot(alb, vec3(0.3, 0.5, 0.2));
+        float ocean = smoothstep(0.075, 0.03, lum) * step(alb.r, alb.b + 0.02);
+        /* the sea: sky reflected at grazing angles (Fresnel), and the Sun's glitter, wide because of the waves */
         vec3 H = normalize(V + sun);
-        float glint = ocean * pow(max(dot(n, H), 0.0), 180.0) * 1.6;
-        vec3 ground = alb * max(mu, 0.0) * 6.4 * sunT + glint * sunT * day * 6.0;
-        /* clouds: bright tops, and a little shadow on the ground under them */
-        float cs = texture2D(uClouds, uv + vec2(0.0008, 0.0006)).r;
-        ground *= 1.0 - 0.45 * cs * (1.0 - cl);
-        vec3 cloud = vec3(0.92) * (0.25 + 0.75 * max(mu, 0.0)) * (0.82 + 0.3 * d1) * 6.4 * sunT * day;
+        float nh = max(dot(n, H), 0.0), fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+        float glint = ocean * (pow(nh, 400.0) * 3.0 + pow(nh, 60.0) * 0.35 + pow(nh, 12.0) * 0.05);
+        vec3 ground = alb * max(mu, 0.0) * 6.4 * sunT + glint * sunT * day * 6.0 + ocean * fres * vec3(0.25, 0.38, 0.6) * day * 1.5;
+        /* clouds: lit tops with some relief from the map itself, and their shadows on the ground and sea */
+        vec2 toSun = normalize((uPadToEcef * sun).xy + 1e-5) * vec2(1.0, 0.5) * 0.0006;
+        float cs = inReg > 0.5 ? texture2D(uCloudsRegion, ruv + toSun * vec2(10.0, 20.0)).r : texture2D(uClouds, uv + toSun).r;
+        ground *= 1.0 - 0.5 * smoothstep(0.1, 0.8, cs) * (1.0 - cl);
+        float relief = clamp(1.0 + (c0 - cs) * 1.6, 0.6, 1.25);
+        vec3 cloud = vec3(0.95, 0.96, 0.98) * (0.22 + 0.78 * max(mu, 0.0)) * relief * (0.55 + 0.45 * c0) * 6.4 * sunT * day;
         vec3 col = mix(ground, cloud, cl);
         vec4 s = skyLookup(normalize(vPos));
         gl_FragColor = vec4(display(col * s.a + s.rgb), 1.0);
@@ -277,6 +286,8 @@ export function makeOutside(renderer) {
     pad.visible = st.alt < 12000;
     _up.fromArray(st.up);
     shared.uUp.value.copy(_up);
+    /* the eye (or the film) stops down as the bright cloud decks and the black sky take over from the blue sky */
+    shared.uExposure.value = 1.25 - 0.45 * Math.min(1, Math.max(0, (st.alt - 15000) / 60000));
     const sunEl = Math.asin(Math.min(1, Math.max(-1, _up.dot(_s))));
     updateSky(Math.max(EYE_H, st.alt + EYE_H), sunEl);
     /* swing arms away at liftoff */

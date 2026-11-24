@@ -10,9 +10,7 @@ https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base
 Writes ../assets/earth/:
     earth.jpg     whole Earth, 4096 x 2048
     region.jpg    23-41 N, 84-48 W (Florida and the Atlantic down the launch track), 4096 x 2048, about 1 km per pixel
-    clouds.png    a generated cloud layer (no NASA cloud composite is to be had any more): 4096 x 2048 grey,
-                  band-limited noise shaped by where the Earth is cloudy (the equatorial band, the clear subtropics,
-                  the mid-latitude storm tracks), with clearer skies over Florida on the launch day.
+    clouds.jpg, clouds-region.jpg   the real clouds of one December day (see clouds()), whole Earth and region
 """
 import json, os
 import numpy as np
@@ -44,50 +42,51 @@ def main():
     del im
     print("region.jpg", box)
     clouds()
-    json.dump({"region": REGION, "source": "NASA Earth Observatory, Blue Marble Next Generation (December 2004)"},
+    json.dump({"region": REGION, "cloudDay": CLOUD_DAY, "source": "NASA Earth Observatory, Blue Marble Next Generation (December 2004); clouds: NASA GIBS, VIIRS Suomi NPP true colour"},
               open(os.path.join(OUT, "earth.json"), "w"), indent=1)
 
 
+CLOUD_DAY = "2019-12-06"
+
+
+def cloud_cover(real, clear):
+    """Cloud cover 0..1 from a real satellite picture of the day and the cloud-free Blue Marble of the same
+    place: clouds are what is whiter than the clear ground. Snow, ice and bright desert are bright in both."""
+    real = np.asarray(real, np.float32)
+    clear = np.asarray(clear, np.float32)
+    v = real.min(2)                                   # whiteness: the darkest channel
+    sat = real.max(2) - v
+    vc = np.maximum(clear.min(2), 14.0)
+    a = (v - vc - 26.0) / 205.0                        # thin cloud stays thin: cover follows how white it is
+    a *= np.clip(1.0 - (sat - 28.0) / 60.0, 0.0, 1.0)  # coloured things (sunglint on shallows, dust) are not cloud
+    return np.clip(a, 0, 1) ** 1.15
+
+
 def clouds():
-    W, H = 4096, 2048
-    rng = np.random.default_rng(1972)
-
-    def band_noise(slope, kmin, kmax, stretch=1.0):
-        fy = np.fft.fftfreq(H)[:, None] * H
-        fx = np.fft.rfftfreq(W)[None, :] * W / 2 / stretch
-        k = np.hypot(fx, fy)
-        amp = np.where((k > kmin) & (k < kmax), np.maximum(k, 1e-6) ** slope, 0)
-        z = np.fft.irfft2(amp * np.exp(2j * np.pi * rng.random(amp.shape)), s=(H, W)).astype(np.float32)
-        return (z - z.mean()) / z.std()
-
-    lat = np.linspace(90, -90, H, dtype=np.float32)[:, None]
-    lon = np.linspace(-180, 180, W, endpoint=False, dtype=np.float32)[None, :]
-    # where the Earth tends to be cloudy (zonal mean cloud fraction, roughly)
-    clim = (0.42 + 0.30 * np.exp(-((lat - 6) / 7) ** 2)          # the intertropical convergence zone
-            - 0.28 * np.exp(-((np.abs(lat) - 22) / 8) ** 2)      # the subtropical highs
-            + 0.30 * np.exp(-((np.abs(lat) - 55) / 12) ** 2))    # the storm tracks
-    # weather systems: smooth large-scale fields, swirled twice by a slowly varying flow (domain warping), so
-    # cloud bands curl round lows instead of lying about as noise; fine texture only roughens the edges
-    from scipy import ndimage as ndi
-    big = band_noise(-2.4, 2, 28, stretch=1.7)
-    mid = band_noise(-2.0, 16, 160, stretch=1.4)
-    fine = band_noise(-1.2, 160, 1200)
-    field = 0.75 * big + 0.35 * mid
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    for k, amp in ((0, 36.0), (1, 14.0)):
-        wx, wy = band_noise(-3.0, 2, 10, stretch=1.5), band_noise(-3.0, 2, 10)
-        field = ndi.map_coordinates(field, [np.clip(yy + amp * 0.6 * wy, 0, H - 1), (xx + amp * wx) % W], order=1, mode="grid-wrap")
-    field = clim + 0.20 * field
-    # a fair day at the Cape: thinner cover over Florida and just off its coast
-    d2 = ((lat - 28.6) / 6) ** 2 + ((lon + 79) / 9) ** 2
-    field -= 0.22 * np.exp(-d2)
-    # density rather than a mask: thin at the edges and in places inside, thick in the cores of the systems
-    cells = band_noise(-1.5, 60, 500, stretch=1.2)               # cumulus-scale lumps
-    d = np.clip((field - 0.42) / 0.30, 0, 1)
-    d = d ** 1.3 * (0.72 + 0.28 * np.clip(cells * 0.5 + 0.5, 0, 1)) * (0.9 + 0.1 * np.clip(fine * 0.5 + 0.5, 0, 1))
-    c = np.clip(d * 1.25, 0, 1)
-    Image.fromarray((c * 255).astype(np.uint8), "L").save(os.path.join(OUT, "clouds.png"), optimize=True)
-    print("clouds.png  cover %.0f %%" % (100 * c.mean()))
+    """Real clouds: NASA's VIIRS true-colour mosaic of one December day (Suomi NPP, from NASA GIBS), against the
+    cloud-free Blue Marble. Download with (BBOX quadrants 0,-180,90,0 / 0,0,90,180 / -90,-180,0,0 / -90,0,0,180
+    at 4096x2048 as viirs_<day>.q0..q3.jpg, and 23,-84,41,-48 as viirs_<day>.region.jpg):
+    https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0
+        &LAYERS=VIIRS_SNPP_CorrectedReflectance_TrueColor&FORMAT=image/jpeg&CRS=EPSG:4326&TIME=<day>&BBOX=..."""
+    q = [Image.open(os.path.join(SRC, f"viirs_{CLOUD_DAY}.q{k}.jpg")).convert("RGB") for k in range(4)]
+    world = Image.new("RGB", (8192, 4096))
+    for k, im in enumerate(q):
+        world.paste(im, ((k % 2) * 4096, (k // 2) * 2048))
+    world = world.resize((4096, 2048), Image.LANCZOS)
+    clear = Image.open(os.path.join(OUT, "earth.jpg")).convert("RGB")
+    c = cloud_cover(world, clear)
+    # the polar night has no picture: no cloud information there (it is dark there anyway)
+    dark = np.asarray(world, np.float32).max(2) < 6
+    c[dark] = 0
+    Image.fromarray((c * 255).astype(np.uint8), "L").save(os.path.join(OUT, "clouds.jpg"), quality=90)
+    print("clouds.jpg  cover %.0f %%" % (100 * c.mean()))
+    reg = Image.open(os.path.join(SRC, f"viirs_{CLOUD_DAY}.region.jpg")).convert("RGB")
+    cr = cloud_cover(reg, Image.open(os.path.join(OUT, "region.jpg")).convert("RGB"))
+    Image.fromarray((cr * 255).astype(np.uint8), "L").save(os.path.join(OUT, "clouds-region.jpg"), quality=92)
+    print("clouds-region.jpg  cover %.0f %%" % (100 * cr.mean()))
+    old = os.path.join(OUT, "clouds.png")
+    if os.path.exists(old):
+        os.remove(old)
 
 
 if __name__ == "__main__":
