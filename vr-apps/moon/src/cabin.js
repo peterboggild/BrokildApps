@@ -9,6 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 
+const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
   stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp };
 
@@ -27,7 +28,7 @@ const WINDOWS = [
   { name: 'side-right', phi: 0, z: -0.25, hu: 0.165, hv: 0.165 }
 ];
 
-function mat(color, opts = {}) { return new THREE.MeshLambertMaterial({ color, ...CABIN_STENCIL, ...opts }); }
+function mat(color, opts = {}) { return new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...opts }); }
 
 export function makeCabin() {
   const g = new THREE.Group();                 /* shaken as a whole; you are not */
@@ -62,9 +63,9 @@ export function makeCabin() {
   wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); wg.setIndex(idx);
   wg.setAttribute('uv', new THREE.Float32BufferAttribute(wuv, 2));
   const wallTex = makeWallTexture();
-  g.add(new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ map: wallTex, ...CABIN_STENCIL })));
+  g.add(new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ map: wallTex, ...NO_STENCIL })));
   /* aft bulkhead behind you, and the tunnel end ahead */
-  const aft = new THREE.Mesh(new THREE.CircleGeometry(R_BASE, 64), new THREE.MeshLambertMaterial({ map: makeLockerTexture(), ...CABIN_STENCIL }));
+  const aft = new THREE.Mesh(new THREE.CircleGeometry(R_BASE, 64), new THREE.MeshLambertMaterial({ map: makeLockerTexture(), ...NO_STENCIL }));
   aft.position.set(AX, AY, Z_BASE); aft.rotation.y = Math.PI; g.add(aft);
   dress(g, point, { metal, dark, bezel });
   const fwd = new THREE.Mesh(new THREE.CircleGeometry(0.4, 32), dark); fwd.position.set(AX, AY, Z_APEX + 0.06); g.add(fwd);
@@ -116,7 +117,7 @@ export function makeCabin() {
     { u0: 0.33, u1: 0.67, c: [0.58, -0.12, -0.62], w: 0.82, h: 0.62, look: [0.6, -0.05, 0] },
     { u0: 0.66, u1: 1.00, c: [1.38, -0.16, -0.56], w: 0.78, h: 0.58, look: [1.25, -0.05, 0] }
   ];
-  const panelMat = new THREE.MeshLambertMaterial({ map: panel.texture, ...CABIN_STENCIL });
+  const panelMat = new THREE.MeshLambertMaterial({ map: panel.texture, ...NO_STENCIL });
   const switches = [];
   panels.forEach((p, k) => {
     const geo = new THREE.PlaneGeometry(p.w, p.h);
@@ -147,14 +148,14 @@ export function makeCabin() {
 
   /* the DSKY (guidance computer display) on the centre panel, and the mission event timer */
   const dsky = makeDsky();
-  const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture, ...CABIN_STENCIL }));
+  const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture, ...NO_STENCIL }));
   dm.position.set(-0.27, -0.12, 0.006); panels[1].mesh.add(dm);
   const timer = makeTimer();
-  const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.035), new THREE.MeshBasicMaterial({ map: timer.texture, ...CABIN_STENCIL }));
+  const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.035), new THREE.MeshBasicMaterial({ map: timer.texture, ...NO_STENCIL }));
   tm.position.set(0.0, 0.26, 0.006); panels[1].mesh.add(tm);
   /* the attitude indicator ("eight ball") on your panel: a sphere that turns with the spacecraft */
   const ballTex = makeBallTexture();
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 24), new THREE.MeshLambertMaterial({ map: ballTex, ...CABIN_STENCIL }));
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 24), new THREE.MeshLambertMaterial({ map: ballTex, ...NO_STENCIL }));
   ball.position.set(0.05, 0.1, 0.005); panels[0].mesh.add(ball);
   const ballRim = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.064, 40), bezel); ballRim.position.set(0.05, 0.1, 0.03); panels[0].mesh.add(ballRim);
 
@@ -203,7 +204,7 @@ let _suitTex = null, _flagTex = null;
 function makeCrewman() {
   const g = new THREE.Group();
   if (!_suitTex) { _suitTex = makeSuitTexture(); _flagTex = makeFlagTexture(); }
-  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...CABIN_STENCIL, ...o });
+  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...o });
   const suit = L(0xffffff, { map: _suitTex }), glove = L(0x5f6f86), ringB = L(0x2c4fa8), ringR = L(0xa8322c), black = L(0x121212), grey = L(0x8d9096);
   const skin = L(0xc79f84), capW = L(0xe9e6dc);
   const cap = (r, len, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 6, 14), m);
@@ -225,7 +226,7 @@ function makeCrewman() {
   put(new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 8), skin), 0, -0.015, -0.008, -1.4);
   /* the bubble: clear polycarbonate, seen by its reflections */
   const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.152, 32, 24), new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, ...CABIN_STENCIL,
+    transparent: true, depthWrite: false, ...NO_STENCIL,
     vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
       vec3 r = reflect(-normalize(vV), normalize(vN)); float hl = pow(max(dot(r, normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 60.0);
@@ -255,14 +256,14 @@ function makeCrewman() {
     g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 18, 0.016, 8), L(0x2f3a4a)));
   }
   /* the flag on the left shoulder */
-  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.045), new THREE.MeshLambertMaterial({ map: _flagTex, ...CABIN_STENCIL }));
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.045), new THREE.MeshLambertMaterial({ map: _flagTex, ...NO_STENCIL }));
   put(flag, -0.312, -0.3, 0.1, 0, -Math.PI / 2, 0);
   return g;
 }
 
 /* things on the walls: the hatch with its latch gear, handholds, cable runs, floodlights, couch struts */
 function dress(g, point, M) {
-  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...CABIN_STENCIL, ...o });
+  const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...o });
   const tube = (pts, r, m) => { const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 6, r, 8), m); g.add(t); return t; };
   const bar = (a, b, r, m) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 8), m); o.position.copy(a).add(b).multiplyScalar(0.5);
     o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); g.add(o); return o; };
@@ -287,7 +288,7 @@ function dress(g, point, M) {
   /* floodlight fixtures */
   for (const [phi, z] of [[105, -0.1], [75, -0.1], [160, -0.75], [20, -0.75]]) {
     const f = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, 0.05), M.bezel); f.position.copy(point(phi, z, -0.02)); f.lookAt(AX, AY, z + 0.2); g.add(f);
-    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.03), new THREE.MeshBasicMaterial({ color: 0xfff1d6, ...CABIN_STENCIL })); lens.position.set(0, 0, 0.0265); f.add(lens);
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.03), new THREE.MeshBasicMaterial({ color: 0xfff1d6, ...NO_STENCIL })); lens.position.set(0, 0, 0.0265); f.add(lens);
   }
   /* couch struts down to the aft bulkhead and out to the walls */
   for (const x of [-0.3, 0.33, 0.97, 1.6]) {
