@@ -510,6 +510,13 @@ Built and tested in the flat preview and in an emulated Quest 3; **not yet in a 
   finest levels can be 2048², that halves it.
 - **Stand-ins:** the LM, the Earth (NASA's Blue Marble server was unreachable on the day), no stars.
 
+Added after the owner's first headset test (frame rate and realism judged great, also at high resolution):
+bootprints, steps and fan heard inside the suit, teleport, rocks standing on the drawn ground (PR #107); and
+**the whole valley walkable** (±4.8 km): the detailed ground is generated round the walker in a Worker, as detail
+on top of the baked levels, a pure function of position (see the app's README, "The ground round the walker").
+Stage 4 (descent) and stage 5 (surface) build on this: the landing can come down anywhere in the valley, and the
+moonwalk is not tied to 150 m round the lander.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

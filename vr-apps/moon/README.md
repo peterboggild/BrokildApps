@@ -24,8 +24,10 @@ On the surface (added after the first headset test):
 - **Sound in the suit** (`src/sound.js`, synthesised): a dull thud through the body and a dry, gritty scrape at
   every step, and the suit fan's soft hiss and hum (can be switched off on the start page). Nothing from outside:
   there is no air.
-- **Teleport**: hold the right trigger to aim an arc, let go to stand there (a short blink). Only on the detailed
-  ground, ±145 m round the lander. Can be switched off on the start page.
+- **Teleport**: hold the right trigger to aim an arc (thrown from the hand, falling in lunar gravity), let go to
+  stand there (a short blink). The right stick forward throws it further: from a hop of ten metres to kilometres,
+  out to the massifs. Anywhere in the valley, ±4.8 km round the lander. Can be switched off on the start page.
+- **The whole valley is walkable** (`src/ground.js`, `src/ground-worker.js`): see the next section.
 - **Standing on the ground as drawn**: walking, rocks and prints use the finest mesh's own triangles
   (`gridHeight` in `src/moon.js`), not the finer data behind its shading. Rocks take the lowest point under their
   footprint and are bedded in, so none hangs in the air on a slope or a crater rim.
@@ -60,6 +62,29 @@ Depth: standing on the surface, the distant levels are drawn first with far clip
 is cleared and everything within a few kilometres is drawn with near ones. In XR the per-eye projection matrices
 are patched for each pass (`setPlanes` in `src/main.js`).
 
+## The ground round the walker
+
+Near the lander the finest level (L6, ±150 m) was baked offline. Anywhere else in the valley a Worker makes the
+same kind of ground for a square of 192 m round the walker, in about half a second on a PC:
+
+- **Mesh**: the valley's real heights (`assets/moon/valley.dat`: the LROC NAC model at 4.9 m, bicubic) plus
+  generated craters, laid exactly onto the coarser level's triangles along the square's border and round L6, so
+  there is no step anywhere.
+- **Map** (1024², 19 cm): the normal of the generated detail only, the horizon angle towards the Sun of that detail
+  and of the rocks, and albedo detail. The shader adds the normal to the parent level's (L4, or L5 where it lies),
+  multiplies the two shadow terms, and takes the albedo from the parent: so the mountains' shadows, the real
+  landforms and the colour carry straight through.
+- **Rocks**: instanced, lit against the square's own map and L4's (so they go dark in a massif's shadow).
+- **Everything generated is a pure function of position** (seeded per 32 m tile). When the square moves with the
+  walker (re-centred after 22 m), the overlap is identical: nothing pops, and bootprints stay where they were made.
+- **Craters of 1.5-7 m inside L5** are the ones the build stamped into L5 (`assets/moon/craters.dat`): L5's map
+  shades them already, so the worker only gives them shape and sharper shadows. Outside L5 they are generated.
+
+The levels leave the square out (`uPatch`); the square leaves L6 out. A teleport blinks to black, waits for the
+square at the target if it is not there, and blinks back in. Walking on it, rocks, bootprints and the frame-rate
+panel work as by the lander. Known limits: the generated detail is coarser than by the lander (19 cm against 7 cm),
+and in a band of about 25 m round L6's border only the 0.5 m data shows.
+
 ## Generated detail, and what is real
 
 Real: every landform down to about 5 m (the massifs, the valley floor, craters larger than about 10 m).
@@ -75,12 +100,16 @@ stereo noise turns into lumps when magnified.
 | `src/main.js` | Renderer, the two-pass depth scheme, views, controls, frame-rate panel, test hooks |
 | `src/moon.js` | Loads the levels, builds the meshes, the lunar shader |
 | `src/extras.js` | Sun, stand-in Earth, rocks, stand-in LM, the handrail of the orbit views |
+| `src/ground.js`, `src/ground-worker.js` | The generated ground round the walker anywhere in the valley |
+| `src/geo.js` | Site frame against lunar latitude and longitude, mesh heights, seeded random numbers (page and worker) |
+| `src/prints.js`, `src/sound.js` | Bootprints; the sound inside the suit |
 | `assets/moon/` | Built data: `moon.json`, one map and one mesh per level, colour maps, rocks, walking heights |
 | `tools/download.py` | Fetches the NASA source data (3.9 GB) to `%LOCALAPPDATA%\moon-data` (never into the repository) |
 | `tools/build.py` | Builds `assets/moon/` from the source data. Python 3 with numpy, scipy, tifffile, imagecodecs, pillow |
 | `tools/encode.py`, `tools/ktx2.mjs` | Encode the built maps to KTX2 (Basis Universal UASTC) with the WebAssembly encoder |
 | `test/xr.test.cjs` | Emulated Quest 3 test (IWER, playwright-core with the installed Chrome) |
-| `tools/shot.ps1` | Headless Chrome screenshot of the flat preview |
+| `tools/shot.ps1` | Headless Chrome screenshot of the flat preview (PNG maps, near the lander only) |
+| `tools/shot.cjs` | The same in real time with Playwright: works with KTX2 and anywhere in the valley |
 | `vendor/` | three.js r170, KTX2Loader and the Basis transcoder (MIT / Apache 2.0) |
 
 ## Rebuilding the data
@@ -103,7 +132,7 @@ Serve the repository root (`python -m http.server 8765`) and open `/vr-apps/moon
 
 URL parameters: `debug=shadow` (the baked shadows only, each detail level in its own colour: shows whether a dark
 patch is a shadow and whether shadows meet across level borders), `view=orbit|low|surface`, `theta=` (degrees along the orbit before the site), `yaw=`, `pitch=`,
-`x=`, `z=`, `heading=` (surface position and facing), `sun=` (degrees of lunar rotation after landing, 0.51 per
+`x=`, `z=`, `heading=` (surface position and facing, anywhere in the valley), `trail` (bootprints ahead), `sun=` (degrees of lunar rotation after landing, 0.51 per
 hour), `exposure=`, `scale=` (VR resolution), `still` (no motion), `shot` (hide the panel).
 
 `tools/shot.ps1` (headless Chrome, virtual time) only works with the PNG maps: the KTX2 transcoder runs in
@@ -112,7 +141,8 @@ back to `"ktx2"` before committing. `test/xr.test.cjs` runs in real time and wor
 an emulated Quest 3 and checks both eyes in all three views.
 
 Hooks on `window.__moon`: `S` (state), `setView(name, theta)`, `setSun(deg)`, `look(yaw, pitch)`,
-`stand(x, z, heading)`, `teleport(x, z)`, `prints` (`count`, `add`, `trail`), `suit` (`step()`).
+`stand(x, z, heading)`, `teleport(x, z)` and `teleporting`, `prints` (`count`, `add`, `trail`), `suit` (`step()`),
+`ground` (`count`, `ms`, `rocks`, `busy`, `detailed(x, z)`, `request(x, z)`).
 
 In XR, read the head from `camera.matrixWorld` after `renderer.xr.updateCamera(camera)`; the XR array camera
 (`renderer.xr.getCamera()`) reports the world origin from `getWorldPosition`.

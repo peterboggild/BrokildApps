@@ -1,7 +1,7 @@
 /* Things around the terrain in the stage 0 test: the Sun, a stand-in Earth, rocks, a stand-in LM, a handrail.
  * The Earth and the LM here are placeholders (stage 2 and stage 5 replace them). */
 import * as THREE from 'three';
-import { LUNAR_GLSL } from './moon.js?v=2';
+import { LUNAR_GLSL } from './moon.js?v=3';
 
 const SKY_D = 2.0e6;                 /* sky bodies are drawn at this distance, inside the far plane */
 
@@ -106,6 +106,9 @@ function rockGeometry(detail, seed) {
 
 const ROCK_VERT = /* glsl */`
 uniform sampler2D uMap; uniform vec2 uHEnc; uniform vec3 uSunV; uniform float uHalf; uniform float uPen;
+#ifdef GROUND
+uniform sampler2D uMapA; uniform vec4 uGround; attribute vec2 aUvA;
+#endif
 varying vec3 vN; varying vec3 vW; varying float vLit; varying float vY;
 void main() {
   vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
@@ -116,8 +119,16 @@ void main() {
   float size = length(mat3(instanceMatrix)[0]);
   vec2 h = normalize(uSunV.xz);
   vec2 gp = c.xz + h * (0.62 * size + 0.12);
+  float el = asin(uSunV.y) - 0.02;
+#ifdef GROUND
+  /* on the generated ground: near shadows from its own map, the mountains' shadows from L4's */
+  float H = texture2D(uMap, (gp - uGround.xy) / (uGround.zw - uGround.xy)).z * uHEnc.y + uHEnc.x;
+  float Hp = texture2D(uMapA, aUvA).z * uHEnc.y + uHEnc.x;
+  vLit = smoothstep(H - uPen, H + uPen, el) * smoothstep(Hp - uPen, Hp + uPen, el);
+#else
   float H = texture2D(uMap, gp / uHalf * 0.5 + 0.5).z * uHEnc.y + uHEnc.x;
-  vLit = smoothstep(H - uPen, H + uPen, asin(uSunV.y) - 0.02);
+  vLit = smoothstep(H - uPen, H + uPen, el);
+#endif
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 const ROCK_FRAG = /* glsl */`
@@ -134,6 +145,24 @@ void main() {
   gl_FragColor = vec4(display(c), 1.0);
 }`;
 
+/* Rocks for the generated ground (ground.js): the same shapes and shader, lit against the ground's own map. */
+let _geos = null;
+export function rockGeometries() {
+  if (!_geos) _geos = [0, 1, 2].map(k => [rockGeometry(1, k + 1), rockGeometry(2, k + 1), rockGeometry(3, k + 1)]);
+  return _geos;
+}
+export function groundRockMaterial(moon) {
+  const u = moon.groundUniforms;
+  return new THREE.ShaderMaterial({
+    vertexShader: ROCK_VERT, fragmentShader: ROCK_FRAG, defines: { GROUND: 1 },
+    uniforms: {
+      uSun: moon.shared.uSun, uSunV: moon.shared.uSun, uExposure: moon.shared.uExposure,
+      uMap: u.uMap, uMapA: u.uMapA, uGround: u.uGround, uHEnc: moon.shared.uHEnc, uHalf: { value: 1 },
+      uPen: { value: 0.006 }, uTint: { value: new THREE.Color(0.105, 0.10, 0.094) }
+    }
+  });
+}
+
 export async function makeRocks(moon, base) {
   const man = moon.manifest, g = new THREE.Group();
   if (!man.rocks) return { group: g, update() {} };
@@ -147,7 +176,7 @@ export async function makeRocks(moon, base) {
       uPen: { value: 0.006 }, uTint: { value: new THREE.Color(0.105, 0.10, 0.094) }
     }
   });
-  const geos = [0, 1, 2].map(k => [rockGeometry(1, k + 1), rockGeometry(2, k + 1), rockGeometry(3, k + 1)]);
+  const geos = rockGeometries();
   /* tiles of 50 m, three size classes: small rocks are only drawn near the viewer */
   const TILE = 50, classes = [{ max: 0.22, range: 45 }, { max: 0.55, range: 130 }, { max: 9, range: 1e9 }];
   const buckets = new Map();

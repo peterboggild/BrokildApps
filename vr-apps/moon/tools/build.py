@@ -594,6 +594,28 @@ def main():
         manifest["levels"].append({"name": lv.name, "lat0": lv.lat0, "lon0": lv.lon0, "dlat": lv.dlat, "dlon": lv.dlon,
                                    "nx": lv.Nx, "ny": lv.Ny, "warp": lv.warp, "tx": lv.Tx, "ty": lv.Ty,
                                    "mPerTexel": float(dn)})
+        if lv.name == "L4":
+            # The valley's heights for the headset (the ground generated round the walker stands on them):
+            # 2048 x 2048 over this level, uint16 steps above a floor, row-wise differences, gzip.
+            import gzip
+            v = lv.h.reshape(2048, 2, 2048, 2).mean((1, 3)) - h_site
+            lo, hi = float(v.min()), float(v.max())
+            unit = max(0.02, (hi - lo) / 60000.0)
+            q = np.round((v - lo) / unit).astype(np.int64)
+            dq = q.copy()
+            dq[:, 1:] -= q[:, :-1]
+            with open(os.path.join(OUT, "valley.dat"), "wb") as f:
+                f.write(gzip.compress((dq & 0xFFFF).astype("<u2").tobytes(), 9))
+            manifest["valley"] = {"n": 2048, "floor": lo, "unit": unit, "level": "L4"}
+            log(f"  valley heights {lo:.0f} .. {hi:.0f} m about the site, unit {unit * 100:.1f} cm")
+            # and the craters stamped into L5 (their shading is in L5's map; the headset needs their shape)
+            cx_, cy_, cd_, cr_, cf_ = craters5
+            rec = np.zeros(len(cd_), dtype=[("x", "<i2"), ("y", "<i2"), ("d", "<u2"), ("r", "u1"), ("f", "u1")])
+            rec["x"], rec["y"] = np.round(cx_ * 30), np.round(cy_ * 30)
+            rec["d"], rec["r"], rec["f"] = np.round(cd_ * 1000), np.round(cr_ * 1000), np.round(cf_ * 255)
+            with open(os.path.join(OUT, "craters.dat"), "wb") as f:
+                f.write(gzip.compress(rec.tobytes(), 9))
+            manifest["craters"] = {"n": int(len(cd_)), "xyScale": 30, "dScale": 1000, "ratioScale": 1000, "level": "L5", "edgeBand": 0.07}
         if lv.name == "L6":
             # walking heights (cm above the origin), 1025 x 1025 over the level
             wl = np.linspace(-1, 1, 1025)

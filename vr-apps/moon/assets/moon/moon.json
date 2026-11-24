@@ -112,6 +112,20 @@
    "mPerTexel": 0.0732421875
   }
  ],
+ "valley": {
+  "n": 2048,
+  "floor": -307.221923828125,
+  "unit": 0.022811531575520832,
+  "level": "L4"
+ },
+ "craters": {
+  "n": 93494,
+  "xyScale": 30,
+  "dScale": 1000,
+  "ratioScale": 1000,
+  "level": "L5",
+  "edgeBand": 0.07
+ },
  "walk": {
   "n": 1025,
   "half": 150.0

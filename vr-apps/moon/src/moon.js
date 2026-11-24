@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { KTX2Loader } from '../vendor/KTX2Loader.js';
+import { makeGeo, gridHeight } from './geo.js?v=3';
 
 const CHUNKS = 4;                       /* each level is cut into CHUNKS x CHUNKS meshes for frustum culling */
 export const NEAR_LEVELS = ['L4', 'L5', 'L6'];
@@ -63,6 +64,16 @@ uniform vec2 uHEnc;
 uniform float uPenumbra;
 uniform float uDebug;      /* 1: shadow mask tinted by level (test aid, ?debug=shadow) */
 uniform vec3 uLevelTint;
+uniform vec4 uPatch;       /* x0, z0, x1, z1 of the generated ground round the walker: the levels leave it out */
+#ifdef GROUND
+/* the generated ground: its own map holds only the detail; normal, far shadows and albedo come from L4 and L5 */
+uniform sampler2D uMapA;
+uniform sampler2D uMapB;
+uniform vec4 uL6Rect;
+uniform vec4 uGround;
+varying vec2 vUvA;
+varying vec2 vUvB;
+#endif
 #ifdef NEAR
 uniform sampler2D uMicro;
 uniform float uMicroK;
@@ -81,7 +92,15 @@ ${LUNAR_GLSL}
 float printH(vec2 uv) { return texture2D(uPrint, uv).z * 0.037 - 0.025; }
 #endif
 void main() {
+#ifdef GROUND
+  if (vPos.x > uL6Rect.x && vPos.x < uL6Rect.z && vPos.z > uL6Rect.y && vPos.z < uL6Rect.w) discard;
+#ifdef PRINT
+  if (vPos.x < uGround.x || vPos.x > uGround.z || vPos.z < uGround.y || vPos.z > uGround.w) discard;
+#endif
+#else
   if (vUv.x > uHole.x && vUv.x < uHole.z && vUv.y > uHole.y && vUv.y < uHole.w) discard;
+  if (vPos.x > uPatch.x && vPos.x < uPatch.z && vPos.z > uPatch.y && vPos.z < uPatch.w) discard;
+#endif
 #ifdef PRINT
   vec4 pr = texture2D(uPrint, vPUv);
   if (pr.a < 0.004) discard;
@@ -92,6 +111,12 @@ void main() {
   vec3 north = cross(up, east);
   vec4 m = texture2D(uMap, vUv);
   vec2 n2 = (m.xy * 255.0 - 128.0) / 127.0;
+#ifdef GROUND
+  vec4 pa = texture2D(uMapA, vUvA), pb = texture2D(uMapB, vUvB);
+  vec2 eb = min(vUvB, 1.0 - vUvB);
+  vec4 par = mix(pa, pb, smoothstep(0.0, 0.012, min(eb.x, eb.y)));
+  n2 += (par.xy * 255.0 - 128.0) / 127.0;
+#endif
   vec3 toCam = cameraPosition - vPos;
   float dist = length(toCam);
 #ifdef NEAR
@@ -108,7 +133,13 @@ void main() {
   float H = m.z * uHEnc.y + uHEnc.x;
   float el = asin(clamp(dot(uSun, up), -1.0, 1.0));
   float lit = smoothstep(H - uPenumbra, H + uPenumbra, el);
+#ifdef GROUND
+  float Hp = par.z * uHEnc.y + uHEnc.x;
+  lit *= smoothstep(Hp - uPenumbra, Hp + uPenumbra, el);
+  vec3 alb = soilColour(texture2D(uAlb, vUvA * uAlbST.xy + uAlbST.zw).rgb) * (m.a * (255.0 / 128.0)) * (par.a * (255.0 / 128.0));
+#else
   vec3 alb = soilColour(texture2D(uAlb, vUv * uAlbST.xy + uAlbST.zw).rgb) * (m.a * (255.0 / 128.0));
+#endif
 #ifdef PRINT
   /* the print's own relief, and the shadows its walls and ribs cast at a low Sun (a short march over its height) */
   vec2 pn = pr.xy * 2.0 - 1.0;
@@ -149,24 +180,41 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
-function warpFn(a) { return s => s * (a + (1 - a) * s * s); }
+const GROUND_VERT = /* glsl */`
+attribute vec2 uvA;
+attribute vec2 uvB;
+varying vec2 vUv;
+varying vec3 vPos;
+varying vec2 vUvA;
+varying vec2 vUvB;
+void main() {
+  vUv = uv; vUvA = uvA; vUvB = uvB;
+  vPos = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
 
-/* Height of a grid mesh at (x, z), on the same two triangles per cell as it is drawn, so what stands on the
- * ground (the viewer, rocks, bootprints) meets the surface you see. null outside the grid. */
-function gridHeight(P, nx, ny) {
-  const xs = new Float64Array(nx + 1), zs = new Float64Array(ny + 1), mi = ny >> 1, mj = nx >> 1;
-  for (let i = 0; i <= nx; i++) xs[i] = P[(mi * (nx + 1) + i) * 3];
-  for (let j = 0; j <= ny; j++) zs[j] = P[(j * (nx + 1) + mj) * 3 + 2];
-  const find = (a, v) => { let lo = 0, hi = a.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (a[m] <= v) lo = m; else hi = m; } return lo; };
-  const y = (i, j) => P[(j * (nx + 1) + i) * 3 + 1];
-  return (x, z) => {
-    if (x < xs[0] || x > xs[nx] || z < zs[0] || z > zs[ny]) return null;
-    const i = find(xs, x), j = find(zs, z);
-    const fx = Math.min(1, Math.max(0, (x - xs[i]) / (xs[i + 1] - xs[i]))), fy = Math.min(1, Math.max(0, (z - zs[j]) / (zs[j + 1] - zs[j])));
-    const A = y(i, j), B = y(i, j + 1), C = y(i + 1, j), D = y(i + 1, j + 1);
-    return fx + fy <= 1 ? A + fx * (C - A) + fy * (B - A) : D + (1 - fx) * (B - D) + (1 - fy) * (C - D);
-  };
-}
+const PRINT_GROUND_VERT = /* glsl */`
+attribute vec4 aUvAB;       /* per print: its place in L4's and L5's maps */
+uniform vec4 uGround;
+varying vec2 vUv;
+varying vec3 vPos;
+varying vec2 vUvA;
+varying vec2 vUvB;
+varying vec2 vPUv;
+varying vec3 vPT;
+varying vec3 vPL;
+void main() {
+  vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+  vPos = w.xyz;
+  vUv = (vPos.xz - uGround.xy) / (uGround.zw - uGround.xy);
+  vUvA = aUvAB.xy; vUvB = aUvAB.zw;
+  vPUv = uv;
+  vPT = normalize(mat3(instanceMatrix) * vec3(1.0, 0.0, 0.0));
+  vPL = normalize(mat3(instanceMatrix) * vec3(0.0, 0.0, -1.0));
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+function warpFn(a) { return s => s * (a + (1 - a) * s * s); }
 
 /* A tiling soil normal texture (value-noise fBm), made once at start-up. */
 function microTexture() {
@@ -228,8 +276,10 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
     uPole: { value: new THREE.Vector3(0, Math.sin(lat), -Math.cos(lat)) },
     uHEnc: { value: new THREE.Vector2(man.hEncode[0], man.hEncode[1]) },
     uMicro: { value: microTexture() },
-    uDebug: { value: new URLSearchParams(location.search).get('debug') === 'shadow' ? 1 : 0 }
+    uDebug: { value: new URLSearchParams(location.search).get('debug') === 'shadow' ? 1 : 0 },
+    uPatch: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) }
   };
+  const geo = makeGeo(man);
 
   const [gColour, aColour] = await Promise.all([loadTex('Gcolor', true, 'jpg'), loadTex('A1color', true, 'jpg')]);
   gColour.wrapS = THREE.RepeatWrapping;
@@ -304,7 +354,8 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
         uPenumbra: { value: Math.max(0.0047, 0.6 * man.hEncode[1] / 255) },
         uMicroK: { value: lv.name === 'L6' ? 0.30 : 0.2 },
         uDebug: shared.uDebug,
-        uLevelTint: { value: new THREE.Color().setHSL(k / 7, 0.7, 0.6) }
+        uLevelTint: { value: new THREE.Color().setHSL(k / 7, 0.7, 0.6) },
+        uPatch: lv.name === 'L6' ? { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) } : shared.uPatch
       },
       polygonOffset: true, polygonOffsetFactor: (man.levels.length - 1 - k) * 0.5, polygonOffsetUnits: (man.levels.length - 1 - k) * 2
     });
@@ -351,7 +402,7 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
       group.add(mesh); tris += idx.length / 3;
     }
     levels[k] = { ...lv, material: mat, map, tris, fine, coarse, half: lv.dlat * Math.PI / 180 * man.radius, shown: true, far: false,
-                  meshHeight: k === man.levels.length - 1 ? gridHeight(pos, nx, ny) : null };
+                  meshHeight: k === man.levels.length - 1 ? gridHeight(pos, nx, ny) : null, P: pos };
   }));
 
   /* walking heights: the finest mesh exactly as drawn; outside it, the baked table */
@@ -361,8 +412,17 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
     const raw = new Int16Array(await (await fetch(base + 'walk.bin')).arrayBuffer());
     walk = { n: man.walk.n, half: man.walk.half, data: raw };
   }
+  const lvA = levels.find(l => l.name === 'L4'), lvB = levels.find(l => l.name === 'L5');
+  const _ll = {}, _uv = {};
+  const api = { groundHeight: null };          /* set by ground.js: the generated ground round the walker */
   function heightAt(x, z) {
-    const h = meshHeight(x, z);
+    let h = meshHeight(x, z);
+    if (h !== null) return h;
+    if (api.groundHeight) { h = api.groundHeight(x, z); if (h !== null) return h; }
+    /* further out: the coarser levels' meshes as drawn */
+    geo.latlon(x, 0, z, _ll);
+    h = geo.surfaceY(lvB, lvB.P, geo.levelUV(lvB, _ll, _uv));
+    if (h === null) h = geo.surfaceY(lvA, lvA.P, geo.levelUV(lvA, _ll, _uv));
     if (h !== null) return h;
     if (!walk) return 0;
     const n = walk.n, fx = Math.min(n - 1.001, Math.max(0, (x / walk.half + 1) / 2 * (n - 1)));
@@ -402,5 +462,38 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8
     });
   }
-  return { manifest: man, far, near, levels, shared, heightAt, setSunOffset, setDetail, printMaterial, l6: levels[levels.length - 1] };
+  /* The material of the generated ground (ground.js), and of bootprints pressed into it. */
+  const l6r = levels[levels.length - 1].half - 0.3;
+  const groundUniforms = {
+    ...levels[levels.length - 1].material.uniforms,
+    uMap: { value: null }, uMapA: { value: lvA.map }, uMapB: { value: lvB.map },
+    uAlbST: lvA.material.uniforms.uAlbST,
+    uHole: { value: new THREE.Vector4(2, 2, -2, -2) },
+    uL6Rect: { value: new THREE.Vector4(-l6r, -l6r, l6r, l6r) },
+    uGround: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) },
+    uLevelTint: { value: new THREE.Color(0.9, 0.5, 0.9) }
+  };
+  function groundMaterial() {
+    return new THREE.ShaderMaterial({
+      vertexShader: GROUND_VERT, fragmentShader: FRAG, defines: { NEAR: 1, GROUND: 1 }, uniforms: groundUniforms,
+      polygonOffset: true, polygonOffsetFactor: -0.5, polygonOffsetUnits: -2
+    });
+  }
+  function printGroundMaterial(printTex, size) {
+    return new THREE.ShaderMaterial({
+      vertexShader: PRINT_GROUND_VERT, fragmentShader: FRAG, defines: { NEAR: 1, GROUND: 1, PRINT: 1 },
+      uniforms: { ...groundUniforms, uPrint: { value: printTex }, uPrintSize: { value: size } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8
+    });
+  }
+  /* where a point lies in L4's and L5's maps (for things standing on the generated ground) */
+  function uvAB(x, y, z, out) {
+    geo.latlon(x, y, z, _ll);
+    geo.levelUV(lvA, _ll, _uv); out[0] = _uv.u; out[1] = _uv.v;
+    geo.levelUV(lvB, _ll, _uv); out[2] = _uv.u; out[3] = _uv.v;
+    return out;
+  }
+  return Object.assign(api, { manifest: man, far, near, levels, shared, heightAt, setSunOffset, setDetail, printMaterial,
+    groundMaterial, printGroundMaterial, groundUniforms, uvAB, geo, l6: levels[levels.length - 1] });
 }
