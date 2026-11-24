@@ -50,6 +50,21 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     if (view === 'surface') ok('surface: the two eyes differ (stereo)', e[0].sig !== e[1].sig);
     if (outDir) await p.screenshot({ path: path.join(outDir, `xr-${view}.png`) });
   }
+  /* on the surface: teleport moves you and leaves two prints; walking leaves a print per stride */
+  await p.evaluate(() => __moon.setView('surface'));
+  await frames(3);
+  const before = await p.evaluate(() => ({ n: __moon.prints.count, x: __moon.S.pos.x, z: __moon.S.pos.z }));
+  await p.evaluate(() => __moon.teleport(40, -30));
+  await frames(8);
+  const after = await p.evaluate(() => ({ n: __moon.prints.count, x: __moon.S.pos.x, z: __moon.S.pos.z, exp: __moon.moon.shared.uExposure.value }));
+  const head = await p.evaluate(() => { const v = new (__moon.camera.position.constructor)(); v.setFromMatrixPosition(__moon.camera.matrixWorld); return [v.x, v.z]; });
+  ok('teleport puts your head on the spot and leaves two prints', after.n === before.n + 2 && Math.hypot(head[0] - 40, head[1] + 30) < 0.2 && after.exp > 3,
+    JSON.stringify({ before, after, head }));
+  const n0 = after.n;
+  for (let k = 0; k < 6; k++) { await p.evaluate(k => { __moon.S.pos.x += 0.5; }, k); await frames(1); }
+  const n1 = await p.evaluate(() => __moon.prints.count);
+  ok('walking 3 m leaves prints', n1 - n0 >= 3, `${n1 - n0} prints`);
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'xr-teleported.png') });
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');

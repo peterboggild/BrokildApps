@@ -7,8 +7,10 @@
  *      &sun=deg (Sun later/earlier, 0.51 deg per hour)  &scale=0.8..1.4 (VR resolution)  &still (no motion)
  */
 import * as THREE from 'three';
-import { loadMoon } from './moon.js';
-import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js';
+import { loadMoon } from './moon.js?v=2';
+import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=2';
+import { makePrints } from './prints.js?v=2';
+import { makeSuitSound } from './sound.js?v=2';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -52,10 +54,13 @@ const VIEWS = {
   low: { alt: 15e3, from: 6, to: -3.5, tilt: 24, label: 'Low pass, 15 km' },
   surface: { label: 'Taurus-Littrow, on the surface' }
 };
+const EXPOSURE = num('exposure', 3.4);
 const HEADING = -82 * Math.PI / 180;       /* ground track: travelling west, a little north (Apollo 17's approach) */
 const GM = 4.9028e12;
 
-let moon, rocks, lm, rail, sky, hud;
+let moon, rocks, lm, rail, sky, hud, prints;
+const suit = makeSuitSound();
+const OPT = { teleport: true, fan: true };
 
 /* A point above the Moon at `theta` degrees along the track from the site, in the site frame, with its axes. */
 const _c = new THREE.Vector3(), _u = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
@@ -106,12 +111,14 @@ renderer.domElement.addEventListener('pointermove', e => {
 });
 
 const pad = { prev: {}, snap: 0 };
+const ctrl = {};                                     /* handedness -> target-ray space (a Group in the rig) */
 function readControllers(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
-  let mx = 0, mz = 0, turn = 0, next = false, toggle = false;
+  let mx = 0, mz = 0, turn = 0, next = false, toggle = false, trig = false;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
+    if (src.handedness === 'right') trig = !!gp.buttons[0]?.pressed;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
     if (src.handedness === 'left') { mx = ax[0]; mz = ax[1]; } else turn = ax[0];
     const k = src.handedness;
@@ -121,6 +128,7 @@ function readControllers(dt) {
     pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b;
   }
   if (next) { const names = Object.keys(VIEWS); setView(names[(names.indexOf(S.view) + 1) % names.length]); }
+  aimTeleport(trig && OPT.teleport && S.view === 'surface' ? ctrl.right : null);
   if (toggle && hud) hud.on = !hud.on;
   /* snap turn, 30 degrees */
   if (Math.abs(turn) > 0.7 && !pad.snap) { S.heading -= Math.sign(turn) * Math.PI / 6; pad.snap = 1; }
@@ -131,6 +139,94 @@ function readControllers(dt) {
     const r = new THREE.Vector3(-d.z, 0, d.x), sp = 1.5 * dt;
     S.pos.addScaledVector(d, -mz * sp).addScaledVector(r, mx * sp);
   }
+}
+
+/* ---------------------------------------------------------------- teleport
+ * Hold the right trigger: an arc from the hand shows where you would stand. Let go: the view blinks out and in
+ * and you stand there. Only on the detailed ground round the landing site. */
+const TP = { aiming: false, valid: false, target: new THREE.Vector3(), blink: 0, pending: null };
+const ARC_N = 48;
+const arcLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(ARC_N * 3), 3)),
+  new THREE.LineBasicMaterial({ color: 0xd8d4ca, transparent: true, opacity: 0.55, depthTest: false }));
+arcLine.frustumCulled = false; arcLine.visible = false; arcLine.renderOrder = 30;
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.24, 0.27, 48).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xe8e4da, transparent: true, opacity: 0.7, depthWrite: false }));
+marker.visible = false; marker.renderOrder = 31;
+const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _v = new THREE.Vector3();
+function walkLimit() { return moon.manifest.walk ? moon.manifest.walk.half - 3 : 100; }
+function aimTeleport(hand) {
+  if (TP.aiming && !hand) {                          /* released */
+    TP.aiming = false; marker.visible = false;
+    if (TP.valid) { TP.pending = TP.target.clone(); TP.blink = 0.0001; }
+    return;
+  }
+  if (!hand) return;
+  TP.aiming = true;
+  hand.getWorldPosition(_o); _d.set(0, 0, -1).transformDirection(hand.matrixWorld);
+  _v.copy(_d).multiplyScalar(14);                    /* a thrown arc: about 20 m at 45 degrees */
+  const pos = arcLine.geometry.attributes.position.array, lim = walkLimit();
+  let hit = -1;
+  _p.copy(_o);
+  for (let i = 0; i < ARC_N; i++) {
+    pos[i * 3] = _p.x; pos[i * 3 + 1] = _p.y; pos[i * 3 + 2] = _p.z;
+    if (hit < 0 && _p.y < moon.heightAt(_p.x, _p.z)) hit = i;
+    if (hit < 0) { _p.addScaledVector(_v, 0.06); _v.y -= 9.8 * 0.06; }
+  }
+  arcLine.geometry.attributes.position.needsUpdate = true;
+  TP.valid = hit > 0 && Math.abs(_p.x) < lim && Math.abs(_p.z) < lim;
+  if (TP.valid) {
+    TP.target.set(_p.x, moon.heightAt(_p.x, _p.z), _p.z);
+    marker.position.copy(TP.target); marker.position.y += 0.01; marker.visible = true;
+    arcLine.material.color.setHex(0xd8d4ca);
+  } else { marker.visible = false; arcLine.material.color.setHex(0x8a5a50); }
+}
+function stepBlink(dt) {
+  if (!TP.blink) return;
+  TP.blink += dt;
+  const T = 0.12;                                     /* out, move, in */
+  if (TP.pending && TP.blink >= T) { teleportTo(TP.pending.x, TP.pending.z); TP.pending = null; }
+  const f = TP.blink < T ? 1 - TP.blink / T : Math.min(1, (TP.blink - T) / T);
+  moon.shared.uExposure.value = EXPOSURE * Math.max(0, f);
+  sky.visible = f > 0.5;
+  if (TP.blink >= 2 * T) { TP.blink = 0; moon.shared.uExposure.value = EXPOSURE; sky.visible = true; }
+}
+/* stand at (x, z): the rig moves so that your head, not the middle of your play area, ends up over the spot */
+function teleportTo(x, z) {
+  const head = headGround(new THREE.Vector3());
+  S.pos.x += x - head.x; S.pos.z += z - head.z;
+  const lim = walkLimit();
+  S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
+  STEP.last = null;
+  /* where you land you stand: two prints side by side */
+  const f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0;
+  if (f.lengthSq() < 1e-6) f.set(0, 0, -1);
+  f.normalize();
+  prints.add(x - f.z * 0.12, z + f.x * 0.12, f.x, f.z, 1); prints.add(x + f.z * 0.12, z - f.x * 0.12, f.x, f.z, -1);
+  suit.step(0.7);
+}
+
+/* ---------------------------------------------------------------- steps: a print and a sound every stride */
+const STEP = { last: null, side: 1, stride: 0.82 };
+const _h = new THREE.Vector3();
+/* the head in the site frame. In XR, renderer.xr.updateCamera has written the headset pose into `camera`;
+ * the XR array camera itself has no meaningful world position to read. */
+function headGround(out) {
+  out.setFromMatrixPosition(camera.matrixWorld);
+  out.y = 0;
+  return out;
+}
+function trackSteps() {
+  if (S.view !== 'surface') { STEP.last = null; return; }
+  headGround(_h);
+  if (!STEP.last) { STEP.last = _h.clone(); return; }
+  const dx = _h.x - STEP.last.x, dz = _h.z - STEP.last.z, d = Math.hypot(dx, dz);
+  if (d > 3) { STEP.last.copy(_h); return; }
+  if (d < STEP.stride) return;
+  const ux = dx / d, uz = dz / d;
+  STEP.side = -STEP.side;
+  prints.add(_h.x - uz * STEP.side * 0.11, _h.z + ux * STEP.side * 0.11, ux, uz, STEP.side);
+  suit.step();
+  STEP.last.copy(_h);
 }
 
 /* ---------------------------------------------------------------- HUD (a test instrument, not part of the experience) */
@@ -173,7 +269,7 @@ function render() {
   const xr = renderer.xr.isPresenting;
   scene.updateMatrixWorld(true);
   if (xr) renderer.xr.updateCamera(camera);
-  (xr ? renderer.xr.getCamera() : camera).getWorldPosition(_cam);
+  _cam.setFromMatrixPosition(camera.matrixWorld);
   rocks.update(_cam);
   moon.setDetail(_cam, S.view === 'surface');
   renderer.info.reset();
@@ -182,6 +278,7 @@ function render() {
   const show = (farOn, nearOn, cabinOn) => {
     moon.far.visible = farOn; sky.visible = farOn;
     moon.near.visible = nearOn; rocks.group.visible = nearOn && close; lm.visible = nearOn;
+    prints.mesh.visible = nearOn && close; arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && nearOn;
     rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
   };
   if (close) {
@@ -236,6 +333,10 @@ function frame(t) {
   if (xr) { head.position.set(0, 0, 0); head.rotation.set(0, 0, 0); }
   else { head.position.set(0, 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if (hud) hud.draw(t);
+  stepBlink(dt);
+  scene.updateMatrixWorld(true);
+  if (renderer.xr.isPresenting) renderer.xr.updateCamera(camera);
+  trackSteps();
   render();
   S.frames++;
   if (window.__moon.afterFrame) { const f = window.__moon.afterFrame; window.__moon.afterFrame = null; f(); }
@@ -244,6 +345,8 @@ function frame(t) {
 /* ---------------------------------------------------------------- start */
 async function enterVR() {
   if (!navigator.xr) return;
+  readOptions();
+  suit.init();
   renderer.xr.setFramebufferScaleFactor(num('scale', +($('scale')?.value || 1)));
   const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
@@ -253,9 +356,10 @@ async function enterVR() {
   S.heading = 0; S.yaw = 0; S.pitch = 0;
   /* the fps panel rides on the left controller */
   for (const i of [0, 1]) {
-    const grip = renderer.xr.getControllerGrip(i);
-    rig.add(grip);
+    const grip = renderer.xr.getControllerGrip(i), ray = renderer.xr.getController(i);
+    rig.add(grip); rig.add(ray);
     grip.addEventListener('connected', e => { if (e.data && e.data.handedness === 'left') grip.add(hud.mesh); });
+    ray.addEventListener('connected', e => { if (e.data) ctrl[e.data.handedness] = ray; });
   }
   hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
   document.body.classList.add('invr');
@@ -266,13 +370,15 @@ async function start() {
   const bar = $('bar');
   moon = await loadMoon(renderer, BASE, f => { if (bar) bar.style.width = (f * 100).toFixed(0) + '%'; });
   moon.setSunOffset(S.sunOffset);
-  if (Q.has('exposure')) moon.shared.uExposure.value = num('exposure', 3.4);
+  moon.shared.uExposure.value = EXPOSURE;
   rocks = await makeRocks(moon, BASE);
   lm = makeLMStandIn(moon);
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
   hud = makeHud();
-  scene.add(moon.far, moon.near, rocks.group, lm, sky);
+  prints = makePrints(moon);
+  prints.trail(0.4, 5.3, 6, 13.2);                   /* your own way here from the ladder */
+  scene.add(moon.far, moon.near, rocks.group, lm, sky, prints.mesh, arcLine, marker);
   setView(S.view, Q.has('theta') ? num('theta', 0) : undefined);
   if (Q.has('x')) S.pos.set(num('x', 6), 0, num('z', 14));
   S.heading = num('heading', S.view === 'surface' ? 25 : 0) * Math.PI / 180;
@@ -281,6 +387,15 @@ async function start() {
   S.ready = true;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 }
+function readOptions() {
+  OPT.teleport = $('opt-teleport') ? $('opt-teleport').checked : true;
+  OPT.fan = $('opt-fan') ? $('opt-fan').checked : true;
+  suit.setFan(OPT.fan);
+}
+$('opt-fan')?.addEventListener('change', readOptions);
+/* on the computer, sound starts with the first click or key (browsers do not allow it earlier) */
+const wake = () => { if (Q.has('shot')) return; readOptions(); suit.init(); };
+addEventListener('pointerdown', wake); addEventListener('keydown', wake);
 if (Q.has('shot')) document.body.classList.add('invr');
 $('vr')?.addEventListener('click', enterVR);
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -290,4 +405,6 @@ start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'C
 window.__moon = { S, setView, afterFrame: null, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
-  stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; } };
+  stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },
+  teleport(x, z) { TP.pending = new THREE.Vector3(x, 0, z); TP.blink = 0.0001; },
+  get prints() { return prints; }, suit };

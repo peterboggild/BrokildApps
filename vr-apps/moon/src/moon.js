@@ -61,15 +61,32 @@ uniform vec3 uCentre;
 uniform vec3 uPole;
 uniform vec2 uHEnc;
 uniform float uPenumbra;
+uniform float uDebug;      /* 1: shadow mask tinted by level (test aid, ?debug=shadow) */
+uniform vec3 uLevelTint;
 #ifdef NEAR
 uniform sampler2D uMicro;
 uniform float uMicroK;
 #endif
+#ifdef PRINT
+uniform sampler2D uPrint;     /* R,G normal across and along the print, B height, A coverage */
+uniform vec2 uPrintSize;      /* metres across, along */
+varying vec2 vPUv;
+varying vec3 vPT;
+varying vec3 vPL;
+#endif
 varying vec2 vUv;
 varying vec3 vPos;
 ${LUNAR_GLSL}
+#ifdef PRINT
+float printH(vec2 uv) { return texture2D(uPrint, uv).z * 0.037 - 0.025; }
+#endif
 void main() {
   if (vUv.x > uHole.x && vUv.x < uHole.z && vUv.y > uHole.y && vUv.y < uHole.w) discard;
+#ifdef PRINT
+  vec4 pr = texture2D(uPrint, vPUv);
+  if (pr.a < 0.004) discard;
+  float inside = smoothstep(-0.003, -0.008, pr.z * 0.037 - 0.025);
+#endif
   vec3 up = normalize(vPos - uCentre);
   vec3 east = normalize(cross(uPole, up));
   vec3 north = cross(up, east);
@@ -82,6 +99,9 @@ void main() {
   vec2 w = vPos.xz;
   vec2 mi = (texture2D(uMicro, w * 2.9).xy - 0.5) * exp(-dist / 5.0)
           + (texture2D(uMicro, w * 0.61 + 0.37).xy - 0.5) * exp(-dist / 22.0);
+#ifdef PRINT
+  mi *= 1.0 - 0.75 * inside;                  /* pressed soil is smoother */
+#endif
   n2 += vec2(mi.x, -mi.y) * uMicroK;
 #endif
   vec3 N = normalize(east * n2.x + north * n2.y + up * sqrt(max(1.0 - dot(n2, n2), 0.02)));
@@ -89,10 +109,64 @@ void main() {
   float el = asin(clamp(dot(uSun, up), -1.0, 1.0));
   float lit = smoothstep(H - uPenumbra, H + uPenumbra, el);
   vec3 alb = soilColour(texture2D(uAlb, vUv * uAlbST.xy + uAlbST.zw).rgb) * (m.a * (255.0 / 128.0));
+#ifdef PRINT
+  /* the print's own relief, and the shadows its walls and ribs cast at a low Sun (a short march over its height) */
+  vec2 pn = pr.xy * 2.0 - 1.0;
+  vec3 Ng = N;
+  N = normalize(vPT * pn.x + vPL * pn.y + N * sqrt(max(1.0 - dot(pn, pn), 0.05)));
+  float sT = dot(uSun, vPT), sL = dot(uSun, vPL);
+  float sh = length(vec2(sT, sL));
+  float tanEl = max(dot(uSun, Ng), 0.0) / max(sh, 1e-3);
+  vec2 stepUv = vec2(sT, sL) / max(sh, 1e-3) * 0.007 / uPrintSize;
+  float h0 = printH(vPUv), occ = 0.0;
+  for (int k = 1; k <= 8; k++) {
+    float fk = float(k);
+    occ = max(occ, (printH(vPUv + stepUv * fk) - h0 - fk * 0.007 * tanEl) / 0.0015);
+  }
+  lit *= 1.0 - clamp(occ, 0.0, 1.0);
+  alb *= 1.0 - 0.07 * inside;
+  gl_FragColor = vec4(display(lunar(alb, N, toCam / dist, up, lit)), pr.a);
+#else
   gl_FragColor = vec4(display(lunar(alb, N, toCam / dist, up, lit)), 1.0);
+  if (uDebug > 0.5) gl_FragColor = vec4(mix(uLevelTint * 0.25, uLevelTint, lit), 1.0);
+#endif
+}`;
+
+const PRINT_VERT = /* glsl */`
+uniform float uHalf;
+varying vec2 vUv;
+varying vec3 vPos;
+varying vec2 vPUv;
+varying vec3 vPT;
+varying vec3 vPL;
+void main() {
+  vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+  vPos = w.xyz;
+  vUv = vPos.xz / uHalf * 0.5 + 0.5;
+  vPUv = uv;
+  vPT = normalize(mat3(instanceMatrix) * vec3(1.0, 0.0, 0.0));
+  vPL = normalize(mat3(instanceMatrix) * vec3(0.0, 0.0, -1.0));
+  gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
 function warpFn(a) { return s => s * (a + (1 - a) * s * s); }
+
+/* Height of a grid mesh at (x, z), on the same two triangles per cell as it is drawn, so what stands on the
+ * ground (the viewer, rocks, bootprints) meets the surface you see. null outside the grid. */
+function gridHeight(P, nx, ny) {
+  const xs = new Float64Array(nx + 1), zs = new Float64Array(ny + 1), mi = ny >> 1, mj = nx >> 1;
+  for (let i = 0; i <= nx; i++) xs[i] = P[(mi * (nx + 1) + i) * 3];
+  for (let j = 0; j <= ny; j++) zs[j] = P[(j * (nx + 1) + mj) * 3 + 2];
+  const find = (a, v) => { let lo = 0, hi = a.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (a[m] <= v) lo = m; else hi = m; } return lo; };
+  const y = (i, j) => P[(j * (nx + 1) + i) * 3 + 1];
+  return (x, z) => {
+    if (x < xs[0] || x > xs[nx] || z < zs[0] || z > zs[ny]) return null;
+    const i = find(xs, x), j = find(zs, z);
+    const fx = Math.min(1, Math.max(0, (x - xs[i]) / (xs[i + 1] - xs[i]))), fy = Math.min(1, Math.max(0, (z - zs[j]) / (zs[j + 1] - zs[j])));
+    const A = y(i, j), B = y(i, j + 1), C = y(i + 1, j), D = y(i + 1, j + 1);
+    return fx + fy <= 1 ? A + fx * (C - A) + fy * (B - A) : D + (1 - fx) * (B - D) + (1 - fy) * (C - D);
+  };
+}
 
 /* A tiling soil normal texture (value-noise fBm), made once at start-up. */
 function microTexture() {
@@ -153,7 +227,8 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
     uCentre: { value: new THREE.Vector3(0, -man.r0, 0) },
     uPole: { value: new THREE.Vector3(0, Math.sin(lat), -Math.cos(lat)) },
     uHEnc: { value: new THREE.Vector2(man.hEncode[0], man.hEncode[1]) },
-    uMicro: { value: microTexture() }
+    uMicro: { value: microTexture() },
+    uDebug: { value: new URLSearchParams(location.search).get('debug') === 'shadow' ? 1 : 0 }
   };
 
   const [gColour, aColour] = await Promise.all([loadTex('Gcolor', true, 'jpg'), loadTex('A1color', true, 'jpg')]);
@@ -227,7 +302,9 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
         uAlbST: { value: new THREE.Vector4(s, s, 0.5 - 0.5 * s, 0.5 - 0.5 * s) },
         uHole: { value: hole },
         uPenumbra: { value: Math.max(0.0047, 0.6 * man.hEncode[1] / 255) },
-        uMicroK: { value: lv.name === 'L6' ? 0.30 : 0.2 }
+        uMicroK: { value: lv.name === 'L6' ? 0.30 : 0.2 },
+        uDebug: shared.uDebug,
+        uLevelTint: { value: new THREE.Color().setHSL(k / 7, 0.7, 0.6) }
       },
       polygonOffset: true, polygonOffsetFactor: (man.levels.length - 1 - k) * 0.5, polygonOffsetUnits: (man.levels.length - 1 - k) * 2
     });
@@ -273,16 +350,20 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
       mat.side = THREE.DoubleSide;
       group.add(mesh); tris += idx.length / 3;
     }
-    levels[k] = { ...lv, material: mat, map, tris, fine, coarse, half: lv.dlat * Math.PI / 180 * man.radius, shown: true, far: false };
+    levels[k] = { ...lv, material: mat, map, tris, fine, coarse, half: lv.dlat * Math.PI / 180 * man.radius, shown: true, far: false,
+                  meshHeight: k === man.levels.length - 1 ? gridHeight(pos, nx, ny) : null };
   }));
 
-  /* walking heights */
+  /* walking heights: the finest mesh exactly as drawn; outside it, the baked table */
+  const meshHeight = levels[levels.length - 1].meshHeight;
   let walk = null;
   if (man.walk) {
     const raw = new Int16Array(await (await fetch(base + 'walk.bin')).arrayBuffer());
     walk = { n: man.walk.n, half: man.walk.half, data: raw };
   }
   function heightAt(x, z) {
+    const h = meshHeight(x, z);
+    if (h !== null) return h;
     if (!walk) return 0;
     const n = walk.n, fx = Math.min(n - 1.001, Math.max(0, (x / walk.half + 1) / 2 * (n - 1)));
     const fz = Math.min(n - 1.001, Math.max(0, (z / walk.half + 1) / 2 * (n - 1)));
@@ -309,5 +390,17 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
       for (const m of lv.coarse) m.visible = show && far2;
     }
   }
-  return { manifest: man, far, near, levels, shared, heightAt, setSunOffset, setDetail, l6: levels[levels.length - 1] };
+  /* The material for bootprints: the finest level's own shader and uniforms, so a print matches the ground round it. */
+  function printMaterial(printTex, size) {
+    const l6 = levels[levels.length - 1], u = l6.material.uniforms;
+    return new THREE.ShaderMaterial({
+      vertexShader: PRINT_VERT, fragmentShader: FRAG,
+      defines: { NEAR: 1, PRINT: 1 },
+      uniforms: { ...u, uHole: { value: new THREE.Vector4(2, 2, -2, -2) }, uHalf: { value: l6.half },
+                  uPrint: { value: printTex }, uPrintSize: { value: size } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8
+    });
+  }
+  return { manifest: man, far, near, levels, shared, heightAt, setSunOffset, setDetail, printMaterial, l6: levels[levels.length - 1] };
 }
