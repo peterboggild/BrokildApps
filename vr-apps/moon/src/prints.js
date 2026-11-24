@@ -59,9 +59,15 @@ function printTexture() {
 export function makePrints(moon) {
   const geo = new THREE.PlaneGeometry(W, L);
   geo.rotateX(-Math.PI / 2);                       /* lies in x-z; the toe (uv.y = 1) towards -z */
-  const mesh = new THREE.InstancedMesh(geo, moon.printMaterial(printTexture(), new THREE.Vector2(W, L)), MAX);
-  mesh.count = 0; mesh.frustumCulled = false; mesh.renderOrder = 20;
-  let next = 0;
+  const ptex = printTexture(), size = new THREE.Vector2(W, L);
+  /* two batches: prints on the baked ground by the lander (L6), and prints on the generated ground elsewhere */
+  const mesh = new THREE.InstancedMesh(geo, moon.printMaterial(ptex, size), MAX);
+  const geoG = geo.clone(), uvAB = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4);
+  geoG.setAttribute('aUvAB', uvAB);
+  const meshG = new THREE.InstancedMesh(geoG, moon.printGroundMaterial(ptex, size), MAX);
+  const group = new THREE.Group();
+  for (const q of [mesh, meshG]) { q.count = 0; q.frustumCulled = false; q.renderOrder = 20; group.add(q); }
+  const next = [0, 0], half6 = moon.l6.half - 0.6, ab = [0, 0, 0, 0];
   const m = new THREE.Matrix4(), up = new THREE.Vector3(), fw = new THREE.Vector3(), x = new THREE.Vector3(), z = new THREE.Vector3();
   /* one print at (px, pz), toe towards (dx, dz); side -1 left foot, +1 right foot */
   function add(px, pz, dx, dz, side) {
@@ -71,10 +77,12 @@ export function makePrints(moon) {
     z.copy(fw).negate();
     x.crossVectors(up, z).multiplyScalar(side < 0 ? -1 : 1);   /* a left print is the right one mirrored */
     m.makeBasis(x, up, z).setPosition(px, h + 0.004, pz);
-    mesh.setMatrixAt(next, m);
-    next = (next + 1) % MAX;
-    mesh.count = Math.max(mesh.count, next === 0 ? MAX : next);
-    mesh.instanceMatrix.needsUpdate = true;
+    const w = (Math.abs(px) < half6 && Math.abs(pz) < half6) ? 0 : 1, q = w ? meshG : mesh, k = next[w];
+    q.setMatrixAt(k, m);
+    if (w) { moon.uvAB(px, h, pz, ab); uvAB.array.set(ab, k * 4); uvAB.needsUpdate = true; }
+    next[w] = (k + 1) % MAX;
+    q.count = Math.max(q.count, next[w] === 0 ? MAX : next[w]);
+    q.instanceMatrix.needsUpdate = true;
   }
   /* a walked line of prints from a to b (for the trail already there when you arrive) */
   function trail(ax, az, bx, bz, stride = 0.82) {
@@ -86,5 +94,5 @@ export function makePrints(moon) {
       add(ax + ux * s - uz * side * 0.11, az + uz * s + ux * side * 0.11, ux - uz * wob, uz + ux * wob, side);
     }
   }
-  return { mesh, add, trail, get count() { return mesh.count; } };
+  return { group, add, trail, get count() { return mesh.count + meshG.count; } };
 }

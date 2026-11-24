@@ -7,10 +7,11 @@
  *      &sun=deg (Sun later/earlier, 0.51 deg per hour)  &scale=0.8..1.4 (VR resolution)  &still (no motion)
  */
 import * as THREE from 'three';
-import { loadMoon } from './moon.js?v=2';
-import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=2';
-import { makePrints } from './prints.js?v=2';
-import { makeSuitSound } from './sound.js?v=2';
+import { loadMoon } from './moon.js?v=3';
+import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=3';
+import { makePrints } from './prints.js?v=3';
+import { makeSuitSound } from './sound.js?v=3';
+import { makeGround } from './ground.js?v=3';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -47,7 +48,7 @@ const S = {
   yaw: num('yaw', 0), pitch: num('pitch', 0),
   sunOffset: num('sun', 0),
   pos: new THREE.Vector3(6, 0, 14), heading: 0,      /* on the surface: metres from the LM, heading in radians */
-  fps: 0, ms: 0, calls: 0, tris: 0, foveation: 1, ready: false, frames: 0
+  fps: 0, ms: 0, calls: 0, tris: 0, foveation: 1, ready: false, frames: 0, dark: false
 };
 const VIEWS = {
   orbit: { alt: 110e3, from: 13, to: -7, tilt: 34, label: 'Lunar orbit, 110 km' },
@@ -58,7 +59,7 @@ const EXPOSURE = num('exposure', 3.4);
 const HEADING = -82 * Math.PI / 180;       /* ground track: travelling west, a little north (Apollo 17's approach) */
 const GM = 4.9028e12;
 
-let moon, rocks, lm, rail, sky, hud, prints;
+let moon, rocks, lm, rail, sky, hud, prints, ground;
 const suit = makeSuitSound();
 const OPT = { teleport: true, fan: true };
 
@@ -115,12 +116,12 @@ const ctrl = {};                                     /* handedness -> target-ray
 function readControllers(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
-  let mx = 0, mz = 0, turn = 0, next = false, toggle = false, trig = false;
+  let mx = 0, mz = 0, turn = 0, reach = 0, next = false, toggle = false, trig = false;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     if (src.handedness === 'right') trig = !!gp.buttons[0]?.pressed;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-    if (src.handedness === 'left') { mx = ax[0]; mz = ax[1]; } else turn = ax[0];
+    if (src.handedness === 'left') { mx = ax[0]; mz = ax[1]; } else { turn = ax[0]; reach = -ax[1]; }
     const k = src.handedness;
     const a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed;
     if (a && !pad.prev[k + 'a']) next = true;
@@ -128,7 +129,8 @@ function readControllers(dt) {
     pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b;
   }
   if (next) { const names = Object.keys(VIEWS); setView(names[(names.indexOf(S.view) + 1) % names.length]); }
-  aimTeleport(trig && OPT.teleport && S.view === 'surface' ? ctrl.right : null);
+  TP.reach += (reach - TP.reach) * Math.min(1, dt * 6);
+  aimTeleport(trig && OPT.teleport && S.view === 'surface' && !TP.blink ? ctrl.right : null);
   if (toggle && hud) hud.on = !hud.on;
   /* snap turn, 30 degrees */
   if (Math.abs(turn) > 0.7 && !pad.snap) { S.heading -= Math.sign(turn) * Math.PI / 6; pad.snap = 1; }
@@ -142,53 +144,94 @@ function readControllers(dt) {
 }
 
 /* ---------------------------------------------------------------- teleport
- * Hold the right trigger: an arc from the hand shows where you would stand. Let go: the view blinks out and in
- * and you stand there. Only on the detailed ground round the landing site. */
-const TP = { aiming: false, valid: false, target: new THREE.Vector3(), blink: 0, pending: null };
-const ARC_N = 48;
+ * Hold the right trigger: an arc thrown from the hand, falling in lunar gravity, shows where you would stand. Push
+ * the right stick forward to throw further (out to the mountains), pull it back for a short hop. Let go: the view
+ * blinks out, the ground round the new place is made if it is not there yet, and you stand there. */
+const TP = { aiming: false, valid: false, target: new THREE.Vector3(), reach: 0, blink: 0, phase: null, pending: null, waited: 0 };
+const ARC_N = 96;
 const arcLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(ARC_N * 3), 3)),
   new THREE.LineBasicMaterial({ color: 0xd8d4ca, transparent: true, opacity: 0.55, depthTest: false }));
 arcLine.frustumCulled = false; arcLine.visible = false; arcLine.renderOrder = 30;
-const marker = new THREE.Mesh(new THREE.RingGeometry(0.24, 0.27, 48).rotateX(-Math.PI / 2),
-  new THREE.MeshBasicMaterial({ color: 0xe8e4da, transparent: true, opacity: 0.7, depthWrite: false }));
-marker.visible = false; marker.renderOrder = 31;
-const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _v = new THREE.Vector3();
-function walkLimit() { return moon.manifest.walk ? moon.manifest.walk.half - 3 : 100; }
+const marker = new THREE.Group();
+marker.add(new THREE.Mesh(new THREE.RingGeometry(0.24, 0.27, 48).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xe8e4da, transparent: true, opacity: 0.7, depthWrite: false, depthTest: false })));
+marker.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 2.2, 0)]),
+  new THREE.LineBasicMaterial({ color: 0xe8e4da, transparent: true, opacity: 0.6, depthTest: false })));
+marker.visible = false; marker.children.forEach(c => { c.renderOrder = 31; c.frustumCulled = false; });
+const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _v = new THREE.Vector3(), _pp = new THREE.Vector3();
+const G_MOON = 1.62;
+function walkLimit() { return ground && ground.ok ? ground.limit : (moon.manifest.walk ? moon.manifest.walk.half - 3 : 100); }
 function aimTeleport(hand) {
   if (TP.aiming && !hand) {                          /* released */
     TP.aiming = false; marker.visible = false;
-    if (TP.valid) { TP.pending = TP.target.clone(); TP.blink = 0.0001; }
+    if (TP.valid) startTeleport(TP.target.x, TP.target.z);
     return;
   }
   if (!hand) return;
   TP.aiming = true;
   hand.getWorldPosition(_o); _d.set(0, 0, -1).transformDirection(hand.matrixWorld);
-  _v.copy(_d).multiplyScalar(14);                    /* a thrown arc: about 20 m at 45 degrees */
-  const pos = arcLine.geometry.attributes.position.array, lim = walkLimit();
-  let hit = -1;
+  _v.copy(_d).multiplyScalar(30 * Math.pow(3, TP.reach));      /* 10 .. 90 m/s: tens of metres to kilometres */
+  const lim = walkLimit(), pts = [];
+  let hit = false, travelled = 0;
   _p.copy(_o);
+  for (let k = 0; k < 900; k++) {
+    pts.push(_p.x, _p.y, _p.z);
+    _pp.copy(_p);
+    const ds = Math.min(40, Math.max(0.4, 0.015 * travelled)), dtk = ds / Math.max(1, _v.length());
+    _p.addScaledVector(_v, dtk); _v.y -= G_MOON * dtk; travelled += ds;
+    if (Math.abs(_p.x) > lim || Math.abs(_p.z) > lim) break;
+    if (_p.y < moon.heightAt(_p.x, _p.z)) {
+      for (let q = 0; q < 6; q++) {                  /* close in on the ground between the last two points */
+        _d.copy(_pp).add(_p).multiplyScalar(0.5);
+        if (_d.y < moon.heightAt(_d.x, _d.z)) _p.copy(_d); else _pp.copy(_d);
+      }
+      hit = true; pts.push(_p.x, _p.y, _p.z);
+      break;
+    }
+  }
+  const pos = arcLine.geometry.attributes.position.array, n = pts.length / 3;
   for (let i = 0; i < ARC_N; i++) {
-    pos[i * 3] = _p.x; pos[i * 3 + 1] = _p.y; pos[i * 3 + 2] = _p.z;
-    if (hit < 0 && _p.y < moon.heightAt(_p.x, _p.z)) hit = i;
-    if (hit < 0) { _p.addScaledVector(_v, 0.06); _v.y -= 9.8 * 0.06; }
+    const k = Math.min(n - 1, Math.round(i / (ARC_N - 1) * (n - 1)));
+    pos[i * 3] = pts[k * 3]; pos[i * 3 + 1] = pts[k * 3 + 1]; pos[i * 3 + 2] = pts[k * 3 + 2];
   }
   arcLine.geometry.attributes.position.needsUpdate = true;
-  TP.valid = hit > 0 && Math.abs(_p.x) < lim && Math.abs(_p.z) < lim;
-  if (TP.valid) {
+  TP.valid = hit;
+  if (hit) {
     TP.target.set(_p.x, moon.heightAt(_p.x, _p.z), _p.z);
-    marker.position.copy(TP.target); marker.position.y += 0.01; marker.visible = true;
+    marker.position.copy(TP.target); marker.position.y += 0.02;
+    marker.scale.setScalar(Math.max(1, _o.distanceTo(TP.target) / 30));     /* a far target stays visible */
     arcLine.material.color.setHex(0xd8d4ca);
-  } else { marker.visible = false; arcLine.material.color.setHex(0x8a5a50); }
+  } else arcLine.material.color.setHex(0x8a5a50);
+}
+/* blink out, make sure the ground is there, move, blink in */
+function startTeleport(x, z) {
+  if (TP.blink) return;
+  const lim = walkLimit();
+  TP.pending = { x: Math.max(-lim, Math.min(lim, x)), z: Math.max(-lim, Math.min(lim, z)), ready: false };
+  TP.blink = 0.0001; TP.phase = 'out'; TP.waited = 0;
 }
 function stepBlink(dt) {
   if (!TP.blink) return;
+  const T = 0.12;
   TP.blink += dt;
-  const T = 0.12;                                     /* out, move, in */
-  if (TP.pending && TP.blink >= T) { teleportTo(TP.pending.x, TP.pending.z); TP.pending = null; }
-  const f = TP.blink < T ? 1 - TP.blink / T : Math.min(1, (TP.blink - T) / T);
-  moon.shared.uExposure.value = EXPOSURE * Math.max(0, f);
-  sky.visible = f > 0.5;
-  if (TP.blink >= 2 * T) { TP.blink = 0; moon.shared.uExposure.value = EXPOSURE; sky.visible = true; }
+  let f = 0;
+  if (TP.phase === 'out') {
+    f = 1 - TP.blink / T;
+    if (TP.blink >= T) {
+      TP.phase = 'wait'; f = 0;
+      const p = TP.pending;
+      if (ground.ok && !ground.detailed(p.x, p.z)) ground.request(p.x, p.z).then(() => { p.ready = true; });
+      else p.ready = true;
+    }
+  } else if (TP.phase === 'wait') {
+    TP.waited += dt;
+    if (TP.pending.ready || TP.waited > 8) { teleportTo(TP.pending.x, TP.pending.z); TP.pending = null; TP.phase = 'in'; TP.blink = 0.0001; }
+  } else {
+    f = TP.blink / T;
+    if (TP.blink >= T) { TP.blink = 0; TP.phase = null; f = 1; }
+  }
+  moon.shared.uExposure.value = EXPOSURE * Math.max(0, Math.min(1, f));
+  S.dark = f < 0.5;
 }
 /* stand at (x, z): the rig moves so that your head, not the middle of your play area, ends up over the spot */
 function teleportTo(x, z) {
@@ -276,14 +319,15 @@ function render() {
   renderer.clear(true, true, false);
   const close = S.view === 'surface';
   const show = (farOn, nearOn, cabinOn) => {
-    moon.far.visible = farOn; sky.visible = farOn;
+    moon.far.visible = farOn; sky.visible = farOn && !S.dark;
     moon.near.visible = nearOn; rocks.group.visible = nearOn && close; lm.visible = nearOn;
-    prints.mesh.visible = nearOn && close; arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && nearOn;
+    prints.group.visible = nearOn && close; ground.group.visible = nearOn && close;
+    arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && cabinOn && close;
     rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
   };
   if (close) {
     /* standing on the Moon: distant terrain first, then everything within a few kilometres over a fresh depth buffer */
-    show(true, false, false); setPlanes(800, FAR); renderer.render(scene, camera);
+    show(true, false, false); setPlanes(100, FAR); renderer.render(scene, camera);
     renderer.clearDepth();
     show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera);
   } else {
@@ -317,7 +361,7 @@ function frame(t) {
       if (keys.KeyW) { S.pos.x += fx * sp; S.pos.z += fz * sp; } if (keys.KeyS) { S.pos.x -= fx * sp; S.pos.z -= fz * sp; }
       if (keys.KeyA) { S.pos.x += fz * sp; S.pos.z -= fx * sp; } if (keys.KeyD) { S.pos.x -= fz * sp; S.pos.z += fx * sp; }
     }
-    const lim = moon.manifest.walk ? moon.manifest.walk.half - 3 : 100;
+    const lim = walkLimit();
     S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
     rig.position.set(S.pos.x, moon.heightAt(S.pos.x, S.pos.z), S.pos.z);
     rig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), S.heading);
@@ -337,6 +381,7 @@ function frame(t) {
   scene.updateMatrixWorld(true);
   if (renderer.xr.isPresenting) renderer.xr.updateCamera(camera);
   trackSteps();
+  if (S.view === 'surface' && ground.ok && !TP.blink) { headGround(_h); ground.update(_h.x, _h.z); }
   render();
   S.frames++;
   if (window.__moon.afterFrame) { const f = window.__moon.afterFrame; window.__moon.afterFrame = null; f(); }
@@ -376,12 +421,14 @@ async function start() {
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
   hud = makeHud();
+  ground = makeGround(moon, BASE);
   prints = makePrints(moon);
   prints.trail(0.4, 5.3, 6, 13.2);                   /* your own way here from the ladder */
-  scene.add(moon.far, moon.near, rocks.group, lm, sky, prints.mesh, arcLine, marker);
+  scene.add(moon.far, moon.near, ground.group, rocks.group, lm, sky, prints.group, arcLine, marker);
   setView(S.view, Q.has('theta') ? num('theta', 0) : undefined);
-  if (Q.has('x')) S.pos.set(num('x', 6), 0, num('z', 14));
+  if (Q.has('x')) { S.pos.set(num('x', 6), 0, num('z', 14)); if (ground.ok && !ground.detailed(S.pos.x, S.pos.z)) await ground.request(S.pos.x, S.pos.z); }
   S.heading = num('heading', S.view === 'surface' ? 25 : 0) * Math.PI / 180;
+  if (Q.has('trail')) prints.trail(S.pos.x + 0.3, S.pos.z - 1.2, S.pos.x + 1.5, S.pos.z - 9);      /* test aid: prints ahead (north) */
   renderer.setAnimationLoop(frame);
   document.body.classList.add('loaded');
   S.ready = true;
@@ -406,5 +453,5 @@ window.__moon = { S, setView, afterFrame: null, get moon() { return moon; }, ren
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },
-  teleport(x, z) { TP.pending = new THREE.Vector3(x, 0, z); TP.blink = 0.0001; },
-  get prints() { return prints; }, suit };
+  teleport(x, z) { startTeleport(x, z); }, get teleporting() { return !!TP.blink; },
+  get prints() { return prints; }, get ground() { return ground; }, suit };

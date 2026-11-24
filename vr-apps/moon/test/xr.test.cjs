@@ -50,21 +50,34 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     if (view === 'surface') ok('surface: the two eyes differ (stereo)', e[0].sig !== e[1].sig);
     if (outDir) await p.screenshot({ path: path.join(outDir, `xr-${view}.png`) });
   }
-  /* on the surface: teleport moves you and leaves two prints; walking leaves a print per stride */
+  /* on the surface: teleport (near, then 2.7 km away onto generated ground) puts your head on the spot and
+   * leaves two prints; walking leaves a print per stride, also on the generated ground */
   await p.evaluate(() => __moon.setView('surface'));
   await frames(3);
-  const before = await p.evaluate(() => ({ n: __moon.prints.count, x: __moon.S.pos.x, z: __moon.S.pos.z }));
-  await p.evaluate(() => __moon.teleport(40, -30));
-  await frames(8);
-  const after = await p.evaluate(() => ({ n: __moon.prints.count, x: __moon.S.pos.x, z: __moon.S.pos.z, exp: __moon.moon.shared.uExposure.value }));
-  const head = await p.evaluate(() => { const v = new (__moon.camera.position.constructor)(); v.setFromMatrixPosition(__moon.camera.matrixWorld); return [v.x, v.z]; });
-  ok('teleport puts your head on the spot and leaves two prints', after.n === before.n + 2 && Math.hypot(head[0] - 40, head[1] + 30) < 0.2 && after.exp > 3,
-    JSON.stringify({ before, after, head }));
-  const n0 = after.n;
-  for (let k = 0; k < 6; k++) { await p.evaluate(k => { __moon.S.pos.x += 0.5; }, k); await frames(1); }
-  const n1 = await p.evaluate(() => __moon.prints.count);
-  ok('walking 3 m leaves prints', n1 - n0 >= 3, `${n1 - n0} prints`);
-  if (outDir) await p.screenshot({ path: path.join(outDir, 'xr-teleported.png') });
+  const headAt = () => p.evaluate(() => { const e = __moon.camera.matrixWorld.elements; return [e[12], e[13], e[14]]; });
+  const jump = async (x, z) => {
+    const n = await p.evaluate(() => __moon.prints.count);
+    await p.evaluate(([x, z]) => __moon.teleport(x, z), [x, z]);
+    await p.waitForFunction(() => !__moon.teleporting, null, { timeout: 120000 });
+    await frames(2);
+    const h = await headAt(), st = await p.evaluate(() => ({ n: __moon.prints.count, exp: __moon.moon.shared.uExposure.value, ms: Math.round(__moon.ground.ms), rocks: __moon.ground.rocks, calls: __moon.S.calls, tris: __moon.S.tris }));
+    const gy = await p.evaluate(([x, z]) => __moon.moon.heightAt(x, z), [x, z]);
+    return { ok: st.n === n + 2 && Math.hypot(h[0] - x, h[2] - z) < 0.2 && st.exp > 3 && h[1] - gy > 0.5 && h[1] - gy < 2.5, h, gy, st };
+  };
+  let j = await jump(40, -30);
+  ok('teleport 50 m: head on the spot, two prints', j.ok, JSON.stringify(j));
+  j = await jump(600, -2600);
+  ok('teleport 2.7 km: ground generated there, head on it, two prints', j.ok && j.st.rocks > 50, JSON.stringify(j));
+  ok('generated ground is detailed under you', await p.evaluate(() => __moon.ground.detailed(600, -2600) && __moon.ground.covers(600, -2600, 14)));
+  const n0 = await p.evaluate(() => __moon.prints.count), sq0 = await p.evaluate(() => __moon.ground.count);
+  for (let k = 0; k < 60; k++) { await p.evaluate(() => { __moon.S.pos.x += 0.5; }); await frames(1); }
+  await p.waitForFunction(() => !__moon.ground.busy, null, { timeout: 120000 });
+  await frames(2);
+  const w = await p.evaluate(() => ({ n: __moon.prints.count, sq: __moon.ground.count, x: __moon.S.pos.x }));
+  ok('walking 30 m leaves prints and the ground follows', w.n - n0 >= 30 && w.sq > sq0 && await p.evaluate(() => __moon.ground.detailed(__moon.S.pos.x, __moon.S.pos.z)), JSON.stringify(w));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'xr-far.png') });
+  j = await jump(-20, 30);
+  ok('teleport back to the lander', j.ok, JSON.stringify(j.h));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');
