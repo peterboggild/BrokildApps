@@ -517,6 +517,14 @@ on top of the baked levels, a pure function of position (see the app's README, "
 Stage 4 (descent) and stage 5 (surface) build on this: the landing can come down anywhere in the valley, and the
 moonwalk is not tied to 150 m round the lander.
 
+### 12.3 Stage 1, part 1 as built (24 November 2026)
+
+The launch from the couch (`vr-apps/moon/launch.html`), T−3:30 to orbit. Not in it yet: the White Room walk-in
+(part 2), Earth orbit and beyond (stage 2). Departures from §2–§9: one chapter page per chapter rather than one
+page for all; the crew are present (suits, visors down) rather than voices only; the clouds are generated because
+NASA's cloud composite is no longer published. Weak points the owner should judge: the clouds and the open ocean
+from orbit (candidates for a Fable pass, or real cloud imagery), and the cabin walls, which are bare.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
