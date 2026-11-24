@@ -68,9 +68,10 @@ beyond. You sit upright; the cabin is turned round you so the main display conso
 - **Time**: A or X runs it ×4 or ×16 once the windows are clear, never across the staging or the shutdown.
 
 Earth textures: `tools/earth.py` from NASA's Blue Marble Next Generation, December
-(https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/december/). NASA's cloud
-composite is no longer to be found there; the clouds are generated (climate bands, weather systems) and are the
-weakest part of the picture.
+(https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/december/). The clouds are
+real: the cloud cover of 6 December 2019, taken from NASA's VIIRS true-colour mosaic of that day (Suomi NPP, from
+NASA GIBS) against the cloud-free Blue Marble, for the whole Earth (10 km) and for the launch track (1 km). The
+day was picked for a clear sky over Florida and a frontal band and fields of cumulus over the Atlantic.
 
 Test aids: `launch.html?t=` (start time), `?still`, `?nocabin` (the outside without the spacecraft), `?shot`;
 `tools/shot-launch.cjs`; `test/launch.test.cjs` (emulated Quest 3). Hooks on `window.__launch`.

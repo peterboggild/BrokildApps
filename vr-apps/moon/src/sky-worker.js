@@ -5,7 +5,7 @@
  * from this altitude) where the sky changes fastest: v = 0.5 +- 0.5 sqrt(|el - limb| / range).
  * RGB = light scattered towards you along the ray (up to the ground or out of the air), A = transmittance along it. */
 const RE = 6371e3, RA = RE + 100e3, HR = 8000, HM = 1200;
-const BR = [5.8e-6, 13.5e-6, 33.1e-6], BM = 21e-6, BMX = BM * 1.11, G = 0.76;
+const BR = [5.8e-6, 13.5e-6, 33.1e-6], BM = 9e-6, BMX = BM * 1.11, G = 0.76;   /* clean maritime air */
 const NU = 48, NV = 160, STEPS = 28, LSTEPS = 6;
 
 function hitSphere(ox, oy, oz, dx, dy, dz, r) {         /* far and near roots, or null */
