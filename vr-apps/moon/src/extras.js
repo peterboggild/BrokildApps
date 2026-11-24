@@ -1,7 +1,7 @@
 /* Things around the terrain in the stage 0 test: the Sun, a stand-in Earth, rocks, a stand-in LM, a handrail.
  * The Earth and the LM here are placeholders (stage 2 and stage 5 replace them). */
 import * as THREE from 'three';
-import { LUNAR_GLSL } from './moon.js';
+import { LUNAR_GLSL } from './moon.js?v=2';
 
 const SKY_D = 2.0e6;                 /* sky bodies are drawn at this distance, inside the far plane */
 
@@ -152,7 +152,11 @@ export async function makeRocks(moon, base) {
   const TILE = 50, classes = [{ max: 0.22, range: 45 }, { max: 0.55, range: 130 }, { max: 9, range: 1e9 }];
   const buckets = new Map();
   for (let i = 0; i < n; i++) {
-    const x = d[i * 6], y = d[i * 6 + 1], z = d[i * 6 + 2], size = d[i * 6 + 3], yaw = d[i * 6 + 4], shape = d[i * 6 + 5] | 0;
+    const x = d[i * 6], z = d[i * 6 + 2], size = d[i * 6 + 3], yaw = d[i * 6 + 4], shape = d[i * 6 + 5] | 0;
+    /* stand on the ground as drawn (the mesh), not on the finer data behind its shading: take the lowest point
+     * under the rock's footprint and bed it in a little, so no side hangs in the air on a slope or a crater rim */
+    const r = 0.36 * size;
+    const y = Math.min(moon.heightAt(x, z), moon.heightAt(x + r, z), moon.heightAt(x - r, z), moon.heightAt(x, z + r), moon.heightAt(x, z - r)) - 0.06 * size;
     const cls = size < classes[0].max ? 0 : size < classes[1].max ? 1 : 2;
     /* small rocks in 50 m tiles (only the near tiles are drawn); the larger ones in one batch per shape */
     const key = (cls === 0 ? [Math.floor(x / TILE), Math.floor(z / TILE), cls, shape % 3] : [0, 0, cls, shape % 3]).join(',');
@@ -199,6 +203,12 @@ export function makeLMStandIn(moon) {
       c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14); gl_FragColor = vec4(pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2)), 1.0); }`
   });
   const gold = mat(0.30, 0.20, 0.06), grey = mat(0.14, 0.14, 0.15), dark = mat(0.04, 0.04, 0.04);
+  const strut = (a, b, r) => {
+    const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 8), gold);
+    o.position.copy(a).add(b).multiplyScalar(0.5);
+    o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    g.add(o);
+  };
   const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
   add(new THREE.CylinderGeometry(2.1, 2.1, 1.65, 8), gold, 0, 2.35, 0, 0, Math.PI / 8);            /* descent stage */
   add(new THREE.CylinderGeometry(1.15, 0.75, 1.3, 12, 1, true), dark, 0, 1.0, 0);                    /* engine bell */
@@ -207,8 +217,13 @@ export function makeLMStandIn(moon) {
   add(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 12), grey, 0, 5.75, 0.2);                            /* docking tunnel */
   for (let k = 0; k < 4; k++) {
     const a = k * Math.PI / 2, cx = Math.sin(a), cz = Math.cos(a);
-    add(new THREE.CylinderGeometry(0.09, 0.09, 3.6, 8), gold, cx * 3.35, 1.55, cz * 3.35, cz * 0.75, 0, -cx * 0.75);
-    add(new THREE.CylinderGeometry(0.47, 0.47, 0.12, 16), gold, cx * 4.5, 0.08, cz * 4.5);
+    /* the footpad on the ground under it, the primary strut from the top of the stage, two from its bottom */
+    const base = moon.heightAt(0, 0), fx = cx * 4.5, fz = cz * 4.5, fy = moon.heightAt(fx, fz) - base;
+    add(new THREE.CylinderGeometry(0.47, 0.42, 0.14, 16), gold, fx, fy + 0.09, fz);
+    const foot = new THREE.Vector3(fx, fy + 0.2, fz);
+    strut(new THREE.Vector3(cx * 2.05, 3.0, cz * 2.05), foot, 0.085);
+    strut(new THREE.Vector3(cx * 1.9 + cz * 0.9, 1.6, cz * 1.9 - cx * 0.9), new THREE.Vector3(fx * 0.8, fy + 0.75, fz * 0.8), 0.05);
+    strut(new THREE.Vector3(cx * 1.9 - cz * 0.9, 1.6, cz * 1.9 + cx * 0.9), new THREE.Vector3(fx * 0.8, fy + 0.75, fz * 0.8), 0.05);
   }
   g.position.y = moon.heightAt(0, 0);
   return g;

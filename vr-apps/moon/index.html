@@ -58,14 +58,17 @@
   </div>
   <label>VR resolution <select id="scale"><option value="0.8">Low</option><option value="1" selected>Normal</option><option value="1.2">High</option><option value="1.4">Very high</option></select></label>
   <label>VR frame rate <select id="hz"><option value="72" selected>72 Hz</option><option value="90">90 Hz</option></select></label>
+  <label>Teleport (right trigger) <input type="checkbox" id="opt-teleport" checked></label>
+  <label>Suit fan sound <input type="checkbox" id="opt-fan" checked></label>
   <p id="viewname" class="note"></p>
   <p id="stat"></p>
   <p class="note">On this screen: drag to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk on the surface,
      <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> views, <kbd>[</kbd><kbd>]</kbd> Sun earlier or later, <kbd>P</kbd> pause the orbit.<br>
-     In the headset: A or X next view, left stick walks, right stick turns, B or Y hides the frame-rate panel.</p>
+     In the headset: A or X next view, left stick walks, right stick turns, hold the right trigger to aim a teleport
+     and let go to jump, B or Y hides the frame-rate panel. Your boots leave prints; you hear your steps through the suit.</p>
   <p class="note">The lander and the Earth are stand-ins. Data: NASA/GSFC/Arizona State University (LRO), public domain.</p>
   <p id="err"></p>
 </div>
-<script type="module" src="./src/main.js?v=1"></script>
+<script type="module" src="./src/main.js?v=2"></script>
 </body>
 </html>

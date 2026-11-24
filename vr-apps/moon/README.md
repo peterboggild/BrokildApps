@@ -14,6 +14,22 @@ before anything else is built:
 
 The lander and the Earth are stand-ins (stage 5 and stage 2 build the real ones). There are no stars yet.
 
+On the surface (added after the first headset test):
+
+- **Bootprints** (`src/prints.js`): the Apollo overshoe's ribbed sole, a print every stride whether you walk in the
+  room or with the stick, two side by side where you land after a teleport, and a trail from the ladder to where
+  you start. One instanced mesh (one draw call, up to 1200 prints, the oldest reused). Each print is shaded by the
+  terrain's own shader (`moon.printMaterial`) with the print's relief on top and an eight-step march over its height
+  for the shadows of its walls and ribs at the low Sun. The relief is made in code; no image files.
+- **Sound in the suit** (`src/sound.js`, synthesised): a dull thud through the body and a dry, gritty scrape at
+  every step, and the suit fan's soft hiss and hum (can be switched off on the start page). Nothing from outside:
+  there is no air.
+- **Teleport**: hold the right trigger to aim an arc, let go to stand there (a short blink). Only on the detailed
+  ground, ±145 m round the lander. Can be switched off on the start page.
+- **Standing on the ground as drawn**: walking, rocks and prints use the finest mesh's own triangles
+  (`gridHeight` in `src/moon.js`), not the finer data behind its shading. Rocks take the lowest point under their
+  footprint and are bedded in, so none hangs in the air on a slope or a crater rim.
+
 ## How the Moon is drawn
 
 Seven nested levels centred on the landing site, each a grid mesh with one RGBA map, built offline by
@@ -85,7 +101,8 @@ repository's history.
 
 Serve the repository root (`python -m http.server 8765`) and open `/vr-apps/moon/`.
 
-URL parameters: `view=orbit|low|surface`, `theta=` (degrees along the orbit before the site), `yaw=`, `pitch=`,
+URL parameters: `debug=shadow` (the baked shadows only, each detail level in its own colour: shows whether a dark
+patch is a shadow and whether shadows meet across level borders), `view=orbit|low|surface`, `theta=` (degrees along the orbit before the site), `yaw=`, `pitch=`,
 `x=`, `z=`, `heading=` (surface position and facing), `sun=` (degrees of lunar rotation after landing, 0.51 per
 hour), `exposure=`, `scale=` (VR resolution), `still` (no motion), `shot` (hide the panel).
 
@@ -95,7 +112,10 @@ back to `"ktx2"` before committing. `test/xr.test.cjs` runs in real time and wor
 an emulated Quest 3 and checks both eyes in all three views.
 
 Hooks on `window.__moon`: `S` (state), `setView(name, theta)`, `setSun(deg)`, `look(yaw, pitch)`,
-`stand(x, z, heading)`.
+`stand(x, z, heading)`, `teleport(x, z)`, `prints` (`count`, `add`, `trail`), `suit` (`step()`).
+
+In XR, read the head from `camera.matrixWorld` after `renderer.xr.updateCamera(camera)`; the XR array camera
+(`renderer.xr.getCamera()`) reports the world origin from `getWorldPosition`.
 
 ## Sources
 
