@@ -14,7 +14,7 @@
    the frame, which turns the unavoidable jitter into small steps in
    brightness instead of blinks of uneven length. */
 
-import { createSound } from './sound.js?v=1';
+import { createSound } from './sound.js?v=2';
 
 const Q = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -409,44 +409,66 @@ function pollPads(session, tMs) {
 
 /* ---------------- VR ---------------- */
 
+function failVR(session, msg) {
+  run.failed = true;
+  setStatus(msg + ' Skriv beskeden til Claude.', true);
+  try { session.end(); } catch (_) { /* already over */ }
+}
+
 async function enterVR() {
+  run.failed = false;
   const sp = sound.start();
   sound.setPulse(S.pulse, S.pulseLevel);
   let session;
   try {
     session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local'] });
   } catch (e) { setStatus('Kunne ikke starte VR: ' + e.message, true); sound.stop(); return; }
-  await sp;
-  await gl.makeXRCompatible();
-  const layer = new XRWebGLLayer(session, gl, { antialias: false, depth: false, framebufferScaleFactor: 0.8 });
-  if ('fixedFoveation' in layer) layer.fixedFoveation = 0;
-  await session.updateRenderState({ baseLayer: layer });
-  const ref = await session.requestReferenceSpace('viewer');
-  run.fr = 72;
-  if (session.supportedFrameRates && session.updateTargetFrameRate) {
-    const rates = Array.from(session.supportedFrameRates);
-    const want = rates.includes(S.rate) ? S.rate : Math.max(...rates.filter((r) => r <= 120));
-    try { await session.updateTargetFrameRate(want); } catch (_) { /* keep the default */ }
-  }
-  run.fr = session.frameRate || run.fr;
+  sp.catch(() => {});   /* sound may still be starting; never hold the first frame for it */
+  /* If no frame arrives, or drawing fails, end the session and say why on
+     the page instead of leaving the headset waiting. */
+  let firstFrame = false, errors = 0;
+  setTimeout(() => { if (!firstFrame && !run.failed) failVR(session, 'Brillerne sendte ingen billeder til appen inden for 8 sekunder.'); }, 8000);
+  let layer, ref;
+  try {
+    await gl.makeXRCompatible();
+    layer = new XRWebGLLayer(session, gl, { antialias: false, depth: false, framebufferScaleFactor: 0.8 });
+    if ('fixedFoveation' in layer) layer.fixedFoveation = 0;
+    session.updateRenderState({ baseLayer: layer });
+    ref = await session.requestReferenceSpace('viewer');
+  } catch (e) { failVR(session, 'VR kunne ikke sættes op: ' + e.message); return; }
+  run.fr = session.frameRate || 72;
   run.session = session;
   resetRun('vr');
   session.addEventListener('select', () => act.pause());
-  session.addEventListener('end', () => { run.on = false; run.session = null; sound.stop(); setStatus('VR er afsluttet.'); });
-  if ('onframeratechange' in session) session.addEventListener('frameratechange', () => { run.fr = session.frameRate || run.fr; showHud(); });
+  session.addEventListener('end', () => { run.on = false; run.session = null; sound.stop(); if (!run.failed) setStatus('VR er afsluttet.'); });
+  session.addEventListener('frameratechange', () => { run.fr = session.frameRate || run.fr; showHud(); });
+  /* Ask for 120 Hz without waiting for the answer: on a real Quest the
+     promise only settles once frames are being drawn, so awaiting it before
+     the first frame waits forever (the headset shows its loading stars). */
+  if (session.supportedFrameRates && session.updateTargetFrameRate) {
+    const rates = Array.from(session.supportedFrameRates);
+    const want = rates.includes(S.rate) ? S.rate : Math.max(...rates.filter((r) => r <= 120));
+    session.updateTargetFrameRate(want).then(() => { run.fr = session.frameRate || want; showHud(); }, () => {});
+  }
   const views = [];
   const onXR = (t, frame) => {
     if (!run.session) return;
     session.requestAnimationFrame(onXR);
-    pollPads(session, t);
-    const pose = frame.getViewerPose(ref);
-    if (!pose) return;
-    views.length = 0;
-    for (const v of pose.views) {
-      const vp = layer.getViewport(v);
-      views.push({ invProj: invert(v.projectionMatrix), vp: [vp.x, vp.y, vp.width, vp.height], right: v.eye === 'right' });
+    firstFrame = true;
+    try {
+      pollPads(session, t);
+      const pose = frame.getViewerPose(ref);
+      if (!pose) return;
+      views.length = 0;
+      for (const v of pose.views) {
+        const vp = layer.getViewport(v);
+        views.push({ invProj: invert(v.projectionMatrix), vp: [vp.x, vp.y, vp.width, vp.height], right: v.eye === 'right' });
+      }
+      renderFrame(t, views, layer.framebuffer);
+      errors = 0;
+    } catch (e) {
+      if (++errors >= 3) failVR(session, 'Fejl under tegningen: ' + e.message);
     }
-    renderFrame(t, views, layer.framebuffer);
   };
   session.requestAnimationFrame(onXR);
 }

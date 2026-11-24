@@ -16,7 +16,12 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) errs.push(m.text()); });
-  await p.addInitScript({ content: fs.readFileSync(IWER, 'utf8') + ';window.__dev = new IWER.XRDevice(IWER.metaQuest3); window.__dev.stereoEnabled = true; window.__dev.installRuntime({ forceInstall: true });' });
+  await p.addInitScript({ content: fs.readFileSync(IWER, 'utf8') + ';window.__dev = new IWER.XRDevice(IWER.metaQuest3); window.__dev.stereoEnabled = true; window.__dev.installRuntime({ forceInstall: true });' +
+    /* A real Quest only settles updateTargetFrameRate once frames are being drawn; the emulator settles it at
+       once. Make the emulator behave like the headset, so waiting for it before the first frame shows up here. */
+    ';(() => { const P = XRSession.prototype, raf = P.requestAnimationFrame, utf = P.updateTargetFrameRate; let drawn = false;' +
+    ' P.requestAnimationFrame = function (cb) { return raf.call(this, (t, f) => { drawn = true; cb(t, f); }); };' +
+    ' if (utf) P.updateTargetFrameRate = function (r) { return new Promise((res, rej) => { const go = () => (drawn ? utf.call(this, r).then(res, rej) : setTimeout(go, 20)); go(); }); }; })();' });
   await p.goto('http://localhost:8765/vr-apps/lysrytme/');
   await p.waitForFunction(() => window.__lys);
   const ev = (f, a) => p.evaluate(f, a);
