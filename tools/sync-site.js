@@ -83,6 +83,10 @@ const EXTRA = {
     alt: "Lysrytme — light that flickers in a chosen rhythm in a Quest 3, with patterns, colours and sound in step",
     type: "website",
   },
+  "vr-apps/moon/briefing.html": {
+    alt: "Journey to the Moon: Briefing — twelve narrated schematic boards of the whole Apollo mission, with a model of the Saturn V",
+    type: "website",
+  },
   "vr-apps/moon/launch.html": {
     alt: "Journey to the Moon: Launch — the countdown and the climb to orbit from the Commander's couch of an Apollo Command Module",
     type: "website",
