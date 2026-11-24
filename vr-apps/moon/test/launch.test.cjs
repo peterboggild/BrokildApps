@@ -67,6 +67,28 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   }
   const covers = await p.evaluate(async () => { __launch.setTime(100); await new Promise(r => setTimeout(r, 300)); const a = __launch.cabin.covers[0].visible; __launch.setTime(260); await new Promise(r => setTimeout(r, 300)); return [a, __launch.cabin.covers[0].visible]; });
   ok('the cover is on before the tower goes and off after', covers[0] === true && covers[1] === false, JSON.stringify(covers));
+  /* boarding: a fresh session that starts on the access arm; walk to the hatch; climb in; seated; the count resumes */
+  await p.evaluate(() => __launch.renderer.xr.getSession().end());
+  await p.waitForFunction(() => !__launch.renderer.xr.isPresenting, null, { timeout: 30000 });
+  await p.evaluate(() => { __dev.position.set(0.25, 1.65, 0.1); __dev.quaternion.set(0, 0, 0, 1); });
+  await p.selectOption('#start', 'board');
+  await p.click('#vr');
+  await p.waitForFunction(() => __launch.renderer.xr.isPresenting && __launch.S.mode === 'boarding', null, { timeout: 60000 });
+  await frames(3);
+  const b0 = await p.evaluate(() => ({ running: __launch.S.running, t: __launch.S.t, cabinInWorld: __launch.cabin.group.parent !== __launch.rig }));
+  ok('boarding: on the arm, the count holding, the cabin in the spacecraft', !b0.running && b0.t === -210 && b0.cabinInWorld, JSON.stringify(b0));
+  const e0 = await eyes();
+  ok('boarding: both eyes drawn', e0.every(v => v > 8 && v < 250), e0.map(v => v.toFixed(0)).join(' / '));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'board-arm.png') });
+  await p.evaluate(() => __launch.walkTo(0, -3.0));
+  await frames(3);
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'board-whiteroom.png') });
+  await p.evaluate(() => __launch.walkTo(0, -1.2));
+  await p.waitForFunction(() => __launch.S.mode === 'seated' && __launch.SEAT.done, null, { timeout: 60000 });
+  await frames(6);
+  const s1 = await p.evaluate(() => { const e = __launch.camera.matrixWorld.elements; return { pos: [e[12], e[13], e[14]], inRig: __launch.cabin.group.parent === __launch.rig, resumeAt: __launch.S.resumeAt > 0 }; });
+  ok('climbed in: seated at the eye point, the cabin round you, the count about to resume', Math.hypot(...s1.pos) < 0.05 && s1.inRig && s1.resumeAt, JSON.stringify(s1));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'board-seated.png') });
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');

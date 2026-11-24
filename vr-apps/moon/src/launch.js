@@ -1,18 +1,20 @@
-/* Journey to the Moon, chapter 1: the launch, from the Commander's couch.
+/* Journey to the Moon, chapter 1: the launch.
  *
- * T-3:30 to orbit insertion (T+11:53) and a minute beyond. The cabin is drawn first and writes the stencil; the
- * sky, the Earth and the pad are drawn only where it did not (the window openings), each with its own near and far
- * planes. Until the escape tower is jettisoned at T+3:18 the boost protective cover blinds every window except a
- * small one over the hatch window.
+ * Boarding (optional): you walk along the crew access arm into the White Room, the count holding at T-3:30, and
+ * climb in through the open hatch; the hatch closes, you are seated, the arm swings back, the count resumes.
+ * Then from the Commander's couch to orbit insertion (T+11:53) and a minute beyond. The sky and the Earth are drawn
+ * first, then the pad, then the cabin over them (its windows are openings). Until the escape tower is jettisoned
+ * at T+3:18 the boost protective cover blinds every window except a small one over the hatch window.
  *
- * URL: ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)  ?still (clock stopped)  ?shot
- *      ?scale= (VR resolution)  ?shake=0..1 */
+ * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
+ *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=8';
-import { makeOutside } from './earth.js?v=8';
-import { makeCabin } from './cabin.js?v=8';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=8';
-import { makeRadio } from './radio.js?v=8';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=9';
+import { makeOutside } from './earth.js?v=9';
+import { makeCabin } from './cabin.js?v=9';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=9';
+import { makeRadio } from './radio.js?v=9';
+import { makePad, ARM, WR, HATCH } from './pad.js?v=9';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -28,7 +30,7 @@ renderer.autoClear = false;
 renderer.info.autoReset = false;
 renderer.xr.enabled = true;
 renderer.xr.cameraAutoUpdate = false;
-renderer.xr.setReferenceSpaceType('local');          /* seated: the origin is where your head is when you start */
+renderer.xr.setReferenceSpaceType('local-floor');    /* standing to board; seated later (seat() brings the couch to you) */
 $('stage').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -42,13 +44,24 @@ addEventListener('resize', () => {
 
 const S = {
   t: num('t', -210), running: false, warp: 1, still: Q.has('still'), shake: num('shake', 1),
-  yaw: num('yaw', 0), pitch: num('pitch', 0), fps: 0, calls: 0, tris: 0, frames: 0, ready: false, dsky: 0
+  yaw: num('yaw', 0), pitch: num('pitch', 0), fps: 0, calls: 0, tris: 0, frames: 0, ready: false, dsky: 0,
+  mode: Q.has('board') ? 'boarding' : 'seated', resumeAt: 0
 };
+/* the walker while boarding: pad-frame position of the rig (the floor under you) and its facing */
+const W = { x: num('wx', 0), z: num('wz', ARM.z0 + 0.9), yaw: Math.PI, dwell: 0, snap: 0 };   /* ?wx= &wz=: test aid */
+const EYE_PAD = new THREE.Vector3(0.6, 0, -0.15);     /* the Commander's eye point relative to the vehicle's axis */
 
 const outside = makeOutside(renderer);
 const cabin = makeCabin();
 rig.add(cabin.group);
 scene.add(outside.far, outside.near);
+const padScene = makePad();
+outside.pad.add(padScene.group);
+/* a black veil for the moment of climbing in */
+const fadeScene = new THREE.Scene();
+const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+fadeScene.add(veil);
+const FADE = { k: 0, target: 0 };
 const sound = makeLaunchSound(), haptics = makeHaptics();
 let radio = null;
 
@@ -77,7 +90,8 @@ const keys = {};
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') { startCount(); S.running = !S.running || !S.started; S.started = true; }
-  if (e.code === 'KeyW') cycleWarp();
+  if (e.code === 'KeyW' && S.mode === 'seated') cycleWarp();
+  if (e.code === 'KeyE' && S.mode === 'boarding') boardNow();
   const jump = { Digit1: -210, Digit2: -30, Digit3: 185, Digit4: 540, Digit5: 700 }[e.code];
   if (jump !== undefined) setTime(jump);
 });
@@ -98,12 +112,65 @@ function readControllers() {
   const s = renderer.xr.getSession(); if (!s) return;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
-    const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a']) cycleWarp();
+    const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed, tr = gp.buttons[0]?.pressed;
+    if (a && !pad.prev[k + 'a'] && S.mode === 'seated') cycleWarp();
     if (b && !pad.prev[k + 'b']) hud.on = !hud.on;
-    if (st && !pad.prev[k + 's']) SEAT.pending = 1;
-    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st;
+    if (st && !pad.prev[k + 's'] && S.mode === 'seated') SEAT.pending = 1;
+    if (tr && !pad.prev[k + 't'] && S.mode === 'boarding') boardNow();
+    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st; pad.prev[k + 't'] = tr;
+    const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
+    if (k === 'left') { STICK.x = ax[0]; STICK.y = ax[1]; } else STICK.turn = ax[0];
   }
+}
+const STICK = { x: 0, y: 0, turn: 0 };
+
+/* ---------------------------------------------------------------- boarding */
+const _hp = new THREE.Vector3(), _fw = new THREE.Vector3();
+/* your head in the pad frame */
+function headPad(out) { out.setFromMatrixPosition(camera.matrixWorld); out.x += st.pos[0]; out.y += st.pos[1]; out.z += st.pos[2]; return out; }
+function walk(dt) {
+  const xr = renderer.xr.isPresenting;
+  let mx = 0, mz = 0;
+  if (xr) { mx = STICK.x; mz = STICK.y; }
+  else { mz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0); mx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0); }
+  if (Math.abs(mx) > 0.15 || Math.abs(mz) > 0.15) {
+    camera.getWorldDirection(_fw); _fw.y = 0; _fw.normalize();
+    const sp = 1.0 * dt;
+    W.x += (_fw.x * -mz - _fw.z * mx) * sp; W.z += (_fw.z * -mz + _fw.x * mx) * sp;
+  }
+  if (xr) {                                          /* snap turns, 30 degrees */
+    if (Math.abs(STICK.turn) > 0.7 && !W.snap) { W.yaw -= Math.sign(STICK.turn) * Math.PI / 6; W.snap = 1; }
+    if (Math.abs(STICK.turn) < 0.3) W.snap = 0;
+  }
+  /* stay inside the arm and the White Room (real walking included: the rig is pushed back) */
+  headPad(_hp);
+  let x = _hp.x, z = _hp.z;
+  if (z < WR.z0 + 0.05) { x = Math.max(-ARM.half + 0.22, Math.min(ARM.half - 0.22, x)); z = Math.max(ARM.z0 + 0.35, z); }
+  else { x = Math.max(-WR.half + 0.25, Math.min(WR.half - 0.25, x)); z = Math.min(-1.65, z); }
+  W.x += x - _hp.x; W.z += z - _hp.z;
+  /* at the hatch: climb in */
+  const atHatch = z > -2.1 && Math.abs(x) < 0.95;
+  W.dwell = atHatch ? W.dwell + dt : 0;
+  if (W.dwell > 0.5) boardNow();
+  if (z > WR.z0 + 0.3 && !W.inWR) { W.inWR = true; radio?.cue('whiteroom'); }
+}
+function boardNow() {
+  if (S.mode !== 'boarding') return;
+  headPad(_hp);
+  if (_hp.z < WR.z0 - 0.2) return;                    /* only from the White Room */
+  S.mode = 'seating'; FADE.target = 1;
+}
+function seatAfterBoarding() {
+  rig.add(cabin.group); cabin.group.position.set(0, 0, 0); cabin.group.quaternion.identity();
+  cabin.setHatch(0);
+  rig.position.set(0, 0, 0);
+  S.mode = 'seated';
+  if (renderer.xr.isPresenting) { head.position.set(0, 0, 0); head.rotation.set(0, 0, 0); SEAT.pending = 1; SEAT.done = false; }
+  else { S.yaw = 0; S.pitch = 0; }
+  sound.hatch && sound.hatch();
+  radio?.cue('seated');
+  S.resumeAt = performance.now() + 16000;            /* the arm swings back, then the count resumes */
+  FADE.target = 0;
 }
 
 /* Seating. The headset reports your head relative to its own origin, which is wherever the Quest was last
@@ -141,7 +208,17 @@ function render() {
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN; hud.mesh.visible = c && hud.on; outside.far.visible = f; outside.near.visible = n; };
+  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN; hud.mesh.visible = (c || S.mode !== 'seated') && hud.on; outside.far.visible = f; outside.near.visible = n; };
+  if (S.mode !== 'seated') {
+    /* boarding: the sky, then the pad, the arm, the White Room and the spacecraft (its cabin seen through the
+     * open hatch) together, in one depth range */
+    show(false, true, false); setPlanes(20, 6e7); renderer.render(scene, camera);
+    renderer.clearDepth();
+    show(true, false, true); setPlanes(0.05, 80000); renderer.render(scene, camera);
+    drawVeil();
+    S.calls = renderer.info.render.calls; S.tris = renderer.info.render.triangles;
+    return;
+  }
   /* The outside first, the cabin last over it: the cabin covers everything but its window openings. (Not a stencil
    * mask: the Quest's XR framebuffer may have no stencil buffer, and then the sky was drawn over the whole cabin.) */
   /* 1: sky and Earth */
@@ -152,15 +229,32 @@ function render() {
   /* 3: the cabin */
   renderer.clearDepth();
   show(true, false, false); setPlanes(0.02, 12); renderer.render(scene, camera);
+  drawVeil();
   S.calls = renderer.info.render.calls; S.tris = renderer.info.render.triangles;
+}
+function drawVeil() {
+  if (FADE.k <= 0.001) return;
+  veil.material.opacity = FADE.k;
+  camera.matrixWorld.decompose(veil.position, veil.quaternion, veil.scale);
+  veil.scale.set(1, 1, 1); veil.translateZ(-0.1);
+  veil.updateMatrixWorld(true);
+  renderer.render(fadeScene, camera);
 }
 
 const _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _q0 = new THREE.Quaternion(), _sun = new THREE.Vector3();
 let jolt = 0, prevT = S.t;
+const _att = new THREE.Quaternion();
 function placeRig() {
   _y.fromArray(st.head); _z.fromArray(st.nose).negate(); _x.crossVectors(_y, _z).normalize();
   _m.makeBasis(_x, _y, _z);
-  rig.quaternion.setFromRotationMatrix(_m);
+  _att.setFromRotationMatrix(_m);
+  if (S.mode === 'seated') { rig.quaternion.copy(_att); rig.position.set(0, 0, 0); return; }
+  /* boarding: you stand on the arm; the cabin stays where it is in the spacecraft, at the eye point */
+  rig.quaternion.setFromAxisAngle(_y.set(0, 1, 0), W.yaw);
+  rig.position.set(W.x - st.pos[0], ARM.floor - st.pos[1], W.z - st.pos[2]);
+  if (cabin.group.parent !== scene) scene.add(cabin.group);
+  cabin.group.quaternion.copy(_att);
+  cabin.group.position.set(EYE_PAD.x, 0, EYE_PAD.z);
 }
 
 let lastT = 0, acc = 0, accN = 0, lastDsky = 0, lastAlt = 0;
@@ -170,6 +264,10 @@ function frame(now) {
   if (acc > 0.5) { S.fps = accN / acc; acc = 0; accN = 0; if ($('stat')) $('stat').textContent = `${S.fps.toFixed(0)} fps · ${S.calls} draw calls · ${(S.tris / 1000).toFixed(0)}k triangles`; }
   const xr = renderer.xr.isPresenting;
   if (xr) readControllers();
+  if (S.mode === 'boarding') walk(dt);
+  FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
+  if (S.mode === 'seating' && FADE.k > 0.97) seatAfterBoarding();
+  if (S.resumeAt && performance.now() > S.resumeAt) { S.resumeAt = 0; S.running = true; S.started = true; }
   if (S.running && !S.still) {
     if (!warpAllowed(S.t)) S.warp = 1;
     S.t = Math.min(END, S.t + dt * S.warp);
@@ -177,9 +275,11 @@ function frame(now) {
   st = state(S.t, st);
   placeRig();
   outside.update(st, S.t, EVENTS);
+  padScene.update(now / 1000, dt, S.mode);
+  if (S.mode !== 'seated') cabin.setHatch(1);
   /* the cover and the daylight */
   const open = S.t >= EVENTS.towerJett;
-  cabin.setCovers(!open);
+  cabin.setCovers(!open && S.mode === 'seated');
   _sun.fromArray(SUN).applyQuaternion(_q0.copy(rig.quaternion).invert());
   cabin.setDaylight(open ? 1 : 0.15, _sun);
   /* shaking: the cabin round you, never your view */
@@ -189,7 +289,7 @@ function frame(now) {
   prevT = S.t;
   jolt = Math.max(0, jolt - dt * 3);
   const a = 0.0035 * k.shake * S.shake;
-  cabin.group.position.set((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, (Math.random() - 0.5) * a * 0.6 + 0.03 * jolt * Math.sin(jolt * Math.PI) * S.shake);
+  if (S.mode === 'seated') cabin.group.position.set((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, (Math.random() - 0.5) * a * 0.6 + 0.03 * jolt * Math.sin(jolt * Math.PI) * S.shake);
   /* instruments */
   cabin.timer.draw(S.t);
   cabin.ball.quaternion.copy(rig.quaternion).invert();
@@ -201,11 +301,12 @@ function frame(now) {
   }
   /* sound, radio, controllers */
   sound.update(S.t, S.warp);
+  sound.ambience(S.mode !== 'seated');
   if (radio && S.running) radio.update(S.t, S.warp);
   if (xr) haptics(renderer.xr.getSession(), S.t, S.shake, now / 1000);
-  if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
+  if (!xr) { head.position.set(0, S.mode === 'seated' ? 0 : 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : ''; }
-  if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
+  if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + (S.running ? phase(S.t) : 'holding') + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now);
   render();
   S.frames++;
@@ -224,7 +325,7 @@ async function enterVR() {
   readOptions();
   await startSound();
   renderer.xr.setFramebufferScaleFactor(num('scale', +($('scale')?.value || 1)));
-  const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local'] });
+  const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
   renderer.xr.setFoveation(0.5);
   const hz = +($('hz')?.value || 72);
@@ -236,17 +337,26 @@ async function enterVR() {
   hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
   S.yaw = 0; S.pitch = 0;
   head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
-  SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
-  setTimeout(() => { S.running = true; S.started = true; }, 2500);     /* a moment to settle in before the count resumes */
+  if (S.mode === 'seated') {
+    SEAT.pending = 1; SEAT.done = false;
+    setTimeout(() => { S.running = true; S.started = true; }, 2500);   /* a moment to settle in before the count resumes */
+  } else beginBoarding();
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
+function beginBoarding() {
+  S.mode = 'boarding'; S.running = false; S.t = -210; W.x = 0; W.z = ARM.z0 + 0.9; W.yaw = Math.PI; W.inWR = false;
+  setTimeout(() => radio?.cue('board'), 1500);
+}
 function readOptions() {
-  if ($('start')) S.t = +$('start').value;
+  if ($('start')) { const v = $('start').value; if (v === 'board') { S.mode = 'boarding'; S.t = -210; } else { S.mode = 'seated'; S.t = +v; } }
   if ($('shake')) S.shake = +$('shake').value;
 }
 $('vr')?.addEventListener('click', enterVR);
-$('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; S.started = true; document.body.classList.add('running'); });
+$('flat')?.addEventListener('click', async () => {
+  readOptions(); await startSound(); document.body.classList.add('running');
+  if (S.mode === 'boarding') beginBoarding(); else { S.running = true; S.started = true; }
+});
 if (Q.has('shot')) document.body.classList.add('invr');
 
 (async () => {
@@ -259,5 +369,6 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__launch = { S, renderer, camera, rig, head, cabin, outside, afterFrame: null, setTime, SEAT, get radio() { return radio; },
+window.__launch = { S, W, renderer, camera, rig, head, cabin, outside, padScene, afterFrame: null, setTime, SEAT, boardNow, beginBoarding, get radio() { return radio; },
+  walkTo(x, z) { W.x = x; W.z = z; },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; } };

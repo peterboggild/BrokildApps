@@ -28,7 +28,9 @@ foreach ($l in $data.lines) {
   $af = "asetrate=22050*$p,aresample=22050,atempo=$([math]::Round(1/$p, 4)),silenceremove=stop_periods=-1:stop_duration=0.25:stop_threshold=-50dB"
   & ffmpeg -loglevel error -y -i $tmp -af $af -ac 1 -ar 48000 -c:a libopus -b:a 32k $ogg
   $dur = [double](& ffprobe -v error -show_entries format=duration -of csv=p=0 $ogg)
-  $lines += [ordered]@{ id = $l.id; t = $l.t; who = $l.who; text = $l.text; dur = [math]::Round($dur, 2) }
+  $entry = [ordered]@{ id = $l.id; t = $l.t; who = $l.who; text = $l.text; dur = [math]::Round($dur, 2) }
+  if ($l.cue) { $entry.cue = $l.cue; $entry.delay = $l.delay }
+  $lines += $entry
   Write-Host ("{0,-6} {1,7} {2,-7} {3,5:N2}s  {4}" -f $l.id, $l.t, $l.who, $dur, $l.text)
 }
 $out = [ordered]@{ about = $data.about; channels = @{}; lines = $lines }

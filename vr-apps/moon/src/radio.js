@@ -65,6 +65,7 @@ export async function makeRadio(ctx, out, scriptUrl) {
   /* every frame: start the lines that are due; with time running fast, skip what has gone by */
   function update(t, warp) {
     for (const l of lines) {
+      if (typeof l.t !== 'number') continue;            /* cued lines play on events, not at a mission time */
       if (t < l.t) { l.played = false; continue; }
       if (l.played) continue;
       l.played = true;
@@ -73,10 +74,16 @@ export async function makeRadio(ctx, out, scriptUrl) {
       play(l, late > 0.15 ? late : 0);
     }
   }
+  /* the lines for an event (boarding, the White Room, seated), each after its delay */
+  let speaking = null;
+  function cue(name) {
+    for (const l of lines) if (l.cue === name) setTimeout(() => { play(l, 0); speaking = { l, until: performance.now() + (l.dur + 0.5) * 1000 }; }, (l.delay || 0) * 1000);
+  }
   /* the line being heard now, for subtitles */
   function current(t) {
-    for (let i = lines.length - 1; i >= 0; i--) { const l = lines[i]; if (t >= l.t && t < l.t + l.dur + 0.4) return l; }
+    if (speaking && performance.now() < speaking.until) return speaking.l;
+    for (let i = lines.length - 1; i >= 0; i--) { const l = lines[i]; if (typeof l.t === 'number' && t >= l.t && t < l.t + l.dur + 0.4) return l; }
     return null;
   }
-  return { update, current, lines };
+  return { update, current, cue, lines };
 }

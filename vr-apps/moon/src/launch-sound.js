@@ -7,7 +7,7 @@
  *   firing above you; the third stage quiet.
  * - The controllers vibrate with it (the view itself is never shaken).
  * - The radio (radio.js) feeds in here, so all sound goes through one compressor. */
-import { EVENTS } from './ascent.js?v=8';
+import { EVENTS } from './ascent.js?v=9';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -99,6 +99,39 @@ export function makeLaunchSound() {
     o.connect(og).connect(out); o.start(t); o.stop(t + 0.6);
   }
 
+  /* the hatch closing: a heavy thud, then the latch ratchet */
+  function hatch() {
+    if (!ready) return;
+    bang(0.55, 0.35, 500);
+    for (let k = 0; k < 7; k++) setTimeout(() => bang(0.12, 0.05, 2500), 450 + k * 160);
+  }
+  /* on the arm: wind through the walkway, the vehicle venting (a hiss that comes and goes) */
+  let padAmb = null;
+  function ambience(on) {
+    if (!ready) return;
+    if (!padAmb) {
+      const sr = ctx.sampleRate, n = sr * 4, b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const w = ctx.createBufferSource(); w.buffer = b; w.loop = true;
+      const wf = ctx.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 350; wf.Q.value = 0.4;
+      const wg = ctx.createGain(); wg.gain.value = 0;
+      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.13; lg.gain.value = 0.025; lfo.connect(lg).connect(wg.gain); lfo.start();
+      w.connect(wf).connect(wg).connect(out); w.start();
+      const v = ctx.createBufferSource(); v.buffer = b; v.loop = true; v.playbackRate.value = 0.7;
+      const vf = ctx.createBiquadFilter(); vf.type = 'highpass'; vf.frequency.value = 1800;
+      const vg = ctx.createGain(); vg.gain.value = 0;
+      v.connect(vf).connect(vg).connect(out); v.start();
+      padAmb = { wg, vg, next: 0 };
+    }
+    padAmb.wg.gain.setTargetAtTime(on ? 0.05 : 0, ctx.currentTime, 0.8);
+    if (!on) padAmb.vg.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+    else if (ctx.currentTime > padAmb.next) {
+      padAmb.next = ctx.currentTime + 5 + Math.random() * 6;
+      const t = ctx.currentTime;
+      padAmb.vg.gain.setTargetAtTime(0.035, t, 0.4); padAmb.vg.gain.setTargetAtTime(0, t + 1.5 + Math.random() * 2, 0.8);
+    }
+  }
+
   /* every frame: levels follow the flight; one-off sounds at their moments */
   function update(t, warp) {
     if (!ready) return;
@@ -115,7 +148,7 @@ export function makeLaunchSound() {
     once('stage2', E.siiCutoff + 0.8, () => bang(0.6, 0.6, 600));
   }
 
-  return { init, update, get ctx() { return ctx; }, get out() { return out; }, get ready() { return ready; } };
+  return { init, update, hatch, ambience, get ctx() { return ctx; }, get out() { return out; }, get ready() { return ready; } };
 }
 
 /* controller vibration with the rocket */

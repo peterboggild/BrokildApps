@@ -48,6 +48,10 @@ export function makeCabin() {
     wuv.push(1 - i / NA, j / NZ);          /* mirrored: the wall is seen from inside */
     nor.push(-Math.cos(ar) * Math.cos(ALPHA), -Math.sin(ar) * Math.cos(ALPHA), Math.sin(ALPHA));
   }
+  /* the unified crew hatch: a curved door in the wall round the hatch window, hinged on its +X side */
+  const HD = { phi: 90, z0: -1.22, z1: -0.45, hu: 0.36 };
+  const inHatch = (a, z) => { const da = ((a - HD.phi + 540) % 360) - 180; return Math.abs(da * Math.PI / 180 * rAt(z)) < HD.hu && z > HD.z0 && z < HD.z1; };
+  const doorIdx = [];
   const inWindow = (a, z) => WINDOWS.some(w => {
     let da = ((a - w.phi + 540) % 360) - 180;
     const du = da * Math.PI / 180 * rAt(z), dv = (z - w.z) / Math.cos(ALPHA);
@@ -57,17 +61,25 @@ export function makeCabin() {
     const z = Z_BASE + (Z_APEX + 0.05 - Z_BASE) * (j + 0.5) / NZ, a = (i + 0.5) / NA * 360;
     if (inWindow(a, z)) continue;
     const p = j * (NA + 1) + i, q = p + NA + 1;
-    idx.push(p, p + 1, q, q, p + 1, q + 1);
+    (inHatch(a, z) ? doorIdx : idx).push(p, p + 1, q, q, p + 1, q + 1);
   }
   const wg = new THREE.BufferGeometry();
   wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); wg.setIndex(idx);
   wg.setAttribute('uv', new THREE.Float32BufferAttribute(wuv, 2));
-  const wallTex = makeWallTexture();
-  g.add(new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ map: wallTex, ...NO_STENCIL })));
+  const wallTex = makeWallTexture(), wallMat = new THREE.MeshLambertMaterial({ map: wallTex, ...NO_STENCIL });
+  g.add(new THREE.Mesh(wg, wallMat));
+  /* the door: the same wall cells, in a group that turns about the hinge line (a generator of the cone) */
+  const hingeA = HD.phi - (HD.hu / rAt((HD.z0 + HD.z1) / 2)) * 180 / Math.PI;
+  const h0 = point(hingeA, HD.z1), h1 = point(hingeA, HD.z0), hingeAxis = h1.clone().sub(h0).normalize();
+  const door = new THREE.Group(); door.position.copy(h0); g.add(door);
+  const dg = wg.clone(); dg.setIndex(doorIdx); dg.translate(-h0.x, -h0.y, -h0.z);
+  const doorMesh = new THREE.Mesh(dg, wallMat); door.add(doorMesh);
+  const doorBack = new THREE.Mesh(dg, new THREE.MeshLambertMaterial({ color: 0xd9d6cc, side: THREE.BackSide, ...NO_STENCIL }));
+  doorBack.scale.setScalar(1.0); door.add(doorBack);
   /* aft bulkhead behind you, and the tunnel end ahead */
   const aft = new THREE.Mesh(new THREE.CircleGeometry(R_BASE, 64), new THREE.MeshLambertMaterial({ map: makeLockerTexture(), ...NO_STENCIL }));
   aft.position.set(AX, AY, Z_BASE); aft.rotation.y = Math.PI; g.add(aft);
-  dress(g, point, { metal, dark, bezel });
+  dress(g, point, { metal, dark, bezel }, door, h0);
   const fwd = new THREE.Mesh(new THREE.CircleGeometry(0.4, 32), dark); fwd.position.set(AX, AY, Z_APEX + 0.06); g.add(fwd);
 
   /* ---------------- windows: a deep reveal through the wall, a bezel round it, and the boost protective cover
@@ -107,7 +119,8 @@ export function makeCabin() {
     if (w.name === 'hatch') { const h = new THREE.Path(); h.absarc(0, 0, 0.1, 0, Math.PI * 2, true); cs.holes.push(h); }
     const cover = new THREE.Mesh(new THREE.ShapeGeometry(cs, 32), mat(0x2c2b29, { side: THREE.DoubleSide }));
     cover.position.z = depth + 0.03; frame.add(cover); covers.push(cover);
-    g.add(frame);
+    if (w.name === 'hatch') { frame.matrix.premultiply(new THREE.Matrix4().makeTranslation(-h0.x, -h0.y, -h0.z)); door.add(frame); }
+    else g.add(frame);
   }
 
   /* ---------------- the main display console: three panels facing the three couches */
@@ -187,6 +200,8 @@ export function makeCabin() {
   return {
     group: g, covers, dsky, timer, ball, sunIn, amb, panels,
     setCovers(on) { covers.forEach(c => { c.visible = on; }); },
+    /* the hatch: 0 closed, 1 open (swung out about its hinge) */
+    setHatch(k) { door.quaternion.setFromAxisAngle(hingeAxis, -1.75 * k); },
     /* daylight through the open windows: a soft extra fill from the Sun's side */
     setDaylight(k, sunLocal) {
       sunIn.intensity = 0.9 * k; sunIn.position.copy(sunLocal).multiplyScalar(3); sunIn.target.position.set(0, 0, 0);
@@ -262,7 +277,8 @@ function makeCrewman() {
 }
 
 /* things on the walls: the hatch with its latch gear, handholds, cable runs, floodlights, couch struts */
-function dress(g, point, M) {
+function dress(g, point, M, door, h0) {
+  const onDoor = o => { o.position.sub(h0); door.add(o); return o; };
   const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...o });
   const tube = (pts, r, m) => { const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 6, r, 8), m); g.add(t); return t; };
   const bar = (a, b, r, m) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 8), m); o.position.copy(a).add(b).multiplyScalar(0.5);
@@ -272,9 +288,9 @@ function dress(g, point, M) {
   const frame = [];
   for (let k = 0; k <= 40; k++) { const a = k / 40 * Math.PI * 2, sx = Math.sign(Math.cos(a)) * Math.pow(Math.abs(Math.cos(a)), 0.45), sy = Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), 0.45); frame.push(hp(sx * 21, sy * 0.36, -0.012)); }
   tube(frame, 0.016, M.metal);
-  const gb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), L(0x8a8f96)); gb.position.copy(hp(-13, 0.02, -0.04)); gb.lookAt(gb.position.clone().add(new THREE.Vector3(0, -1, 0.5))); g.add(gb);
-  bar(hp(-13, 0.02, -0.07), hp(-13, 0.2, -0.12), 0.011, L(0xb8322a));
-  for (const d of [-17, 17]) for (const z of [-0.26, 0.0, 0.26]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.03, 0.05), M.dark); l.position.copy(hp(d, z, -0.02)); g.add(l); }
+  const gb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), L(0x8a8f96)); gb.position.copy(hp(-13, 0.02, -0.04)); gb.lookAt(gb.position.clone().add(new THREE.Vector3(0, -1, 0.5))); onDoor(gb);
+  onDoor(bar(hp(-13, 0.02, -0.07), hp(-13, 0.2, -0.12), 0.011, L(0xb8322a)));
+  for (const d of [-17, 17]) for (const z of [-0.26, 0.0, 0.26]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.03, 0.05), M.dark); l.position.copy(hp(d, z, -0.02)); onDoor(l); }
   /* handholds by the windows and along the wall */
   const hold = (phi, z0, z1) => { const a = point(phi, z0, -0.006), b = point(phi, z1, -0.006), a2 = point(phi, z0, -0.055), b2 = point(phi, z1, -0.055);
     bar(a2, b2, 0.011, L(0xc9c6bb)); bar(a, a2, 0.009, M.metal); bar(b, b2, 0.009, M.metal); };

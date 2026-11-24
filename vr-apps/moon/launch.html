@@ -56,20 +56,23 @@
      Sit down in a chair before you start.</p>
   <button id="vr" disabled>VR headset not found</button>
   <button id="flat">Start on this screen</button>
-  <label>Start <select id="start"><option value="-210" selected>T−3:30, the final count</option><option value="-30">T−0:30, just before ignition</option><option value="185">T+3:05, before the tower goes</option><option value="540">T+9:00, the second staging</option></select></label>
+  <label>Start <select id="start"><option value="board" selected>Board: walk across the access arm (the count holds)</option><option value="-210">T−3:30, already in the couch</option><option value="-30">T−0:30, just before ignition</option><option value="185">T+3:05, before the tower goes</option><option value="540">T+9:00, the second staging</option></select></label>
   <label>Shaking <select id="shake"><option value="1" selected>As it was</option><option value="0.5">Half</option><option value="0">None</option></select></label>
   <label>VR resolution <select id="scale"><option value="0.8">Low</option><option value="1" selected>Normal</option><option value="1.2">High</option></select></label>
   <label>VR frame rate <select id="hz"><option value="72" selected>72 Hz</option><option value="90">90 Hz</option></select></label>
-  <p class="note">In the headset: you are seated where your head is when you enter; <strong>press a thumbstick to
+  <p class="note">Boarding: stand up. The left stick walks, the right stick turns; walk into the White Room to the
+     open hatch to climb in (or pull the trigger there). Then sit down in a chair.</p>
+  <p class="note">In the couch: you are seated where your head is; <strong>press a thumbstick to
      re-seat yourself</strong> if you move. A or X runs time faster (×4, ×16) once the windows are clear, B or Y hides the
      frame-rate panel on your left hand. The controllers vibrate with the rocket; the view itself never shakes.</p>
-  <p class="note">On this screen: drag to look, <kbd>Space</kbd> start or pause, <kbd>W</kbd> faster, <kbd>1</kbd>–<kbd>5</kbd> jump
+  <p class="note">On this screen: drag to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk while boarding, <kbd>E</kbd> climb in,
+     <kbd>Space</kbd> start or pause, <kbd>W</kbd> faster (in the couch), <kbd>1</kbd>–<kbd>5</kbd> jump
      (count, ignition, tower, staging, orbit).</p>
   <p class="note">Voices are synthetic for now. Earth: NASA Blue Marble Next Generation; the clouds are generated.
      <a href="index.html">The Moon test</a></p>
   <p id="stat"></p>
   <p id="err"></p>
 </div>
-<script type="module" src="./src/launch.js?v=8"></script>
+<script type="module" src="./src/launch.js?v=9"></script>
 </body>
 </html>
