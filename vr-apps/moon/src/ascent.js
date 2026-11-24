@@ -9,7 +9,7 @@
  */
 
 export const RE = 6371000;
-export const EYE_H = 110;                          /* the Commander's eyes above the ground on the pad */
+export const EYE_H = 105.6;                        /* the Commander's eyes above the pad surface (pad.js stacks the Saturn V to it) */
 export const PAD = { lat: 28.608, lon: -80.604 };  /* Launch Complex 39A */
 const AZ = 72 * Math.PI / 180;                     /* launch azimuth, from north towards east */
 

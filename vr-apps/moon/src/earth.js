@@ -4,7 +4,7 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=8';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=9';
 
 const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
@@ -71,7 +71,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=8', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=9', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -204,11 +204,41 @@ export function makeOutside(renderer) {
         float d = length(vXZ);
         float t = vn(vXZ / 35.0) * 0.6 + vn(vXZ / 9.0) * 0.3 + vn(vXZ / 2.5) * 0.1;
         alb *= 0.75 + 0.5 * t;
-        alb = mix(vec3(0.42, 0.41, 0.38), alb, smoothstep(55.0, 70.0, d));          /* the pad hardstand */
-        alb = mix(alb, vec3(0.16, 0.15, 0.13), (1.0 - smoothstep(9.0, 11.0, abs(vXZ.x))) * (1.0 - smoothstep(30.0, 34.0, abs(vXZ.y - 10.0))) * 0.8); /* flame trench */
+        /* near the pad the 1 km map cannot show the coast: the beach about 600 m east, the Atlantic beyond */
+        float near = 1.0 - smoothstep(2500.0, 4000.0, d);
+        float xc = 560.0 + 70.0 * sin(vXZ.y / 900.0) + 25.0 * sin(vXZ.y / 310.0 + 1.3);
+        float sea = smoothstep(xc + 45.0, xc + 60.0, vXZ.x) * near;
+        float beach = smoothstep(xc - 5.0, xc + 5.0, vXZ.x) * (1.0 - smoothstep(xc + 45.0, xc + 60.0, vXZ.x)) * near;
+        float scrub = (1.0 - smoothstep(xc - 5.0, xc + 5.0, vXZ.x)) * near;
+        /* scrub and palmetto: mottled at every scale, with sandy clearings */
+        float m1 = vn(vXZ / 140.0), m2 = vn(vXZ / 31.0 + 3.0), m3 = vn(vXZ / 6.5 + 9.0);
+        vec3 veg = mix(vec3(0.045, 0.065, 0.035), vec3(0.11, 0.12, 0.065), m1) * (0.7 + 0.45 * m2 + 0.3 * m3);
+        veg = mix(veg, vec3(0.30, 0.28, 0.21), smoothstep(0.8, 0.9, vn(vXZ / 45.0 + 17.0)) * smoothstep(0.4, 0.7, m2) * 0.8);
+        alb = mix(alb, veg, scrub * 0.92);
+        alb = mix(alb, vec3(0.52, 0.48, 0.39), beach);
+        float foam = smoothstep(xc + 58.0, xc + 66.0, vXZ.x) * (1.0 - smoothstep(xc + 70.0, xc + 95.0, vXZ.x)) * (0.5 + 0.5 * vn(vXZ / vec2(6.0, 40.0)));
+        alb = mix(alb, mix(vec3(0.025, 0.06, 0.08), vec3(0.75), foam * 0.8), sea);
+        /* Launch Complex 39A: the crawlerway (two gravel lanes) towards the Vehicle Assembly Building, the
+         * octagonal perimeter road, a service road, the pad's octagon of concrete, the flame trench through it */
+        vec2 cw = normalize(vec2(-4600.0, 2400.0));
+        float sa = dot(vXZ, cw), l = abs(dot(vXZ, vec2(-cw.y, cw.x)));
+        float lane = (smoothstep(6.5, 7.5, l) - smoothstep(12.0, 13.0, l)) + (smoothstep(14.5, 15.5, l) - smoothstep(19.5, 20.5, l));
+        alb = mix(alb, vec3(0.46, 0.45, 0.41) * (0.9 + 0.2 * m3), lane * step(60.0, sa) * step(sa, 5200.0));
+        float oct = max(max(abs(vXZ.x), abs(vXZ.y)), (abs(vXZ.x) + abs(vXZ.y)) * 0.7071);
+        alb = mix(alb, vec3(0.09, 0.09, 0.09), (1.0 - smoothstep(2.5, 3.5, abs(oct - 400.0))) * (1.0 - step(0.0, sa) * step(l, 22.0) * step(sa, 420.0)));
+        alb = mix(alb, vec3(0.09, 0.09, 0.09), (1.0 - smoothstep(2.5, 3.5, abs(vXZ.x - 40.0))) * step(vXZ.y, -60.0) * step(-400.0, vXZ.y));
+        float pad = max(max(abs(vXZ.x), abs(vXZ.y)), (abs(vXZ.x) + abs(vXZ.y)) * 0.7071);
+        alb = mix(alb, vec3(0.34, 0.33, 0.31) * (0.9 + 0.15 * m3), 1.0 - smoothstep(118.0, 124.0, pad));          /* the pad */
+        float trench = (1.0 - smoothstep(8.0, 10.0, abs(vXZ.x))) * (1.0 - smoothstep(66.0, 70.0, abs(vXZ.y)));
+        alb = mix(alb, vec3(0.07, 0.065, 0.06), trench * 0.9);                                                     /* flame trench */
         vec3 sun = normalize(uSunDir);
         float mu = max(dot(n, sun), 0.0);
         vec3 col = alb * mu * 6.4 * exp(-vec3(5.8e-6, 13.5e-6, 33.1e-6) * 8000.0 / max(mu + 0.15, 0.05) - 0.08 / max(mu + 0.15, 0.05));
+        /* the sea: the sky reflected, and the Sun's glitter on the waves */
+        vec3 V = normalize(-vPos), wn = normalize(n + vec3(vn(vXZ / 3.0) - 0.5, 0.0, vn(vXZ / 2.3 + 7.0) - 0.5) * 0.25);
+        float fr = 0.02 + 0.98 * pow(1.0 - max(dot(wn, V), 0.0), 5.0);
+        float gl = pow(max(dot(reflect(-sun, wn), V), 0.0), 120.0);
+        col += sea * (fr * vec3(0.5, 0.65, 0.85) * 1.6 + gl * vec3(1.0, 0.95, 0.85) * 20.0);
         vec4 s = skyLookup(normalize(vPos));
         float fade = smoothstep(26000.0, 30000.0, d);
         if (fade >= 1.0) discard;
@@ -222,7 +252,7 @@ export function makeOutside(renderer) {
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < segs; i++) {
     const a = j * segs + i, b = j * segs + (i + 1) % segs, c = a + segs, d = b + segs;
-    gi.push(a, c, b, b, c, d);
+    gi.push(a, b, c, b, d, c);          /* counter-clockwise seen from above */
   }
   const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setIndex(gi);
   const ground = new THREE.Mesh(gg, groundMat); ground.frustumCulled = false;
@@ -264,10 +294,7 @@ export function makeOutside(renderer) {
     const a = new THREE.Mesh(new THREE.BoxGeometry(w, 2.6, len), red); a.position.set(-W2, 0, len / 2); pivot.add(a);
     arms.push(pivot);
   }
-  const arm9 = new THREE.Group(); arm9.position.set(W2, EYE_H - 1.6, W2); tower.add(arm9);
-  const a9 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.4, 13), red); a9.position.set(-3, 0, 6.5); arm9.add(a9);
-  const wr = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3, 3.2), white); wr.position.set(-3, 0.3, 13.8); arm9.add(wr);
-  arm9.rotation.y = -12 * Math.PI / 180;
+  /* arm 9, the crew access arm, and the White Room are in pad.js */
 
   /* ---------------- the escape tower and boost cover leaving, seen ahead through the windows */
   const les = new THREE.Group();
@@ -288,13 +315,12 @@ export function makeOutside(renderer) {
     _up.fromArray(st.up);
     shared.uUp.value.copy(_up);
     /* the eye (or the film) stops down as the bright cloud decks and the black sky take over from the blue sky */
-    shared.uExposure.value = 1.25 - 0.45 * Math.min(1, Math.max(0, (st.alt - 15000) / 60000));
+    shared.uExposure.value = 1.05 - 0.25 * Math.min(1, Math.max(0, (st.alt - 15000) / 60000));
     const sunEl = Math.asin(Math.min(1, Math.max(-1, _up.dot(_s))));
     updateSky(Math.max(EYE_H, st.alt + EYE_H), sunEl);
     /* swing arms away at liftoff */
     const sw = Math.min(1, Math.max(0, (t + 0.3) / 6));
     arms.forEach(a => { a.rotation.y = -sw * 1.2; });
-    arm9.rotation.y = (-12 - (t > -30 ? 0 : 0)) * Math.PI / 180;
     /* escape tower leaving: forward along the old nose direction, its motor burning */
     const dt = t - events.towerJett;
     les.visible = dt > 0 && dt < 12;

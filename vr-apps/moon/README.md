@@ -34,6 +34,15 @@ On the surface (added after the first headset test):
 
 ## Chapter 1: the launch (`launch.html`)
 
+**Boarding** (the default start, `src/pad.js`): you stand at the tower end of the crew access arm, 106 m up, the
+count holding at T−3:30. Walk (left stick, or in the room) along the enclosed arm into the White Room, where the
+Command Module's hatch stands open under the boost protective cover, your crewmates strapped in inside. Walk up to
+the hatch (or pull the trigger there): the view goes dark, the hatch closes with its latch ratchet, you are seated
+in the couch, the arm swings back to its park position, and the count resumes. From the arm: the Saturn V's upper
+stages beside you venting vapour, the escape tower above, the launch umbilical tower round you, the pad and its
+flame trench below, the crawlerway towards the Vehicle Assembly Building, the propellant spheres, the beach and the
+Atlantic to the east. The pad leader and Launch Control speak while you board (cued radio lines).
+
 From the Commander's couch (the left one) on top of the Saturn V: T−3:30 to orbit insertion at T+11:53 and a minute
 beyond. You sit upright; the cabin is turned round you so the main display console is in front, the hatch above.
 

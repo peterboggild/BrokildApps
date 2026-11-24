@@ -1,11 +1,12 @@
 {
-  "about": "Radio and intercom for the launch chapter. t = seconds from liftoff. Original lines in the style of Apollo launch procedure; not quotes of real people. The player is the Commander and does not speak: the Command Module Pilot (CMP) and Lunar Module Pilot (LMP) make the callouts. Speakers: LC launch control (public affairs loop), STC spacecraft test conductor (pad loop), CAPCOM (Houston, with Quindar tones), CMP and LMP (intercom).",
+  "about": "Radio and intercom for the launch chapter. t = seconds from liftoff. Original lines in the style of Apollo launch procedure; not quotes of real people. The player is the Commander and does not speak: the Command Module Pilot (CMP) and Lunar Module Pilot (LMP) make the callouts. Speakers: LC launch control (public affairs loop), STC spacecraft test conductor (pad loop), CAPCOM (Houston, with Quindar tones), CMP and LMP (intercom). PL: the pad leader (the closeout crew in the White Room). Lines with a cue play on events while boarding (delay in s).",
   "channels": {
-    "LMP": "intercom",
+    "CAPCOM": "houston",
+    "PL": "pad",
+    "CMP": "intercom",
     "STC": "pad",
     "LC": "loop",
-    "CAPCOM": "houston",
-    "CMP": "intercom"
+    "LMP": "intercom"
   },
   "lines": [
     {
@@ -448,6 +449,60 @@
       "who": "CMP",
       "text": "Your spacecraft, Commander.",
       "dur": 1.96
+    },
+    {
+      "id": "pl01",
+      "t": null,
+      "who": "PL",
+      "text": "Morning, Commander. She's fueled and waiting for you. Walk on through to the White Room, and watch your head at the hatch.",
+      "dur": 7.02,
+      "cue": "board",
+      "delay": 0
+    },
+    {
+      "id": "lc00",
+      "t": null,
+      "who": "LC",
+      "text": "This is Apollo-Saturn Launch Control. We are holding at T minus three minutes thirty seconds while the Commander boards the spacecraft.",
+      "dur": 7.25,
+      "cue": "board",
+      "delay": 9
+    },
+    {
+      "id": "pl02",
+      "t": null,
+      "who": "PL",
+      "text": "Feet first, Commander. Grab the bar over the hatch and slide on in. Your crew is strapped in and waiting.",
+      "dur": 6.35,
+      "cue": "whiteroom",
+      "delay": 0.3
+    },
+    {
+      "id": "cmp00",
+      "t": null,
+      "who": "CMP",
+      "text": "Come on in. We kept your couch warm.",
+      "dur": 2.29,
+      "cue": "whiteroom",
+      "delay": 6
+    },
+    {
+      "id": "pl03",
+      "t": null,
+      "who": "PL",
+      "text": "Hatch is closed and latched. Good luck, gentlemen. We're clearing the White Room.",
+      "dur": 5.01,
+      "cue": "seated",
+      "delay": 2.5
+    },
+    {
+      "id": "lc00b",
+      "t": null,
+      "who": "LC",
+      "text": "The crew is aboard and the hatch is closed. The access arm is swinging back to its park position. Stand by to resume the count.",
+      "dur": 6.98,
+      "cue": "seated",
+      "delay": 9
     }
   ]
 }
