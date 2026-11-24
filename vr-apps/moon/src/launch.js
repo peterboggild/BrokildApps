@@ -8,11 +8,11 @@
  * URL: ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)  ?still (clock stopped)  ?shot
  *      ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=7';
-import { makeOutside } from './earth.js?v=7';
-import { makeCabin } from './cabin.js?v=7';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=7';
-import { makeRadio } from './radio.js?v=7';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=8';
+import { makeOutside } from './earth.js?v=8';
+import { makeCabin } from './cabin.js?v=8';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=8';
+import { makeRadio } from './radio.js?v=8';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -20,7 +20,7 @@ const $ = id => document.getElementById(id);
 const END = 800;
 const NOCABIN = Q.has('nocabin');                    /* test aid: the world outside without the spacecraft round it */
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 1);
@@ -57,7 +57,7 @@ const hud = (() => {
   const c = document.createElement('canvas'); c.width = 512; c.height = 256;
   const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false,
-    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }));
+    }));
   mesh.renderOrder = 999;
   let last = 0;
   return { mesh, on: true, draw(now) {
@@ -142,14 +142,16 @@ function render() {
   renderer.info.reset();
   renderer.clear(true, true, true);
   const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN; hud.mesh.visible = c && hud.on; outside.far.visible = f; outside.near.visible = n; };
-  /* 1: the cabin, writing the stencil */
-  show(true, false, false); setPlanes(0.02, 12); renderer.render(scene, camera);
-  /* 2: sky and Earth through the windows */
-  renderer.clearDepth();
+  /* The outside first, the cabin last over it: the cabin covers everything but its window openings. (Not a stencil
+   * mask: the Quest's XR framebuffer may have no stencil buffer, and then the sky was drawn over the whole cabin.) */
+  /* 1: sky and Earth */
   show(false, true, false); setPlanes(Math.max(20, st.alt * 0.2), 6e7); renderer.render(scene, camera);
-  /* 3: things near the vehicle: the pad, the tower, the escape tower leaving */
+  /* 2: things near the vehicle: the pad, the tower, the escape tower leaving */
   renderer.clearDepth();
   show(false, false, true); setPlanes(0.5, 80000); renderer.render(scene, camera);
+  /* 3: the cabin */
+  renderer.clearDepth();
+  show(true, false, false); setPlanes(0.02, 12); renderer.render(scene, camera);
   S.calls = renderer.info.render.calls; S.tris = renderer.info.render.triangles;
 }
 

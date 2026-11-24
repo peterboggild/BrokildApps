@@ -4,8 +4,9 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=5';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=8';
 
+const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
   stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp, stencilWriteMask: 0 };
 
@@ -70,7 +71,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=5', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=8', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -95,7 +96,7 @@ export function makeOutside(renderer) {
 
   /* ---------------- sky dome (around the camera, behind everything) */
   const skyMat = new THREE.ShaderMaterial({
-    uniforms: shared, depthTest: false, depthWrite: false, side: THREE.BackSide, ...OUTSIDE_STENCIL,
+    uniforms: shared, depthTest: false, depthWrite: false, side: THREE.BackSide, ...NO_STENCIL,
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
     fragmentShader: `precision highp float; varying vec3 vDir; ${SKY_GLSL} ${DISPLAY}
       void main(){
@@ -126,7 +127,7 @@ export function makeOutside(renderer) {
     uCentre: { value: new THREE.Vector3() }
   };
   const earthMat = new THREE.ShaderMaterial({
-    uniforms: earthU, ...OUTSIDE_STENCIL,
+    uniforms: earthU, ...NO_STENCIL,
     vertexShader: `varying vec3 vPos; varying vec3 vN; void main(){ vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vPos = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `precision highp float;
       uniform sampler2D uEarth; uniform sampler2D uRegion; uniform sampler2D uClouds; uniform sampler2D uCloudsRegion; uniform sampler2D uDetail; uniform vec4 uRegionBox; uniform mat3 uPadToEcef;
@@ -185,7 +186,7 @@ export function makeOutside(renderer) {
   /* ---------------- on the pad: the ground near the pad (a curved disc) and the launch umbilical tower */
   const padU = { ...earthU };
   const groundMat = new THREE.ShaderMaterial({
-    uniforms: padU, ...OUTSIDE_STENCIL, transparent: false,
+    uniforms: padU, ...NO_STENCIL, transparent: false,
     vertexShader: `varying vec3 vPos; varying vec3 vN; varying vec2 vXZ; void main(){ vXZ = position.xz; vN = normalize(vec3(position.x, position.y + ${RE.toFixed(1)}, position.z)); vec4 w = modelMatrix * vec4(position, 1.0); vPos = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `precision highp float;
       uniform sampler2D uRegion; uniform vec4 uRegionBox; uniform mat3 uPadToEcef;
@@ -228,9 +229,9 @@ export function makeOutside(renderer) {
   const pad = new THREE.Group(); pad.add(ground); near.add(pad);
 
   /* the launch umbilical tower: red lattice, 120 m, north of the vehicle; the crew access arm swung back */
-  const red = new THREE.MeshLambertMaterial({ color: 0x8a2a1c, ...OUTSIDE_STENCIL });
-  const white = new THREE.MeshLambertMaterial({ color: 0xd8d6cf, ...OUTSIDE_STENCIL });
-  const grey = new THREE.MeshLambertMaterial({ color: 0x6b6d70, ...OUTSIDE_STENCIL });
+  const red = new THREE.MeshLambertMaterial({ color: 0x8a2a1c, ...NO_STENCIL });
+  const white = new THREE.MeshLambertMaterial({ color: 0xd8d6cf, ...NO_STENCIL });
+  const grey = new THREE.MeshLambertMaterial({ color: 0x6b6d70, ...NO_STENCIL });
   const tower = new THREE.Group(); tower.position.set(0, 0, -24); pad.add(tower);
   const bars = [], W2 = 6, H = 122, DY = 6;
   const bar = (a, b, w) => bars.push([a, b, w]);
@@ -272,7 +273,7 @@ export function makeOutside(renderer) {
   const les = new THREE.Group();
   const bpc = new THREE.Mesh(new THREE.ConeGeometry(2.0, 3.4, 32, 1, true), white); bpc.rotation.x = Math.PI; les.add(bpc);
   const lesTower = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 6, 6), red); lesTower.position.y = -4.5; les.add(lesTower);
-  const flameMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, ...OUTSIDE_STENCIL });
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, ...NO_STENCIL });
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.9, 9, 12, 1, true), flameMat); flame.position.y = -8.5; les.add(flame);
   les.visible = false; near.add(les);
 
