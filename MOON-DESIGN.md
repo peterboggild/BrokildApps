@@ -479,6 +479,37 @@ looks fine in a flat screenshot can still fail in the headset and costs several 
 
 ---
 
+### 12.2 Stage 0 as built (24 November 2026)
+
+Built and tested in the flat preview and in an emulated Quest 3; **not yet in a real headset**. See
+`vr-apps/moon/README.md` for how it works. What stage 0 settled, and where it departs from the plan above:
+
+- **Nested fixed levels instead of a quadtree** (§6.3). Seven lat/lon-aligned levels centred on the site
+  (whole Moon, ±12°, ±4°, ±22 km, ±5 km, ±1 km, ±150 m), each one mesh and one map. Simpler and cheaper than
+  a general quadtree, and right for an experience with one landing site. The orbit views away from the site
+  (chapter 8, behind the Moon) will see only the 1.4 km whole-Moon level: stage 3 must add levels along the orbit
+  track or accept that.
+- **The intermediate data is SLDEM2015 (59 m)**, not WAC GLD100: it is a height model, and at a 13° Sun the relief
+  carries the picture.
+- **Albedo comes from the CGI Moon Kit colour map only** (about 400 m). The NAC orthophotos (0.5 m, 3.3 GB) are not
+  used yet: they have the Sun's shadows in them and need photometric normalisation. On the surface the albedo is
+  therefore uniform except for generated fresh-crater halos. Candidate for stage 5.
+- **Baked horizon maps work** (§6.4): cast shadows for any Sun height from one texture channel, including the rocks'
+  and the stand-in LM's shadows on the finest level. 8-bit normals need exact zero and dithering: one step is a
+  fifth of the brightness next to the terminator.
+- **Two depth passes** when standing on the surface (distant terrain, clear depth, near terrain), with the XR
+  projection matrices patched per pass. Works in the emulator.
+- **Multiview is not available**: three.js r170 has no OCULUS_multiview path. Not pursued.
+- **The frame-rate guard can only strengthen foveation**; three.js cannot change XR resolution mid-session.
+  Resolution and 72/90 Hz are chosen on the start page.
+- **Tools are Python** (numpy, scipy, tifffile), not Node: the raster work needs them. KTX2 encoding uses the
+  WebAssembly Basis encoder from Node, because the KTX-Software installer needs administrator rights here.
+- **Cost, emulator counts per eye:** surface about 115 draw calls and 385k triangles; orbit about 130 and 250k.
+  Over the §4.1 triangle budget on paper; whether the Quest 3 holds 72 Hz is the first thing to learn in the headset.
+- **Size:** the Moon chapter is about 100 MB of KTX2, over the 60 MB per chapter of §4.1. If the headset shows the
+  finest levels can be 2048², that halves it.
+- **Stand-ins:** the LM, the Earth (NASA's Blue Marble server was unreachable on the day), no stars.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

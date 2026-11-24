@@ -672,6 +672,48 @@
             </div>
           </div>
         </article>
+
+        <article class="card">
+          <div class="card-art">
+            <!-- The lunar horizon with long shadows in craters, a low Sun, and a small half-lit Earth in a black sky. -->
+            <svg viewBox="0 0 320 180" role="img" aria-label="A grey lunar landscape with long crater shadows under a black sky, a low Sun and a small half-lit Earth">
+              <defs>
+                <radialGradient id="jmSun" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ffffff" /><stop offset="18%" stop-color="#fff8e6" /><stop offset="100%" stop-color="#fff2cc" stop-opacity="0" />
+                </radialGradient>
+                <linearGradient id="jmGround" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#8d8a84" /><stop offset="100%" stop-color="#4a4844" />
+                </linearGradient>
+              </defs>
+              <rect width="320" height="180" fill="#000" />
+              <circle cx="262" cy="70" r="34" fill="url(#jmSun)" />
+              <circle cx="86" cy="40" r="9" fill="#0a1a33" />
+              <path d="M86 31 a9 9 0 0 1 0 18 a4.5 9 0 0 0 0 -18z" fill="#6fa3d8" />
+              <path d="M0 112 Q40 84 96 100 T190 96 Q250 74 320 104 V180 H0z" fill="#a09d96" />
+              <path d="M0 122 Q80 112 160 118 T320 120 V180 H0z" fill="url(#jmGround)" />
+              <g fill="#0b0b0b">
+                <ellipse cx="70" cy="142" rx="26" ry="5" /><ellipse cx="170" cy="134" rx="14" ry="2.6" />
+                <ellipse cx="236" cy="156" rx="34" ry="6.5" /><ellipse cx="120" cy="165" rx="20" ry="4" />
+              </g>
+              <g fill="none" stroke="#c9c6be" stroke-width="1" opacity=".7">
+                <path d="M44 142 a26 5 0 0 1 52 0" /><path d="M156 134 a14 2.6 0 0 1 28 0" /><path d="M202 156 a34 6.5 0 0 1 68 0" />
+              </g>
+            </svg>
+          </div>
+          <div class="card-body">
+            <h3>Journey to the Moon</h3>
+            <div class="tags">
+              <span class="tag live">Test</span>
+              <span class="tag">Quest 3</span>
+              <span class="tag">In development</span>
+            </div>
+            <p>The start of a realistic Apollo-style flight to the Taurus-Littrow valley, where Apollo 17 landed. So far only the Moon itself, to be judged before the spacecraft are built: <strong>three views</strong> of one Moon made from NASA's Lunar Reconnaissance Orbiter data &mdash; from lunar orbit at 110 km, from a low pass at 15 km, and standing on the valley floor at the landing site. The Sun stands where it stood at the landing, 13&deg; above the eastern horizon, so every crater and rock throws a long shadow. The lander and the Earth are stand-ins.</p>
+            <div class="card-actions">
+              <a class="btn btn-primary" href="moon/index.html">Launch</a>
+              <a class="btn" href="https://github.com/peterboggild/BrokildApps/tree/main/vr-apps/moon" target="_blank" rel="noopener">Source</a>
+            </div>
+          </div>
+        </article>
       </div>
 
       <section class="howto" id="howto">

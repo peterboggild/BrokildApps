@@ -1,0 +1,6 @@
+# development builds of the maps (the published ones are .ktx2)
+assets/moon/*.png
+assets/moon/*.jpg
+tools/*.png
+tools/*.log
+__pycache__/
