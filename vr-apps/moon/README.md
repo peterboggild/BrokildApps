@@ -34,6 +34,25 @@ On the surface (added after the first headset test):
 
 ## Chapter 1: the launch (`launch.html`)
 
+**Curiosity, not authentic** (the owner's wish: authentic, but allowing curiosity):
+- **Y**: a large window opens in the wall to your left (`setCheat` in `src/cabin.js`; its own wall cells, a red rim).
+- **Hold B**: you leave the spacecraft and look at it from outside (`placeOutside` in `src/launch.js`): left stick
+  round it and nearer or further (7-600 m), right stick up and down; the horizon stays level. Release to return.
+- The **vehicle from outside** (`src/vehicle.js`): the three stages with their paint, the F-1 and J-2 engines with
+  their flames (the F-1 plume blooms with height), the stages and the interstage skirt falling away at staging with
+  the retro-rocket flash, the escape tower pulling the boost cover off and flying away, the Service Module, and the
+  Command Module in its aluminised tape (windows, hatch, docking probe). Steam and smoke roll out of the flame trench
+  at ignition (`src/pad.js`).
+
+**Hands, faces, body:**
+- Your **gloved hands** follow the controllers (Portalkniven's hands, `src/hands.js`, in the cabin glove colour).
+  Touching a panel turns the hand red, a small "Not now" sign appears and the controller ticks.
+- The crew's **faces** are a photoscanned head (Lee Perry-Smith, see Sources) seen through the bubble helmet, under
+  the communications cap, the scan's closed eyes opened (cut out, with eyeballs behind), the two crewmates tinted and
+  proportioned differently; their heads and eyes move a little.
+- Looking down you see **your own suit** in the couch (torso, hoses, legs; no arms: your hands are the
+  controllers). An option on the start page.
+
 **Boarding** (the default start, `src/pad.js`): you stand at the tower end of the crew access arm, 106 m up, the
 count holding at T−3:30. Walk (left stick, or in the room) along the enclosed arm into the White Room, where the
 Command Module's hatch stands open under the boost protective cover, your crewmates strapped in inside. Walk up to
@@ -206,6 +225,11 @@ In XR, read the head from `camera.matrixWorld` after `renderer.xr.updateCamera(c
 (`renderer.xr.getCamera()`) reports the world origin from `getWorldPosition`.
 
 ## Sources
+
+- Crew faces: "Infinite, 3D Head Scan" by Lee Perry-Smith, licensed under Creative Commons Attribution 3.0
+  Unported (https://creativecommons.org/licenses/by/3.0/), based on a work at www.triplegangers.com; taken from the
+  three.js examples (`vendor/head/`, licence file beside it). Modified: cut below the neck, eyes opened, tinted.
+- Hands: the WebXR generic hand model (@webxr-input-profiles/assets, MIT), `models/`, licence file beside it.
 
 All NASA / USGS, public domain. No NASA insignia are used.
 

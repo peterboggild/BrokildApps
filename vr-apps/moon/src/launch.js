@@ -6,20 +6,26 @@
  * first, then the pad, then the cabin over them (its windows are openings). Until the escape tower is jettisoned
  * at T+3:18 the boost protective cover blinds every window except a small one over the hatch window.
  *
+ * Curiosity, not authentic (owner's wish): Y opens a large window in the wall to your left; holding B takes you out
+ * of the spacecraft to look at it from outside (sticks: round it, nearer or further, up or down).
+ *
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=9';
-import { makeOutside } from './earth.js?v=9';
-import { makeCabin } from './cabin.js?v=9';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=9';
-import { makeRadio } from './radio.js?v=9';
-import { makePad, ARM, WR, HATCH } from './pad.js?v=9';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=10';
+import { makeOutside } from './earth.js?v=10';
+import { makeCabin } from './cabin.js?v=10';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=10';
+import { makeRadio } from './radio.js?v=10';
+import { makePad, ARM, WR } from './pad.js?v=10';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=10';
+import { createHand } from './hands.js?v=10';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
 const $ = id => document.getElementById(id);
 const END = 800;
+const EYE_TEST = Q.has('eye') ? Q.get('eye').split(',').map(Number) : null;   /* test aid: the flat preview's eye, in the cabin frame */
 const NOCABIN = Q.has('nocabin');                    /* test aid: the world outside without the spacecraft round it */
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
@@ -57,6 +63,13 @@ rig.add(cabin.group);
 scene.add(outside.far, outside.near);
 const padScene = makePad();
 outside.pad.add(padScene.group);
+const vehicle = makeVehicle(renderer);
+outside.near.add(vehicle.group, vehicle.lights);
+/* the attitude on the pad, to turn the vehicle (built in the pad's frame) with the spacecraft */
+const attPad = new THREE.Quaternion(), attRel = new THREE.Quaternion();
+/* looking from outside (B held) */
+const OUT = { want: false, on: false, az: -1.25, el: 0.12, dist: 16 };
+const OPT = { body: true };
 /* a black veil for the moment of climbing in */
 const fadeScene = new THREE.Scene();
 const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
@@ -80,7 +93,8 @@ const hud = (() => {
     g.fillStyle = '#d8d8d8'; g.font = '28px monospace';
     g.fillText(S.calls + ' calls  ' + (S.tris / 1000).toFixed(0) + 'k tris', 20, 126);
     g.fillText(phase(S.t) + (S.warp > 1 ? '   x' + S.warp : ''), 20, 168);
-    g.fillStyle = '#8a8a8a'; g.font = '20px monospace'; g.fillText('A/X time x4/x16 (after 3:20) B/Y hide  stick: re-seat', 12, 240);
+    g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 214);
+    g.fillText('left stick press: panel  right stick press: re-seat', 12, 240);
     tex.needsUpdate = true;
   } };
 })();
@@ -92,6 +106,8 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { startCount(); S.running = !S.running || !S.started; S.started = true; }
   if (e.code === 'KeyW' && S.mode === 'seated') cycleWarp();
   if (e.code === 'KeyE' && S.mode === 'boarding') boardNow();
+  if (e.code === 'KeyC' && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
+  if (e.code === 'KeyO' && S.mode === 'seated') OUT.want = !OUT.want;
   const jump = { Digit1: -210, Digit2: -30, Digit3: 185, Digit4: 540, Digit5: 700 }[e.code];
   if (jump !== undefined) setTime(jump);
 });
@@ -114,15 +130,17 @@ function readControllers() {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed, tr = gp.buttons[0]?.pressed;
     if (a && !pad.prev[k + 'a'] && S.mode === 'seated') cycleWarp();
-    if (b && !pad.prev[k + 'b']) hud.on = !hud.on;
-    if (st && !pad.prev[k + 's'] && S.mode === 'seated') SEAT.pending = 1;
+    /* Y (left): the cheat window; B (right), held: outside; stick presses: left the panel, right re-seat */
+    if (k === 'left' && b && !pad.prev[k + 'b'] && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
+    if (k === 'right') OUT.want = !!b && S.mode === 'seated';
+    if (st && !pad.prev[k + 's']) { if (k === 'left') hud.on = !hud.on; else if (S.mode === 'seated') SEAT.pending = 1; }
     if (tr && !pad.prev[k + 't'] && S.mode === 'boarding') boardNow();
     pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st; pad.prev[k + 't'] = tr;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-    if (k === 'left') { STICK.x = ax[0]; STICK.y = ax[1]; } else STICK.turn = ax[0];
+    if (k === 'left') { STICK.x = ax[0]; STICK.y = ax[1]; } else { STICK.turn = ax[0]; STICK.ry = ax[1]; }
   }
 }
-const STICK = { x: 0, y: 0, turn: 0 };
+const STICK = { x: 0, y: 0, turn: 0, ry: 0 };
 
 /* ---------------------------------------------------------------- boarding */
 const _hp = new THREE.Vector3(), _fw = new THREE.Vector3();
@@ -208,7 +226,7 @@ function render() {
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN; hud.mesh.visible = (c || S.mode !== 'seated') && hud.on; outside.far.visible = f; outside.near.visible = n; };
+  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN && !OUT.on; hud.mesh.visible = (c || S.mode !== 'seated') && hud.on; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
   if (S.mode !== 'seated') {
     /* boarding: the sky, then the pad, the arm, the White Room and the spacecraft (its cabin seen through the
      * open hatch) together, in one depth range */
@@ -222,7 +240,7 @@ function render() {
   /* The outside first, the cabin last over it: the cabin covers everything but its window openings. (Not a stencil
    * mask: the Quest's XR framebuffer may have no stencil buffer, and then the sky was drawn over the whole cabin.) */
   /* 1: sky and Earth */
-  show(false, true, false); setPlanes(Math.max(20, st.alt * 0.2), 6e7); renderer.render(scene, camera);
+  show(false, true, false); setPlanes(OUT.on ? Math.max(20, Math.min(st.alt * 0.2, 2000)) : Math.max(20, st.alt * 0.2), 6e7); renderer.render(scene, camera);
   /* 2: things near the vehicle: the pad, the tower, the escape tower leaving */
   renderer.clearDepth();
   show(false, false, true); setPlanes(0.5, 80000); renderer.render(scene, camera);
@@ -248,13 +266,93 @@ function placeRig() {
   _y.fromArray(st.head); _z.fromArray(st.nose).negate(); _x.crossVectors(_y, _z).normalize();
   _m.makeBasis(_x, _y, _z);
   _att.setFromRotationMatrix(_m);
-  if (S.mode === 'seated') { rig.quaternion.copy(_att); rig.position.set(0, 0, 0); return; }
+  /* the vehicle turns with the spacecraft (it is built as it stands on the pad) */
+  attRel.copy(_att).multiply(_q0.copy(attPad).invert());
+  vehicle.group.quaternion.copy(attRel);
+  if (S.mode === 'seated' && OUT.on) { placeOutside(); return; }
+  if (S.mode === 'seated') { rig.quaternion.copy(_att); rig.position.copy(EYE_OFF).applyQuaternion(attRel); return; }
   /* boarding: you stand on the arm; the cabin stays where it is in the spacecraft, at the eye point */
   rig.quaternion.setFromAxisAngle(_y.set(0, 1, 0), W.yaw);
   rig.position.set(W.x - st.pos[0], ARM.floor - st.pos[1], W.z - st.pos[2]);
   if (cabin.group.parent !== scene) scene.add(cabin.group);
   cabin.group.quaternion.copy(_att);
   cabin.group.position.set(EYE_PAD.x, 0, EYE_PAD.z);
+}
+
+/* outside: a point on a sphere round the spacecraft, the horizon level, looking at it */
+const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3(), _up = new THREE.Vector3(), _tg = new THREE.Vector3();
+function placeOutside() {
+  _up.fromArray(st.up); _h1.fromArray(st.fwd); _h2.crossVectors(_up, _h1).normalize();
+  _tg.set(0, 0.4, 0).applyQuaternion(attRel);
+  rig.position.copy(_h1).multiplyScalar(Math.cos(OUT.az)).addScaledVector(_h2, Math.sin(OUT.az)).multiplyScalar(Math.cos(OUT.el))
+    .addScaledVector(_up, Math.sin(OUT.el)).multiplyScalar(OUT.dist).add(_tg);
+  _z.copy(rig.position).sub(_tg).normalize(); _x.crossVectors(_up, _z).normalize(); _y.crossVectors(_z, _x);
+  rig.quaternion.setFromRotationMatrix(_m.makeBasis(_x, _y, _z));
+}
+function steerOutside(dt) {
+  let ax = 0, ay = 0, ey = 0;
+  if (renderer.xr.isPresenting) { ax = STICK.x; ay = STICK.y; ey = STICK.ry; }
+  else { ax = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); ey = (keys.KeyI ? -1 : 0) + (keys.KeyK ? 1 : 0); ay = (keys.KeyM ? 1 : 0) - (keys.KeyU ? 1 : 0); }
+  const dz = v => Math.abs(v) < 0.15 ? 0 : v;
+  OUT.az += dz(ax) * 1.1 * dt;
+  OUT.dist = Math.min(600, Math.max(7, OUT.dist * Math.exp(dz(ay) * 1.4 * dt)));
+  OUT.el = Math.min(1.45, Math.max(-1.3, OUT.el - dz(ey) * 0.9 * dt));
+}
+/* going out and coming back: a short blink */
+function updateOutside(dt) {
+  if (S.mode !== 'seated') { OUT.want = false; }
+  if (OUT.want !== OUT.on) { FADE.target = 1; if (FADE.k > 0.9) { OUT.on = OUT.want; FADE.target = 0; } }
+  else if (S.mode === 'seated' && FADE.target === 1 && FADE.k > 0.9) FADE.target = 0;
+  if (OUT.on) steerOutside(dt);
+}
+
+/* ---------------------------------------------------------------- hands, and touching the controls */
+const hands = { left: createHand('left'), right: createHand('right') };
+const SIGN = { k: 0, t: 0 };
+const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.045), new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, map: (() => {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 96; const x = c.getContext('2d');
+  x.fillStyle = 'rgba(150,20,14,0.92)'; x.beginPath(); x.roundRect(4, 4, 248, 88, 16); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 46px Arial'; x.textAlign = 'center'; x.fillText('Not now', 128, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })() }));
+sign.renderOrder = 1000; sign.visible = false; scene.add(sign);
+const _tip = new THREE.Vector3(), _loc = new THREE.Vector3();
+function touchingPanel(p) {
+  for (const pnl of cabin.panels) {
+    _loc.copy(p); pnl.mesh.worldToLocal(_loc);
+    if (Math.abs(_loc.x) < pnl.w / 2 && Math.abs(_loc.y) < pnl.h / 2 && _loc.z < 0.03 && _loc.z > -0.03) return true;
+  }
+  return false;
+}
+function updateHands(dt) {
+  const s = renderer.xr.getSession();
+  if (!s) return;
+  let touched = null;
+  for (let i = 0; i < 2; i++) {
+    const src = s.inputSources[i]; if (!src || !src.gamepad) continue;
+    const m = hands[src.handedness]; if (!m) continue;
+    const grip = renderer.xr.getControllerGrip(i);
+    if (m.parent !== grip) grip.add(m);
+    m.visible = !OUT.on;
+    const gp = src.gamepad, b = k => gp.buttons[k] || null;
+    const thumb = [3, 4, 5].some(k => b(k) && (b(k).touched || b(k).pressed));
+    m.userData.pose(b(0) ? b(0).value : 0, b(1) ? b(1).value : 0, thumb, false, dt);
+    m.userData.tip.getWorldPosition(_tip);
+    const hit = S.mode === 'seated' && !OUT.on && touchingPanel(_tip);
+    m.userData.warn = hit ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt);
+    m.userData.setTint(m.userData.warn > 0);
+    if (hit) {
+      touched = _tip.clone();
+      if (!m.userData.buzzed) { gp.hapticActuators?.[0]?.pulse?.(0.5, 60).catch?.(() => {}); m.userData.buzzed = true; }
+    } else m.userData.buzzed = false;
+  }
+  if (touched) {
+    SIGN.k = 1; SIGN.t = 1.4;
+    _loc.setFromMatrixPosition(camera.matrixWorld);
+    sign.position.copy(touched).lerp(_loc, 0.25); sign.position.y += 0.0;
+    sign.quaternion.copy(camera.getWorldQuaternion(_q0));
+    sign.translateY(0.05);
+  } else { SIGN.t -= dt; if (SIGN.t < 0) SIGN.k = Math.max(0, SIGN.k - dt * 3); }
+  sign.material.opacity = SIGN.k;
 }
 
 let lastT = 0, acc = 0, accN = 0, lastDsky = 0, lastAlt = 0;
@@ -275,8 +373,13 @@ function frame(now) {
   st = state(S.t, st);
   placeRig();
   outside.update(st, S.t, EVENTS);
-  padScene.update(now / 1000, dt, S.mode);
+  padScene.update(now / 1000, dt, S.mode, S.t);
+  vehicle.update(S.t, S.mode !== 'seated' ? 'boarding' : OUT.on ? 'outside' : 'inside', st);
   if (S.mode !== 'seated') cabin.setHatch(1);
+  updateOutside(dt);
+  updateHands(dt);
+  cabin.update(now / 1000);
+  cabin.setBody(OPT.body && S.mode === 'seated');
   /* the cover and the daylight */
   const open = S.t >= EVENTS.towerJett;
   cabin.setCovers(!open && S.mode === 'seated');
@@ -304,7 +407,8 @@ function frame(now) {
   sound.ambience(S.mode !== 'seated');
   if (radio && S.running) radio.update(S.t, S.warp);
   if (xr) haptics(renderer.xr.getSession(), S.t, S.shake, now / 1000);
-  if (!xr) { head.position.set(0, S.mode === 'seated' ? 0 : 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
+  if (!xr && EYE_TEST) { head.position.fromArray(EYE_TEST); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
+  else if (!xr) { head.position.set(0, S.mode === 'seated' ? 0 : 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : ''; }
   if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + (S.running ? phase(S.t) : 'holding') + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now);
@@ -349,6 +453,7 @@ function beginBoarding() {
   setTimeout(() => radio?.cue('board'), 1500);
 }
 function readOptions() {
+  if ($('opt-body')) OPT.body = $('opt-body').checked;
   if ($('start')) { const v = $('start').value; if (v === 'board') { S.mode = 'boarding'; S.t = -210; } else { S.mode = 'seated'; S.t = +v; } }
   if ($('shake')) S.shake = +$('shake').value;
 }
@@ -360,6 +465,9 @@ $('flat')?.addEventListener('click', async () => {
 if (Q.has('shot')) document.body.classList.add('invr');
 
 (async () => {
+  { const s0 = state(-60); _y.fromArray(s0.head); _z.fromArray(s0.nose).negate(); _x.crossVectors(_y, _z).normalize(); attPad.setFromRotationMatrix(_m.makeBasis(_x, _y, _z)); }
+  if (Q.has('out')) { OUT.want = OUT.on = true; if (Q.has('od')) OUT.dist = num('od', 16); if (Q.has('oa')) OUT.az = num('oa', 0); if (Q.has('oe')) OUT.el = num('oe', 0); }
+  if (Q.has('cheat')) cabin.setCheat(true);
   outside.update(state(S.t), S.t, EVENTS);          /* asks for the first sky table */
   await outside.ready;
   st = state(S.t); placeRig();
@@ -369,6 +477,6 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__launch = { S, W, renderer, camera, rig, head, cabin, outside, padScene, afterFrame: null, setTime, SEAT, boardNow, beginBoarding, get radio() { return radio; },
+window.__launch = { S, W, OUT, OPT, renderer, camera, rig, head, cabin, outside, padScene, vehicle, hands, afterFrame: null, setTime, SEAT, boardNow, beginBoarding, get radio() { return radio; },
   walkTo(x, z) { W.x = x; W.z = z; },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; } };
