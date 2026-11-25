@@ -22,7 +22,7 @@ const CHAIN = [
     const p = await b.newPage({ viewport: { width: 900, height: 500 } });
     const errs = []; p.on('pageerror', e => errs.push(e.message));
     await p.addInitScript({ content: fs.readFileSync(IWER, 'utf8') + ';window.__dev = new IWER.XRDevice(IWER.metaQuest3); window.__dev.installRuntime({ forceInstall: true });' });
-    await p.goto('http://127.0.0.1:8765/vr-apps/moon/' + page);
+    await p.goto((process.env.BASE || 'http://127.0.0.1:8765/vr-apps/moon/') + page);
     await p.waitForFunction(h => window[h] && window[h].S.ready, hook, { timeout: 180000 });
     await p.waitForSelector('#vr:not([disabled])', { timeout: 30000 });
     if (page === 'launch.html') await p.selectOption('#start', '540');

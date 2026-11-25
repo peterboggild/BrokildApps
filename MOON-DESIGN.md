@@ -570,6 +570,27 @@ feels. The LM's shadow is a draped silhouette, not a true shadow (stage 0's terr
 landing point designator is not built. Departures from §10: no mass or throttle model (the guidance's
 acceleration is the thrust), the windows made deeper than the cabin of chapter 4 first had them.
 
+### 12.8 To check in the headset (written 25 November 2026)
+
+Everything from chapter 2 on was built in one night and seen only on a flat screen and in an emulated Quest 3. In
+the order of the journey:
+
+1. **Frame rate** (the left wrist): chapter 3 at the low pass, chapter 5 below 2 km with the ground and rocks, the
+   Moon page beside the new LM. If one drops, say which.
+2. **Comfort**: in chapters 2 and 3 the spacecraft never turns faster than 1.5° a second as you see it (at high
+   warp it holds still); in chapter 5 the pitch-over turns at 2.5° a second. Too much, too little?
+3. **Chapter 2, docking**: the LM through the rendezvous window (raise your head to it), or hold B.
+4. **Chapter 3, Earthrise** in the window beside you (left), at GET 89:25; the crescent's night side in earthshine
+   on the approach; the low pass at 15 km.
+5. **Chapter 4, the crawl**: grip and pull (does the direction feel right, the speed, the walls holding you?), or
+   A to float; the fade into the LM and standing at your own height; the CSM backing away over the docking
+   window, then in front through the triangular window.
+6. **Chapter 5, the descent**: the windows to the sky while braking, the valley after the pitch-over (lean in to
+   the window), the shadow running in, the dust; P66 by hand (A, right stick tilts, left stick flicks the rate);
+   **seams between terrain levels while moving** (a Fable item).
+7. **Stars**: is "Faint" visible on the Quest's screen, or too strong? (One number: `LEVELS` in `src/stars.js`.)
+8. **The surface**: the LM you landed in, its long shadow, the walk.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
