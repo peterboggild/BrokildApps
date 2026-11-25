@@ -344,6 +344,12 @@ repository's history.
 
 Serve the repository root (`python -m http.server 8765`) and open `/vr-apps/moon/`.
 
+Each chapter has its own emulator test (`test/<chapter>.test.cjs`); `test/chain.test.cjs` checks that A at each
+chapter's end opens the next, from the launch to the surface. With NODE_PATH set to the node_modules under
+`%LOCALAPPDATA%\moon-data
+ode`. The software renderer runs the later chapters at a few frames a second: the tests
+start close to the events they check.
+
 URL parameters: `debug=shadow` (the baked shadows only, each detail level in its own colour: shows whether a dark
 patch is a shadow and whether shadows meet across level borders), `view=orbit|low|surface`, `theta=` (degrees along the orbit before the site), `yaw=`, `pitch=`,
 `x=`, `z=`, `heading=` (surface position and facing, anywhere in the valley), `trail` (bootprints ahead), `sun=` (degrees of lunar rotation after landing, 0.51 per

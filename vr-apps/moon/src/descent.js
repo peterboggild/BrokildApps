@@ -302,7 +302,8 @@ function render() {
   }
   _cam.setFromMatrixPosition(camera.matrixWorld);
   const low = padH < 3500 && Math.hypot(_cam.x, _cam.z) < 60000;
-  moon.setDetail(_cam, false);
+  /* low in the valley, as standing in it: the coarse whole-Moon levels beyond the massifs are not drawn (stage 0) */
+  moon.setDetail(_cam, padH < 1500 && Math.hypot(_cam.x, _cam.z) < 20000);
   if (low) { rocks.update(_cam); }
   renderer.info.reset();
   renderer.clear(true, true, true);
