@@ -18,6 +18,7 @@ import { makeGround } from './ground.js?v=4';
 import { GETL } from './lunar-space.js?v=13';
 import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=13';
 import { makeLMCabin, LMC } from './lm-cabin.js?v=13';
+import { makeLMShadow } from './lm-shadow.js?v=13';
 import { makeLaunchSound } from './launch-sound.js?v=13';
 import { makeRadio } from './radio.js?v=13';
 import { makeVehicle } from './vehicle.js?v=13';
@@ -73,25 +74,8 @@ fadeScene.add(veil);
 const FADE = { k: 0, target: 0, then: null };
 
 /* ---------------------------------------------------------------- the LM's shadow on the ground, and the dust */
-/* the shadow: the LM's silhouette seen from the low Sun, laid along the ground away from it; a grid draped over the
- * terrain each frame. Texture: legs and body as the Sun sees them (u across, v from the feet up) */
-const shadowTex = (() => {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
-  x.clearRect(0, 0, 256, 256); x.fillStyle = '#fff'; x.strokeStyle = '#fff';
-  const X = u => 128 + u * 26, Y = v => 256 - v * 34;                    /* metres: u across (-4.7..4.7), v up (0..7) */
-  x.fillRect(X(-2.1), Y(2.45), X(2.1) - X(-2.1), Y(0.8) - Y(2.45));       /* descent stage */
-  x.beginPath(); x.moveTo(X(-1.25), Y(2.45)); x.lineTo(X(-1.4), Y(5.2)); x.lineTo(X(-0.6), Y(5.9)); x.lineTo(X(0.6), Y(5.9)); x.lineTo(X(1.4), Y(5.2)); x.lineTo(X(1.25), Y(2.45)); x.fill();
-  x.fillRect(X(-0.4), Y(6.3), X(0.4) - X(-0.4), Y(5.85) - Y(6.3));        /* tunnel */
-  x.lineWidth = 6; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(X(s * 2.0), Y(2.3)); x.lineTo(X(s * 4.15), Y(0.15)); x.stroke(); x.beginPath(); x.moveTo(X(s * 1.6), Y(0.9)); x.lineTo(X(s * 3.2), Y(1.1)); x.stroke(); }
-  x.lineWidth = 4; x.beginPath(); x.moveTo(X(0), Y(0.8)); x.lineTo(X(0), Y(0.15)); x.stroke();
-  for (const u of [-4.15, 4.15, 0]) { x.beginPath(); x.ellipse(X(u), Y(0.1), 12, 5, 0, 0, Math.PI * 2); x.fill(); }
-  const t = new THREE.CanvasTexture(c); return t;
-})();
-const SH = { nx: 8, ny: 24 };
-const shadowGeo = new THREE.PlaneGeometry(1, 1, SH.nx, SH.ny);
-const shadow = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: shadowTex, transparent: true, opacity: 0.9, depthWrite: false,
-  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
-shadow.frustumCulled = false; shadow.renderOrder = 20; shadow.visible = false; nearG.add(shadow);
+const lmShadow = makeLMShadow({ heightAt: (x, z) => moon.heightAt(x, z) }), shadow = lmShadow.mesh;
+shadow.visible = false; nearG.add(shadow);
 /* the dust: sheets racing outwards over the ground from under the engine */
 const dustU = { uTime: { value: 0 }, uK: { value: 0 }, uR: { value: 70 } };
 const dust = new THREE.Mesh(new THREE.CircleGeometry(1, 64, 0, Math.PI * 2), new THREE.ShaderMaterial({
@@ -276,26 +260,13 @@ function updateOutside(dt) {
   OUT.az += dz(ax) * 1.1 * dt; OUT.dist = Math.min(600, Math.max(9, OUT.dist * Math.exp(dz(ay) * 1.4 * dt))); OUT.el = Math.min(1.45, Math.max(-0.2, OUT.el - dz(ey) * 0.9 * dt));
 }
 /* the shadow and the dust under the LM */
-const _sun = new THREE.Vector3(), _sh = new THREE.Vector3(), _sx = new THREE.Vector3(), _p = new THREE.Vector3();
-function ground3(x, z, out) { return out.set(x, moon.heightAt(x, z), z); }
+const _sun = new THREE.Vector3();
 function updateShadow(now) {
   const near = padH < 900 && Math.hypot(cur.r[0], cur.r[2]) < 20000;
   shadow.visible = near && !!moon; dust.visible = near && padH < 32 && S.landed < 0;
   if (!near) return;
   const gx = cur.r[0], gz = cur.r[2], gy = moon.heightAt(gx, gz);
-  const tanEl = Math.max(0.05, _sun.y / Math.hypot(_sun.x, _sun.z));
-  _sh.set(-_sun.x, 0, -_sun.z).normalize();                       /* along the ground, away from the Sun */
-  _sx.set(-_sh.z, 0, _sh.x);
-  const base = (cur.r[1] - PAD_DROP - gy) / tanEl;                 /* the feet's shadow, this far out */
-  const len = 7.0 / tanEl, half = 4.9;
-  const pos = shadowGeo.attributes.position;
-  for (let j = 0; j <= SH.ny; j++) for (let i = 0; i <= SH.nx; i++) {
-    const k = j * (SH.nx + 1) + i, u = (i / SH.nx - 0.5) * 2 * half, v = base + (1 - j / SH.ny) * len;
-    const x = gx + _sh.x * v + _sx.x * u, z = gz + _sh.z * v + _sx.z * u;
-    pos.setXYZ(k, x, moon.heightAt(x, z) + 0.05, z);
-  }
-  pos.needsUpdate = true; shadowGeo.computeBoundingSphere();
-  shadow.material.opacity = 0.88 * Math.min(1, (900 - padH) / 300);
+  lmShadow.update(gx, gz, cur.r[1] - PAD_DROP - gy, _sun, 0.88 * Math.min(1, (900 - padH) / 300));
   if (dust.visible) {
     dust.position.set(gx, gy + 0.3, gz); dust.rotation.set(-Math.PI / 2, 0, 0); dust.scale.setScalar(70);
     dustU.uTime.value = now / 1000; dustU.uK.value = Math.min(1, (32 - padH) / 22);

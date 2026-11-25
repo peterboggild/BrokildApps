@@ -406,6 +406,15 @@ export function makeVehicle(renderer) {
 /* The Lunar Module, legs folded as it rode in the adapter: the gold-and-black foil-wrapped descent stage with its
  * engine, the faceted grey-and-black ascent stage with its windows, thruster quads, docking tunnel and radar dish.
  * A simplified stand-in for chapters 2-3 (stage 5 builds the detailed one). Origin at the bottom of the descent stage. */
+/* The LM alone, legs deployed, with its own environment and materials (the Moon page: the LM you landed in).
+ * Origin at the bottom of the descent engine; the footpads' soles PAD_DROP below it (descent-space.js). */
+export function makeLMModel(renderer) {
+  const L = o => new THREE.MeshLambertMaterial(o), Std = o => new THREE.MeshStandardMaterial(o);
+  const g = makeLM(environment(renderer), L, Std, tapeNormals);
+  g.userData.setLegs(true);
+  return g;
+}
+
 function makeLM(env, L, Std, tapeNormals) {
   const g = new THREE.Group();
   const nrm = tapeNormals(); nrm.repeat.set(3, 2);
