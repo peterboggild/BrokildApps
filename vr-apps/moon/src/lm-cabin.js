@@ -8,9 +8,9 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=20';
-import { makeCrewLife } from './crew-life.js?v=20';
-import { LM } from './lm-model.js?v=20';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=21';
+import { makeCrewLife } from './crew-life.js?v=21';
+import { LM } from './lm-model.js?v=21';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -19,12 +19,17 @@ export const LMC = {
   HATCH: new THREE.Vector3(0, 4.3, 0), HATCH_R: 0.41
 };
 
-export function makeLMCabin() {
+/* opts.inwardOnly: the walls drawn on their inner side only. Where the cabin stands inside the LM's model and is seen
+ * from outside too (chapter 6), its walls must not show through or over the hull: from outside you then see the cabin
+ * only through the open hatch (owner's headset test: the cabin was drawn in front of the LM). */
+export function makeLMCabin(opts = {}) {
   const { FLOOR, CEIL, FRONT, STATION_BACK, BACK, HALF } = LMC;
   const g = new THREE.Group();
   const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o });
   const wallTex = makeWallTexture(); wallTex.repeat.set(0.5, 1);
   const wall = L(0xc4c7bf, { map: wallTex, side: THREE.DoubleSide });
+  const wallF = L(0xc4c7bf, { map: wallTex, side: THREE.FrontSide }), wallB = L(0xc4c7bf, { map: wallTex, side: THREE.BackSide });
+  const CENTRE = new THREE.Vector3(0, (LMC.FLOOR + LMC.CEIL) / 2, (LMC.FRONT + LMC.BACK) / 2), reveals = [];
   const dark = L(0x3a3b3c), metal = L(0x9a9da0), black = L(0x161718), beta = L(0xe2dfd5), floorM = L(0x67696b);
   const put = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0, parent = g) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); parent.add(o); return o; };
 
@@ -33,6 +38,10 @@ export function makeLMCabin() {
     const sh = new THREE.Shape(outline.map(([u, v]) => new THREE.Vector2(u, v)));
     for (const h of holes) sh.holes.push(h);
     const geo = new THREE.ShapeGeometry(sh, 32);
+    if (opts.inwardOnly && m === wall) {                       /* which side looks into the cabin? */
+      const n = new THREE.Vector3().setFromMatrixColumn(basis, 2);
+      m = n.dot(CENTRE.clone().sub(origin)) > 0 ? wallF : wallB;
+    }
     const mesh = new THREE.Mesh(geo, m);
     mesh.matrixAutoUpdate = false; mesh.matrix.copy(basis).setPosition(origin);
     g.add(mesh); return mesh;
@@ -55,7 +64,7 @@ export function makeLMCabin() {
       /* (from 1 cm inside the wall outwards: a face lying in the wall's own plane flickered against it, and the
        * flicker moved with the head: owner's headset test) */
       const m = put(new THREE.BoxGeometry(len, 0.03, 0.13), black, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, FRONT + 0.055);
-      m.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      m.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]); reveals.push(m);
     }
   }
   /* the forward hatch: an opening in the wall (the same as the model's outside, lm-model.js), its door hinged on
@@ -81,7 +90,7 @@ export function makeLMCabin() {
     const side = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-sx, 0, 0));
     wallFrom([[BACK, FLOOR], [FRONT, FLOOR], [FRONT, CEIL], [BACK, CEIL]], [], side, new THREE.Vector3(sx * HALF, 0, 0));
   }
-  put(new THREE.PlaneGeometry(2 * HALF, CEIL - FLOOR), wall, 0, (FLOOR + CEIL) / 2, BACK, 0, 0, 0);
+  put(new THREE.PlaneGeometry(2 * HALF, CEIL - FLOOR), opts.inwardOnly ? wallF : wall, 0, (FLOOR + CEIL) / 2, BACK, 0, 0, 0);
   /* the docking window's reveal, and the hatch rim and tunnel stub above the ceiling */
   for (const [x, z, w, d] of [[0.36, 0.9, 0.02, 0.26], [0.54, 0.9, 0.02, 0.26], [0.45, 0.78, 0.2, 0.02], [0.45, 1.02, 0.2, 0.02]]) put(new THREE.BoxGeometry(w, 0.11, d), black, x, CEIL + 0.045, z);
   put(new THREE.TorusGeometry(LMC.HATCH_R + 0.02, 0.03, 10, 40), metal, 0, CEIL - 0.02, 0, Math.PI / 2);
@@ -165,6 +174,8 @@ export function makeLMCabin() {
     group: g, panels, dsky, balls, lmp, sunIn,
     setHatchOpen(on) { hatchLid.visible = !on; stub.visible = on; },
     setBody(on) { body.visible = on; },
+    /* seen from outside: the windows' deep frames (they reach out through the hull) are not drawn */
+    setOutside(on) { for (const r of reveals) r.visible = !on; },
     /* the forward hatch: 0 shut, 1 swung in against the Lunar Module Pilot's side */
     setForwardHatch(k) { fwdDoor.rotation.y = 1.65 * k; },
     setDaylight(k, sunLocal) { sunIn.intensity = 0.8 * k; sunIn.position.copy(sunLocal).multiplyScalar(3); amb.intensity = 2.4 + 0.6 * k; },

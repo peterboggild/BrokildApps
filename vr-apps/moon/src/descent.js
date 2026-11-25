@@ -15,21 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=20';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=20';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=20';
-import { settleLM } from './lm-model.js?v=20';
-import { makeLMShadow } from './lm-shadow.js?v=20';
-import { makeLaunchSound } from './launch-sound.js?v=20';
-import { makeRadio, combineRadios } from './radio.js?v=20';
-import { makeClock } from './clock.js?v=20';
-import { makeChatter } from './chatter.js?v=20';
-import { handOnCrew } from './crew-life.js?v=20';
-import { makeVehicle } from './vehicle.js?v=20';
-import { createHand, makeControllers } from './hands.js?v=20';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=20';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=20';
-import { settings, applyCommon, holdsFor } from './settings.js?v=20';
+import { GETL } from './lunar-space.js?v=21';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=21';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=21';
+import { settleLM } from './lm-model.js?v=21';
+import { makeLMShadow } from './lm-shadow.js?v=21';
+import { makeLaunchSound } from './launch-sound.js?v=21';
+import { makeRadio, combineRadios } from './radio.js?v=21';
+import { makeClock } from './clock.js?v=21';
+import { makeChatter } from './chatter.js?v=21';
+import { handOnCrew } from './crew-life.js?v=21';
+import { makeVehicle } from './vehicle.js?v=21';
+import { createHand, makeControllers } from './hands.js?v=21';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=21';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=21';
+import { settings, applyCommon, holdsFor } from './settings.js?v=21';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -241,7 +241,7 @@ function seat() {
   _e.setFromQuaternion(camera.quaternion, 'YXZ');
   const yaw = _e.y, c = Math.cos(-yaw), s = Math.sin(-yaw), p = camera.position;
   head.rotation.set(0, -yaw, 0);
-  head.position.set(-(c * p.x + s * p.z), 0, -(-s * p.x + c * p.z));
+  head.position.set(-(c * p.x + s * p.z), 1.6 - p.y, -(-s * p.x + c * p.z));          /* eyes at standing height, level with the LMP's */
   SEAT.done = true;
 }
 
@@ -541,5 +541,5 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__descent = { S, OUT, GETD, ctl, wrist, toast, clock, get chat() { return chat; }, settings, info, renderer, camera, rig, head, lmc, vehicle, hands, SEAT, afterFrame: null, restart, toggleHand,
+window.__descent = { S, OUT, GETD, nearG, lmShadow, get cur() { return cur; }, get padH() { return padH; }, ctl, wrist, toast, clock, get chat() { return chat; }, settings, info, renderer, camera, rig, head, lmc, vehicle, hands, SEAT, afterFrame: null, restart, toggleHand,
   get D() { return D; }, get cur() { return cur; }, get padH() { return padH; }, get radio() { return radio; }, get moon() { return moon; } };

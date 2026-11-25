@@ -214,20 +214,20 @@ export function makeLM(env) {
     sh.closePath();
     const hole = new THREE.Path(); hole.moveTo(-HATCH.half, HATCH.y0); hole.lineTo(-HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y0); hole.closePath();
     sh.holes.push(hole);
-    body.add(new THREE.ShapeGeometry(sh), alu, 0, 0, FRONT);
+    body.add(new THREE.ShapeGeometry(sh), alu, 0, 0, FRONT + 0.02);          /* clear of the cabin's own front wall inside */
     for (const s of [-1, 1]) body.box(alu, 0.07, 0.66, len, s * 1.0, AS_Y + 0.33, 0.1 + len / 2); }     /* thin: the cabin is inside */
   /* the front: the hatch's housing (a frame round the opening), dark thermal panels either side of it, the brow */
-  for (const s of [-1, 1]) body.box(alu, 0.13, 0.9, 0.09, s * (HATCH.half + 0.085), AS_Y + 0.45, FRONT + 0.03);
-  body.box(alu, 1.12, 0.1, 0.09, 0, HATCH.y1 + 0.07, FRONT + 0.03); body.box(alu, 1.12, 0.06, 0.09, 0, AS_Y + 0.03, FRONT + 0.03);
-  for (const s of [-1, 1]) body.box(blackFoil, 0.42, 0.7, 0.03, s * 0.8, AS_Y + 0.78, FRONT + 0.035, 0, 0, s * 0.12);
+  for (const s of [-1, 1]) body.box(alu, 0.13, 0.9, 0.09, s * (HATCH.half + 0.085), AS_Y + 0.45, FRONT + 0.067);
+  body.box(alu, 1.12, 0.1, 0.09, 0, HATCH.y1 + 0.07, FRONT + 0.067); body.box(alu, 1.12, 0.06, 0.09, 0, AS_Y + 0.03, FRONT + 0.067);
+  for (const s of [-1, 1]) body.box(blackFoil, 0.42, 0.7, 0.03, s * 0.8, AS_Y + 0.78, FRONT + 0.045, 0, 0, s * 0.12);
   body.box(alu, 1.5, 0.1, 0.1, 0, 4.42, FRONT + 0.02, 0.3);
   /* the two triangular windows (where the cabin's are), dark glass in black frames, canted panes */
   for (const s of [-1, 1]) {
     const pts = [[s * 0.12, 3.57], [s * 0.66, 3.57], [s * 0.12, 4.29]];
     const tri = new THREE.Shape(); tri.moveTo(pts[0][0], pts[0][1]); if (s > 0) { tri.lineTo(pts[1][0], pts[1][1]); tri.lineTo(pts[2][0], pts[2][1]); } else { tri.lineTo(pts[2][0], pts[2][1]); tri.lineTo(pts[1][0], pts[1][1]); }
     tri.closePath();
-    body.add(new THREE.ShapeGeometry(tri), glass, 0, 0, FRONT + 0.012);
-    for (let i = 0; i < 3; i++) { const p = pts[i], q = pts[(i + 1) % 3]; body.rod(dark, V(p[0], p[1], FRONT + 0.015), V(q[0], q[1], FRONT + 0.015), 0.022, 6); }
+    body.add(new THREE.ShapeGeometry(tri), glass, 0, 0, FRONT + 0.032);
+    for (let i = 0; i < 3; i++) { const p = pts[i], q = pts[(i + 1) % 3]; body.rod(dark, V(p[0], p[1], FRONT + 0.04), V(q[0], q[1], FRONT + 0.04), 0.022, 6); }
   }
   /* the midsection, the aft equipment bay with its rack and two gas tanks */
   body.box(blackFoil, 2.0, 1.94, 0.87, 0, AS_Y + 0.97, -0.33);
