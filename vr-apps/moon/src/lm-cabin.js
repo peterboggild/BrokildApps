@@ -39,7 +39,7 @@ export function makeLMCabin() {
 
   /* ---------------- the front wall: the two triangular windows (Commander's at +x, the right angle at the inner
    * bottom corner), the forward hatch below between the two stations */
-  const WY0 = FLOOR + 1.34, WY1 = FLOOR + 1.80, WI = 0.12, WO = 0.6;
+  const WY0 = FLOOR + 1.12, WY1 = FLOOR + 1.84, WI = 0.12, WO = 0.66;            /* deep: the view forward and down */
   const front = new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1));
   /* in the wall's u (= -x) the Commander's window is at negative u */
   wallFrom([[-HALF, FLOOR], [HALF, FLOOR], [HALF, CEIL], [-HALF, CEIL]],
@@ -90,9 +90,9 @@ export function makeLMCabin() {
     panels.push({ mesh: m, w, h });
     return m;
   };
-  const p1 = panelAt(0.00, 0.22, 0.62, 0.42, 0.42, FLOOR + 1.08, FRONT - 0.1, -0.25, Math.PI);
-  const p2 = panelAt(0.22, 0.44, 0.62, 0.42, -0.42, FLOOR + 1.08, FRONT - 0.1, -0.25, Math.PI);
-  const p3 = panelAt(0.44, 0.60, 0.34, 0.46, 0, FLOOR + 0.72, FRONT - 0.18, -0.5, Math.PI);
+  const p1 = panelAt(0.00, 0.22, 0.62, 0.36, 0.42, FLOOR + 0.88, FRONT - 0.1, -0.25, Math.PI);
+  const p2 = panelAt(0.22, 0.44, 0.62, 0.36, -0.42, FLOOR + 0.88, FRONT - 0.1, -0.25, Math.PI);
+  const p3 = panelAt(0.44, 0.60, 0.34, 0.42, 0, FLOOR + 0.58, FRONT - 0.18, -0.5, Math.PI);
   panelAt(0.60, 0.80, 0.42, 0.62, HALF - 0.06, FLOOR + 0.95, 0.8, -0.6, -Math.PI / 2);
   panelAt(0.80, 1.00, 0.42, 0.62, -HALF + 0.06, FLOOR + 0.95, 0.8, -0.6, Math.PI / 2);
   /* the DSKY on the centre console, an attitude ball on each flight panel */

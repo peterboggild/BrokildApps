@@ -557,6 +557,18 @@ the LM's outside. Weak points the owner should judge: whether pulling yourself a
 (tested only with an emulated controller), the LM cabin's proportions at your own height, and how the
 Command Module reads in formation through the small windows.
 
+### 12.7 Stage 4 as built, on Opus (25 November 2026)
+
+Chapter 5 (`vr-apps/moon/descent.html`), design chapter 10; the README describes it. This stage was marked for
+Fable; it was built on Opus while the owner was away, to close the chain from the pad to the surface, and should
+get a Fable pass. What was checked: the guided flight against Apollo 17's timeline (contact +1 s), the pitch-over
+(60° to 25°), the view at braking, after the pitch-over, at low gate, at 30 m and on the ground (flat screenshots and
+the emulator), a gentle and a hard landing by hand. What was not: seams between terrain levels in motion during the
+descent (screenshots are stills), the frame rate in the headset with the ground and rocks on, and how flying by hand
+feels. The LM's shadow is a draped silhouette, not a true shadow (stage 0's terrain shader casts none); the
+landing point designator is not built. Departures from §10: no mass or throttle model (the guidance's
+acceleration is the thrust), the windows made deeper than the cabin of chapter 4 first had them.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

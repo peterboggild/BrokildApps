@@ -3,8 +3,9 @@
 A realistic Apollo-style flight to the Taurus-Littrow valley for the Meta Quest 3 browser. Design, decisions and
 stages: `MOON-DESIGN.md` in the repository root. This file describes what is built.
 
-**State: stages 0 to 3.** The Moon test (below), the briefing, chapter 1 (the launch), chapter 2 (to the Moon),
-chapter 3 (lunar orbit) and chapter 4 (into the LM).
+**State: stages 0 to 4, the whole way from the pad to the surface.** The Moon test (below, also the walk on the
+surface), the briefing, chapter 1 (the launch), chapter 2 (to the Moon), chapter 3 (lunar orbit), chapter 4 (into the
+LM) and chapter 5 (the descent).
 The Moon test: three views of one baked Moon, to judge realism and frame rate in the headset
 before anything else is built:
 
@@ -209,6 +210,39 @@ GET 106:40 to 110:05, in the descent orbit (chapter 3's flight and Moon). Design
 Test aids: `lm.html?t=`, `?lm` (standing in the LM), `?float=z` (on the tunnel's axis at cabin z), `?still`,
 `?shot`, `?out&od=&oa=&oe=`; `tools/shot-lm.cjs`; `test/lm.test.cjs` (emulated Quest 3, including a real grip-and-pull
 with the emulated controller). Hooks on `window.__lm`.
+
+## Chapter 5: the descent (`descent.html`)
+
+GET 110:04:53 to the landing at 110:21:58, standing at the Commander's station (design chapter 10).
+
+- **The flight** (`src/descent-space.js`), in stage 0's site frame with the Moon's gravity: PDI at 15 km, 480 km
+  before the site, at the descent orbit's speed. Guidance as cubic targets in time (Apollo flew polynomial targets
+  too, simplified): P63 braking to high gate (11.3 km out, 2.3 km up, 150 m/s), P64 approach to low gate (350 m out,
+  150 m up), then 30 m over the landing point and straight down at 1 m/s. High gate is placed so the approach
+  brakes gently: the LM pitches from 60° to 25° off the vertical there, and the valley swings into the windows. The
+  autopilot's contact comes at Apollo 17's minute (+1 s), at the stand-in LM's place on the Moon page, so the walk
+  begins where you land. Peak thrust 3.8 m/s², a little above the real engine's at the pitch-over.
+- **The attitude** follows the thrust (the LM's +y), windows to the sky while braking, turning ahead as the thrust
+  comes up; at most 2.5° a second as you see it (8° by hand).
+- **P66 by hand** (offered below 150 m): A takes over; the right stick tilts the LM (up to 20°: that is how it moves
+  over the ground); a flick of the left stick up or down changes the descent rate by 1 ft/s, as the real switch did;
+  A again gives it back to the computer (which then flies live to the landing point). Fuel counts from low gate
+  (hover seconds, about two minutes left at the autopilot's contact; "sixty seconds", "thirty seconds"). Contact
+  faster than 3 m/s down or 1.5 m/s across, or out of fuel, by hand: back to high gate. The autopilot always lands.
+- **Looking out**: the triangular windows were made deeper (down to 45° below eye level, more when you lean in).
+  The Moon is stage 0's: one pass from high up, its two surface passes below 3.5 km, the roaming ground and the
+  rocks near the site below 2 km. The LM's shadow is laid on the ground from the low Sun (a silhouette draped over
+  the terrain), running in towards you as you come down; dust sheets race out from under the engine below 30 m.
+- **Radio**: 29 lines (`tools/script/descent.json`): time lines to high gate, then the LMP's calls by altitude, fuel
+  and events (contact light, engine stop, "on the ground in the valley of Taurus-Littrow").
+- **The end**: 40 s after contact; A (or N) opens the Moon page, standing beside the LM. Chapter 4 now ends with A
+  taking you here.
+
+Not in it yet: redesignating the landing point (LPD), the engine's own sound and the abort.
+
+Test aids: `descent.html?t=`, `?still`, `?shot`, `?out&od=&oa=&oe=`; keys T (take over), arrows (tilt), [ ] (rate);
+`tools/shot-descent.cjs`; `test/descent.test.cjs` (emulated Quest 3: the guided flight, the pitch-over, a gentle and
+a hard landing by hand, the autopilot's landing). Hooks on `window.__descent`.
 
 ## How the Moon is drawn
 
