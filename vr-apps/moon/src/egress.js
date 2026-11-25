@@ -15,8 +15,8 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=20';
-import { LMC } from './lm-cabin.js?v=20';
+import { LM } from './lm-model.js?v=21';
+import { LMC } from './lm-cabin.js?v=21';
 
 const G_MOON = 1.62;
 
@@ -57,10 +57,13 @@ export function makeEgress(o) {
   function place(pLM, theta) {
     _p.copy(pLM); toSite(_p);
     _t.copy(E.off).applyAxisAngle(_Y, theta);
-    o.rig.position.set(_p.x - _t.x, _p.y, _p.z - _t.z);
+    const k = E.stage === 'pad' ? Math.min(1, Math.max(0, (total - E.s) / Math.max(1e-3, total - nodes[iDrop + 1].s))) : 1;
+    o.rig.position.set(_p.x - _t.x, _p.y + (E.lift || 0) * k, _p.z - _t.z);
     o.rig.quaternion.setFromAxisAngle(_Y, theta);
   }
-  function capture() { const e = o.eye(); E.off.set(e.x, 0, e.z); E.H = Math.min(1.95, Math.max(1.2, e.y)); }
+  /* your eyes are kept at standing eye height (1.6 m over what you stand on), whatever your own height or whether you
+   * sit, until you are on the ground: there your own height takes over, smoothly, over the last step */
+  function capture() { const e = o.eye(); E.off.set(e.x, 0, e.z); E.H = 1.6; E.lift = 1.6 - e.y; }
 
   const out = { pos: new THREE.Vector3(), tangent: new THREE.Vector3() };
   const api = {

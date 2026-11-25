@@ -688,6 +688,16 @@ Moon page (its buttons were under the browser window's edge in the headset) and 
 card, a start list (cabin or ground), its place kept for Continue, in the chain test and the site's tables. The Moon
 page (`index.html`) stays as the hub and the three test views.
 
+**After his first walk outside (25 November 2026):** the cabin was drawn in front of the LM near the hatch: its front
+wall lay in the plane of the model's front face and its box poked through the hull. The cabin's walls are now drawn on
+their inner side only where it stands inside the model (`makeLMCabin({ inwardOnly })`), the model's front face stands
+2 cm clear, and the windows' deep frames are not drawn from outside. A long shadow lay at the landing spot before the
+LM arrived: the terrain's baked shadows still held stage 0's stand-in LM (`tools/build.py`); taken out, L6 baked
+again. In the LM your eyes are put at standing eye height (1.6 m), level with the other man's, whatever your own
+height or posture (chapters 4-6; on the ground your own height returns). **Agreed next (Fable):** real EVA suits in
+code (PLSS, chest unit, LEVA helmet with the gold visor, the NASA patch and flag: the owner wants them, for
+history's sake), then the Lunar Module Pilot coming down and loping about, then the flag and the rover.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

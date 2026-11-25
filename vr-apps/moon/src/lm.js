@@ -15,22 +15,22 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?lm (start standing in the LM)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=20';
+import { state as ascentState } from './ascent.js?v=21';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=20';
-import { makeCabin } from './cabin.js?v=20';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=20';
-import { makeLaunchSound } from './launch-sound.js?v=20';
-import { makeRadio, combineRadios } from './radio.js?v=20';
-import { makeClock } from './clock.js?v=20';
-import { makeChatter } from './chatter.js?v=20';
-import { handOnCrew } from './crew-life.js?v=20';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=20';
-import { createHand, makeControllers } from './hands.js?v=20';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=20';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=20';
-import { settings, applyCommon, holdsFor } from './settings.js?v=20';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=21';
+import { makeCabin } from './cabin.js?v=21';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=21';
+import { makeLaunchSound } from './launch-sound.js?v=21';
+import { makeRadio, combineRadios } from './radio.js?v=21';
+import { makeClock } from './clock.js?v=21';
+import { makeChatter } from './chatter.js?v=21';
+import { handOnCrew } from './crew-life.js?v=21';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=21';
+import { createHand, makeControllers } from './hands.js?v=21';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=21';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=21';
+import { settings, applyCommon, holdsFor } from './settings.js?v=21';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -193,7 +193,9 @@ function seat() {
   _e.setFromQuaternion(camera.quaternion, 'YXZ');
   const yaw = _e.y, c = Math.cos(-yaw), s = Math.sin(-yaw), p = camera.position;
   head.rotation.set(0, -yaw, 0);
-  head.position.set(-(c * p.x + s * p.z), S.mode === 'lm' ? 0 : -p.y, -(-s * p.x + c * p.z));
+  /* (in the LM your eyes are put at standing eye height, level with the Lunar Module Pilot's, whatever your own height
+   * or whether you sit: owner's headset test) */
+  head.position.set(-(c * p.x + s * p.z), S.mode === 'lm' ? 1.6 - p.y : -p.y, -(-s * p.x + c * p.z));
   SEAT.done = true;
 }
 

@@ -550,8 +550,8 @@ def main():
                 rocks = np.column_stack([rk[:, 0], gh - h_site, -rk[:, 1], rk[:, 2], rk[:, 3], rk[:, 4]]).astype(np.float32)
             h_cast = lv.h.copy()
             stamp_blobs(h_cast, rocks[:, 0], -rocks[:, 2], rocks[:, 3] * 0.5, rocks[:, 3] * 0.62, 150.0, 150.0)
-            # stand-in for the LM (stage 5 replaces it with a real shadow map): descent stage and cabin
-            stamp_blobs(h_cast, np.array([0.0, 0.0]), np.array([0.0, 0.0]), np.array([2.3, 1.7]), np.array([3.3, 6.6]), 150.0, 150.0)
+            # (no LM in the baked shadows: it is not there until you land; its shadow is the moving one, src/lm-shadow.js.
+            # A stand-in stamped here until November 2026 left its shadow on the ground before the landing.)
         max_px = 420 if lv.glob else (700 if lv.name == "L1" else 1500)
         H = horizon(h_cast, lv.h, de, dn, s_e, s_n, max_px, wrap=lv.glob)
         lv.dir, lv.max_px, lv.de, lv.dn = (s_e, s_n), max_px, de, dn

@@ -9,19 +9,19 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=20';
-import { PAD_DROP } from './descent-space.js?v=20';
-import { makeLMShadow } from './lm-shadow.js?v=20';
+import { makeLMModel } from './vehicle.js?v=21';
+import { PAD_DROP } from './descent-space.js?v=21';
+import { makeLMShadow } from './lm-shadow.js?v=21';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=20';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=20';
-import { makeLMCabin } from './lm-cabin.js?v=20';
-import { makeEgress } from './egress.js?v=20';
-import { settleLM } from './lm-model.js?v=20';
-import { settings, applyCommon } from './settings.js?v=20';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=20';
+import { makeControllers, createHand } from './hands.js?v=21';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=21';
+import { makeLMCabin } from './lm-cabin.js?v=21';
+import { makeEgress } from './egress.js?v=21';
+import { settleLM } from './lm-model.js?v=21';
+import { settings, applyCommon } from './settings.js?v=21';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=21';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -351,6 +351,7 @@ function render() {
     if (!inCabin) { show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera); }
     else {
       show(false, true, false); setPlanes(0.05, 40e3); renderer.render(scene, camera);
+      lmc.setOutside(lmModel.worldToLocal(_eye.copy(_cam)).z > 1.27);          /* past the hatch: outside */
       show(false, false, false); lm.visible = true; lmModel.visible = false; lmSun.visible = false; lmHemi.visible = false; lmShadow.mesh.visible = false; lmc.group.visible = true;
       renderer.render(scene, camera);
       lmModel.visible = true; lmSun.visible = true; lmHemi.visible = true; lmShadow.mesh.visible = true;
@@ -454,7 +455,7 @@ async function start() {
   { const m = makeLMModel(renderer), yaw = Math.atan2(Math.sin(HEADING), -Math.cos(HEADING)), st = settleLM((x, z) => moon.heightAt(x, z), 0, 0, yaw);
     m.rotation.order = 'YXZ'; m.rotation.set(st.pitch, yaw, st.roll); m.position.y = st.y; lm.add(m);          /* all four pads on the ground, a little in the dust */
     lmModel = m;
-    lmc = makeLMCabin(); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
+    lmc = makeLMCabin({ inwardOnly: true }); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
     const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;
     lmShadow = makeLMShadow(moon); lm.add(lmShadow.mesh); }
