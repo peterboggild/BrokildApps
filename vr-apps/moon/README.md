@@ -422,6 +422,25 @@ knees, facing the cabin, along the porch, feet first down the ladder, the drop f
   says so. One line at a time; the words are shown too. The voices are the Windows voices for now.
 - Test: `test/egress.test.cjs`.
 
+## The flag and the rover (`src/surface-ops.js`, `src/flag.js`, `src/rover.js`)
+
+What there is to do once you are both down (chapter 6 only).
+- **The flag**: half a minute after he is down, the Lunar Module Pilot fetches the flag, carries it out into the
+  sunlight to one side of the LM and holds it there. Take hold of the pole (a grip; G on the screen) and push it
+  down, hand over hand if you like (0.32 m of pushing in all). When it is in, the crossbar swings up and the flag
+  hangs out on it (there is no wind to do it), with the wrinkles of its packing; he salutes. It casts its shadow.
+- **The rover** (the Lunar Roving Vehicle, in code: chassis, four wire-mesh wheels with chevrons under orange
+  fenders, the two seats, console and T-handle, batteries under mirrors, the high-gain umbrella, the low-gain
+  antenna, the television camera in gold foil, the pallet with tools and sample bags; about 30 draw calls). It
+  stands parked on the other side of the LM. A grip by its left seat (the Commander's) seats you, and he takes the
+  right seat. The left stick is the T-handle: forward and back (to 3.6 m/s), left and right to steer. It follows
+  the ground on its four wheels (pitch, roll, a soft bounce; your own view stays level), throws dust from the rear
+  wheels, casts its shadow, and keeps clear of the LM. A, standing still, and you step off to the left; he gets
+  off and stays about the rover. Parked, it is solid to you.
+- The radio says each step (`flag-go`, `flag-here`, `flag-done`, `rover-go`, `drive`) and what comes next.
+- Still to come: the samples, the film, the lift-off (MOON-DESIGN.md 12.13).
+- Viewer: `tools/suit.html?what=rover` and `?what=flag`. Test: in `test/egress.test.cjs`.
+
 ## The stars
 
 `src/stars.js`: the Yale Bright Star Catalogue (5th revised edition) to magnitude 6.5, 8,404 stars, baked by

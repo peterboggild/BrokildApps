@@ -14,9 +14,10 @@
 <body>
 <script type="module">
 import * as THREE from 'three';
-import { makeEVASuit, suitEnvironment } from '../src/eva-suit.js?v=26';
-import { makeRover } from '../src/rover.js?v=26';
-import { makeFlag } from '../src/flag.js?v=26';
+import { makeEVASuit, suitEnvironment } from '../src/eva-suit.js?v=27';
+import { makeRover } from '../src/rover.js?v=27';
+import { makeFlag } from '../src/flag.js?v=27';
+import { makeConsole } from '../src/finale.js?v=27';
 const q = new URLSearchParams(location.search), num = (k, d) => q.has(k) ? +q.get(k) : d;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
@@ -28,6 +29,15 @@ const env = suitEnvironment(renderer, Math.atan2(sd.x, -sd.z), sel * Math.PI / 1
 /* &what=rover or &what=flag (planted and out; &loose: as carried) shows those instead */
 const what = q.get('what');
 const suit = what === 'rover' ? makeRover(env) : what === 'flag' ? makeFlag() : makeEVASuit({ commander: !q.has('lmp'), player: q.has('player'), env }); scene.add(suit);
+if (what === 'console') {
+  /* the finale's console, with a test picture on its tube (&words: the closing words) */
+  suit.visible = false; setTimeout(() => { ground.visible = false; }, 0);
+  const tc = document.createElement('canvas'); tc.width = 320; tc.height = 240; const tx = tc.getContext('2d');
+  ['#c8c8c8', '#c8c832', '#32c8c8', '#32c832', '#c832c8', '#c83232', '#3232c8'].forEach((c, i) => { tx.fillStyle = c; tx.fillRect(i * 320 / 7, 0, 320 / 7 + 1, 240); });
+  const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace;
+  const con = makeConsole(tt); con.group.position.set(0, 1.0, 0); con.group.rotation.y = Math.PI; scene.add(con.group); con.update(0, 1);
+  if (q.has('words')) con.caption(['APOLLO 17', 'You completed the first part', 'of the Apollo 17 mission.', 'Have a safe trip back.'], 1);
+}
 if (what === 'flag' && !q.has('loose')) { suit.userData.set(1); suit.userData.unfurl(1); }
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: 0x8a8782 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const sun = new THREE.DirectionalLight(0xfff6e8, 3.0); sun.position.copy(sd).multiplyScalar(30);

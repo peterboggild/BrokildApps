@@ -127,6 +127,36 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.evaluate(() => { __dev.controllers.left.updateButtonValue('x-button', 0); });
   await p.waitForFunction(() => __moon.radio.acks >= 1, null, { timeout: 180000 });
   ok('the radio: your transmission is answered', true, await p.evaluate(() => __moon.radio.last.who + ': ' + __moon.radio.last.text));
+  /* the flag: he fetches it and holds it; a grip on the pole and a push down plants it */
+  await p.evaluate(() => { __moon.ops.st.wait = 100; __moon.lmp.S.rate = 4; });
+  await p.waitForFunction(() => __moon.ops.st.step === 'flag-plant', null, { timeout: 600000 });
+  const planted = await p.evaluate(async () => {
+    const o = __moon, F = o.ops.st.flagAt, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; }), V3 = o.rig.position.constructor;
+    o.S.pos.set(F.x + 0.7, 0, F.z); o.S.heading = 0; await frame(); await frame(); await frame();
+    const hand = y => { const v = o.rig.worldToLocal(new V3(F.x, F.y + y, F.z)); c.position.set(v.x, v.y, v.z); };
+    hand(1.4); await frame(); await frame(); c.updateButtonValue('squeeze', 1); await frame(); await frame();
+    for (let k = 1; k <= 12; k++) { hand(1.4 - 0.04 * k); await frame(); }
+    c.updateButtonValue('squeeze', 0); await frame();
+    return { step: o.ops.st.step, planted: +o.ops.st.planted.toFixed(2) };
+  });
+  ok('the flag: a grip on the pole and a push down plants it', planted.step === 'flag-up' && planted.planted >= 1, JSON.stringify(planted));
+  await p.waitForFunction(() => __moon.ops.st.step === 'rover', null, { timeout: 600000 });
+  ok('the flag is out on its crossbar', await p.evaluate(() => __moon.ops.st.unfurl === 1 && __moon.ops.flag.visible));
+  /* the rover: a grip by the left seat, the stick drives, he rides along; A steps off */
+  const drove = await p.evaluate(async () => {
+    const o = __moon, R = o.ops.R, c = __dev.controllers, frame = () => new Promise(r => { o.afterFrame = r; });
+    o.S.pos.set(R.x - 1.3 * Math.cos(R.yaw), 0, R.z + 1.3 * Math.sin(R.yaw)); await frame(); await frame(); await frame();
+    c.right.position.set(0.2, 1.2, -0.3); c.right.updateButtonValue('squeeze', 1); await frame(); await frame(); await frame(); c.right.updateButtonValue('squeeze', 0);
+    const on = o.ops.driving, x0 = R.x, z0 = R.z;
+    c.left.updateAxes('thumbstick', 0, -1);
+    for (let k = 0; k < 40; k++) await frame();
+    c.left.updateAxes('thumbstick', 0, 0);
+    const d = +Math.hypot(R.x - x0, R.z - z0).toFixed(1), mate = o.lmp.S.phase, eyeUp = +(o.camera.position.clone().setFromMatrixPosition(o.camera.matrixWorld).y - R.y).toFixed(2);
+    for (let k = 0; k < 80 && Math.abs(R.v) > 0.25; k++) await frame();
+    c.right.updateButtonValue('a-button', 1); await frame(); await frame(); c.right.updateButtonValue('a-button', 0); await frame(); await frame();
+    return { on, d, mate, eyeUp, off: !o.ops.driving, after: o.lmp.S.phase };
+  });
+  ok('the rover: seated by a grip, the stick drives it, he rides along, A steps off', drove.on && drove.d > 3 && drove.mate === 'ride' && drove.eyeUp > 1.3 && drove.eyeUp < 1.9 && drove.off && drove.after === 'roam', JSON.stringify(drove));
   /* back up: by the footpad a grip puts you on the pad at the ladder; A climbs, into the cabin */
   await p.evaluate(() => { const o = __moon, v = o.lm.localToWorld(new o.rig.position.constructor(0, 0, 5.5)); o.lmp.S.rate = 0; o.lmp.S.pos.x += 30; o.S.pos.set(v.x, 0, v.z); });
   await frames(4);
