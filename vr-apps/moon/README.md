@@ -272,6 +272,11 @@ WebXR session cannot change it while running (the start page).
   right wherever you land. Two things stay real time in every setting: chapter 4 waits until you are in the LM,
   and flying the descent yourself.
 
+**From chapter to chapter**: when a chapter starts, a card shows its number and title; at its end the card offers
+**A: continue** into the next chapter and **B: take a break**. Continuing changes the page while still in VR, and on
+the Quest the next page enters VR by itself (`autoEnter`, the browser's 'sessiongranted' event); elsewhere its start
+page shows.
+
 **Continue** (`src/progress.js`): each chapter keeps where you are (page and mission time, every few seconds) in
 the browser, and at its end the start of the next chapter. After a crash or a break, the chapter's start list offers
 "Continue where you were" (chosen already), and the front page a Continue link. At a chapter's end the way on (A) is
@@ -323,6 +328,23 @@ docking on. The same frame as the cabin inside (`src/lm-cabin.js`): y up from th
   the two flight panels, clear of it.
 - `tools/lm.html` shows the model alone (`tools/shot-lm-model.cjs` takes pictures; `lm.html?lm&fhatch=1` shows
   the hatch open from inside).
+
+## Out onto the Moon (`index.html?egress`, `src/egress.js`)
+
+Chapter 5's A lands you here; the front page has it as chapter 6. You stand at the Commander's station in the
+landed LM, the valley in the windows. The cabin is let down to vacuum and the Lunar Module Pilot (standing back,
+clear of the door) swings the forward hatch in. Then, as it was done: backwards out through the hatch on hands and
+knees, facing the cabin, along the porch, feet first down the ladder, the drop from the last rung to the footpad
+(0.8 m, falling in the Moon's gravity), the step off the pad. Two bootprints, and the free walk is yours.
+- **Moving**: grip and pull, as in the tunnel, along the one way out (a hand moved sideways does nothing); or
+  **A** (F on the screen) and it goes by itself, A again stops. Setting out, the view blinks and you are turned to
+  face the cabin whichever way you stood: no turning round in your room. Your own height is kept: on the ladder
+  and the ground your feet are where they would be; crawling, your eyes are where a crawling man's would be.
+- **Drawing**: the cabin (`lm-cabin.js`) stands inside the model; it is drawn in its own pass with its own lights
+  (they would flood the LM's outside) over the same depth buffer, so you see the porch and the valley from inside
+  and the cabin through the open hatch from outside. The model's front face has the hatch's opening cut in it.
+- Words come as messages in front of you; there are no voices for this part yet.
+- Test: `test/egress.test.cjs`.
 
 ## The stars
 

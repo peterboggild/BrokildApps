@@ -7,8 +7,8 @@
  * spacecraft. Heights below follow the pad (pad.js) with the stage lengths a little compressed to fit the eye height.
  * The Commander's eye point is EYE_OFF in this frame. */
 import * as THREE from 'three';
-import { makeLM } from './lm-model.js?v=16';
-import { EYE_H, SUN, EVENTS } from './ascent.js?v=16';
+import { makeLM } from './lm-model.js?v=19';
+import { EYE_H, SUN, EVENTS } from './ascent.js?v=19';
 
 export const STACK = {
   base: 8.5, sicTop: 50.5, skirtTop: 54.5, siiTop: 75, sivbAft: 80.5, sivbTop: 91.2, iuTop: 92.1, slaTop: 100.6,

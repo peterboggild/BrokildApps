@@ -26,8 +26,8 @@ import { mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 
 export const LM = {
   DS_Y0: 0.75, DS_TOP: 2.35, AS_Y: 2.4, APOTHEM: 2.1, TOP: 4.75, FOOT_R: 4.3, FOOT_Y: -0.70,
-  DRUM_R: 1.15, DRUM_Y: 3.55, FRONT: 1.25,
-  HATCH: { y0: 2.47, y1: 3.2, half: 0.41 },          /* the forward hatch (under the instrument panels inside) */
+  DRUM_R: 1.22, DRUM_Y: 3.62, FRONT: 1.25,
+  HATCH: { y0: 2.47, y1: 3.29, half: 0.41 },          /* the forward hatch (under the instrument panels inside) */
   PORCH: { y: 2.37, z0: 1.3, z1: 3.02, half: 0.43 }
 };
 
@@ -204,14 +204,23 @@ export function makeLM(env) {
 
   /* ================================================================ ascent stage */
   /* the cabin: a faceted drum, its axis fore and aft */
-  { const sh = new THREE.Shape(); const n = 18;
-    for (let i = 0; i < n; i++) { const t = (i + 0.5) / n * Math.PI * 2, x = Math.sin(t) * DRUM_R, y = DRUM_Y - Math.cos(t) * DRUM_R; if (i) sh.lineTo(x, y); else sh.moveTo(x, y); }
+  /* (an open tube and a front face with the hatch's opening cut in it, so that with the hatch open you look into
+   * the cabin, lm-cabin.js, which stands inside it; sills along the foot of the drum cover the cabin's floor corners) */
+  { const n = 18, len = FRONT - 0.1;
+    body.add(new THREE.CylinderGeometry(DRUM_R, DRUM_R, len, n, 1, true), alu, 0, DRUM_Y, 0.1 + len / 2, Math.PI / 2, 0, 0);
+    const sh = new THREE.Shape(), hx = 0.56, a0 = Math.asin(hx / DRUM_R);
+    sh.moveTo(-hx, AS_Y); sh.lineTo(hx, AS_Y);
+    for (let i = 0; i <= n; i++) { const t = a0 + (Math.PI * 2 - 2 * a0) * i / n; sh.lineTo(Math.sin(t) * DRUM_R, DRUM_Y - Math.cos(t) * DRUM_R); }
     sh.closePath();
-    body.add(new THREE.ExtrudeGeometry(sh, { depth: FRONT - 0.1, bevelEnabled: false }), alu, 0, 0, 0.1); }
-  /* the front: the hatch's housing at the foot of the drum, dark thermal panels either side of it, the brow */
-  body.box(alu, 1.12, 0.98, 0.3, 0, AS_Y + 0.5, FRONT - 0.1);
-  for (const s of [-1, 1]) body.box(blackFoil, 0.42, 0.7, 0.03, s * 0.8, AS_Y + 0.78, FRONT + 0.012, 0, 0, s * 0.12);
-  body.box(alu, 1.5, 0.1, 0.1, 0, 4.36, FRONT + 0.02, 0.3);
+    const hole = new THREE.Path(); hole.moveTo(-HATCH.half, HATCH.y0); hole.lineTo(-HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y0); hole.closePath();
+    sh.holes.push(hole);
+    body.add(new THREE.ShapeGeometry(sh), alu, 0, 0, FRONT);
+    for (const s of [-1, 1]) body.box(alu, 0.07, 0.66, len, s * 1.0, AS_Y + 0.33, 0.1 + len / 2); }     /* thin: the cabin is inside */
+  /* the front: the hatch's housing (a frame round the opening), dark thermal panels either side of it, the brow */
+  for (const s of [-1, 1]) body.box(alu, 0.13, 0.9, 0.09, s * (HATCH.half + 0.085), AS_Y + 0.45, FRONT + 0.03);
+  body.box(alu, 1.12, 0.1, 0.09, 0, HATCH.y1 + 0.07, FRONT + 0.03); body.box(alu, 1.12, 0.06, 0.09, 0, AS_Y + 0.03, FRONT + 0.03);
+  for (const s of [-1, 1]) body.box(blackFoil, 0.42, 0.7, 0.03, s * 0.8, AS_Y + 0.78, FRONT + 0.035, 0, 0, s * 0.12);
+  body.box(alu, 1.5, 0.1, 0.1, 0, 4.42, FRONT + 0.02, 0.3);
   /* the two triangular windows (where the cabin's are), dark glass in black frames, canted panes */
   for (const s of [-1, 1]) {
     const pts = [[s * 0.12, 3.57], [s * 0.66, 3.57], [s * 0.12, 4.29]];
@@ -221,8 +230,8 @@ export function makeLM(env) {
     for (let i = 0; i < 3; i++) { const p = pts[i], q = pts[(i + 1) % 3]; body.rod(dark, V(p[0], p[1], FRONT + 0.015), V(q[0], q[1], FRONT + 0.015), 0.022, 6); }
   }
   /* the midsection, the aft equipment bay with its rack and two gas tanks */
-  body.box(blackFoil, 1.56, 1.9, 0.87, 0, AS_Y + 0.95, -0.33);
-  body.box(alu, 1.2, 0.04, 0.8, 0, 4.31, -0.33);
+  body.box(blackFoil, 2.0, 1.94, 0.87, 0, AS_Y + 0.97, -0.33);
+  body.box(alu, 1.2, 0.04, 0.8, 0, 4.35, -0.33);
   body.box(blackFoil, 1.9, 1.3, 0.75, 0, 3.4, -1.13);
   body.box(gold, 1.7, 1.1, 0.03, 0, 3.4, -1.52);
   for (let i = 0; i < 4; i++) body.box(amber, 0.34, 0.95, 0.02, -0.63 + i * 0.42, 3.4, -1.545);
@@ -249,8 +258,8 @@ export function makeLM(env) {
   body.add(new THREE.TorusGeometry(0.42, 0.018, 6, 24), alu, 0, LM.TOP, 0, Math.PI / 2);
   /* the rendezvous radar over the front; the S-band dish on its boom; two VHF aerials; the docking target; the small
    * docking window in the roof over the Commander */
-  body.rod(alu, V(0, 4.62, 0.95), V(0, 4.95, 1.0), 0.04); body.box(dark, 0.2, 0.16, 0.16, 0, 4.98, 1.0);
-  body.add(new THREE.SphereGeometry(0.34, 20, 8, 0, Math.PI * 2, 0, 0.85), aluD, 0, 5.02, 0.86, 1.95, 0, 0);
+  body.rod(alu, V(0, 4.8, 0.95), V(0, 5.05, 1.0), 0.04); body.box(dark, 0.2, 0.16, 0.16, 0, 5.08, 1.0);
+  body.add(new THREE.SphereGeometry(0.34, 20, 8, 0, Math.PI * 2, 0, 0.85), aluD, 0, 5.12, 0.86, 1.95, 0, 0);
   body.rod(alu, V(-0.75, 4.3, -0.35), V(-1.5, 4.95, -0.35), 0.03); body.rod(alu, V(-1.5, 4.95, -0.35), V(-1.5, 5.12, -0.35), 0.025);
   body.add(new THREE.SphereGeometry(0.4, 20, 8, 0, Math.PI * 2, 0, 0.8), aluD, -1.5, 5.5, -0.35, Math.PI, 0, 0);
   body.rod(dark, V(-1.5, 5.15, -0.35), V(-1.5, 5.42, -0.35), 0.012, 5);
@@ -279,4 +288,17 @@ export function makeLM(env) {
   g.userData.top = LM.TOP;
   g.userData.hatch = hatch; g.userData.porch = PORCH; g.userData.ladder = ladder;
   return g;
+}
+
+/* Standing on the ground: where the LM's origin sits and how it leans so that all four footpads rest on the terrain,
+ * pressed a few centimetres into the dust (owner's headset test: pads hung in the air). heightAt(x, z): the ground;
+ * x, z: under the LM; yaw: its heading (rotation.y). Returns the origin's height and the lean, for
+ * rotation.set(pitch, yaw, roll) with order 'YXZ'. The four pads cannot all meet a twisted ground: the two that would
+ * hang are brought down to it, the other two sink a little more. */
+export function settleLM(heightAt, x, z, yaw, sink = 0.04) {
+  const R = LM.FOOT_R, c = Math.cos(yaw), s = Math.sin(yaw);
+  const at = (lx, lz) => heightAt(x + lx * c + lz * s, z - lx * s + lz * c);
+  const hF = at(0, R), hB = at(0, -R), hL = at(R, 0), hR = at(-R, 0);
+  const twist = Math.abs((hF + hB) - (hL + hR)) / 4;
+  return { y: (hF + hB + hL + hR) / 4 - twist - sink + 0.86, pitch: -Math.atan((hF - hB) / (2 * R)), roll: Math.atan((hL - hR) / (2 * R)) };
 }

@@ -97,7 +97,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   if (outDir) await p.screenshot({ path: path.join(outDir, 'lunar-outside.png') });
   await p.evaluate(() => { (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)); });
   /* the end */
-  const end = await p.evaluate(async () => { __lunar.S.running = true; __lunar.setTime(__lunar.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __lunar.S.ended, t: __lunar.S.t }; });
+  const end = await p.evaluate(async () => { __lunar.S.running = true; __lunar.setTime(__lunar.END - 3); for (let k = 0; k < 100 && !__lunar.S.ended; k++) await new Promise(r => setTimeout(r, 200));   /* by state: software GL is slow */ return { ended: __lunar.S.ended, t: __lunar.S.t }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();

@@ -15,20 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=16';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=16';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=16';
-import { makeLMShadow } from './lm-shadow.js?v=16';
-import { makeLaunchSound } from './launch-sound.js?v=16';
-import { makeRadio, combineRadios } from './radio.js?v=16';
-import { makeClock } from './clock.js?v=16';
-import { makeChatter } from './chatter.js?v=16';
-import { handOnCrew } from './crew-life.js?v=16';
-import { makeVehicle } from './vehicle.js?v=16';
-import { createHand, makeControllers } from './hands.js?v=16';
-import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtSpeed } from './wrist.js?v=16';
-import { saveProgress, offerContinue } from './progress.js?v=16';
-import { settings, applyCommon, holdsFor } from './settings.js?v=16';
+import { GETL } from './lunar-space.js?v=19';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=19';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=19';
+import { settleLM } from './lm-model.js?v=19';
+import { makeLMShadow } from './lm-shadow.js?v=19';
+import { makeLaunchSound } from './launch-sound.js?v=19';
+import { makeRadio, combineRadios } from './radio.js?v=19';
+import { makeClock } from './clock.js?v=19';
+import { makeChatter } from './chatter.js?v=19';
+import { handOnCrew } from './crew-life.js?v=19';
+import { makeVehicle } from './vehicle.js?v=19';
+import { createHand, makeControllers } from './hands.js?v=19';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=19';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=19';
+import { settings, applyCommon, holdsFor } from './settings.js?v=19';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -96,6 +97,31 @@ const dust = new THREE.Mesh(new THREE.CircleGeometry(1, 64, 0, Math.PI * 2), new
       float fall = smoothstep(1.0, 0.25, r) * smoothstep(0.0, 0.06, r);
       gl_FragColor = vec4(vec3(0.62, 0.6, 0.56), uK * fall * (0.25 + 0.55 * streak)); }` }));
 dust.frustumCulled = false; dust.renderOrder = 21; dust.visible = false; nearG.add(dust);
+/* and grains thrown out by the engine in the last metres and at touchdown: with no air each flies its own arc and
+ * falls back, slowly, in a sixth of the Earth's gravity; nothing hangs as a cloud (owner's wish: dust that falls
+ * slowly). A ring buffer of points, each worked out in the shader from where and when it left. */
+const GRAINS = 1400, grainU = { uT: { value: 0 }, uPx: { value: 900 } };
+const grainGeo = new THREE.BufferGeometry();
+for (const [n, k] of [['position', 3], ['aV', 3], ['aT0', 1]]) grainGeo.setAttribute(n, new THREE.BufferAttribute(new Float32Array(GRAINS * k).fill(n === 'aT0' ? -1e6 : 0), k));
+const grains = new THREE.Points(grainGeo, new THREE.ShaderMaterial({
+  uniforms: grainU, transparent: true, depthWrite: false,
+  vertexShader: `uniform float uT; uniform float uPx; attribute vec3 aV; attribute float aT0; varying float vA;
+    void main(){ float t = uT - aT0; vec3 p = position + aV * t; p.y -= 0.81 * t * t;
+      float up = p.y - position.y; vA = (t > 0.0 && up > -0.25) ? smoothstep(0.0, 0.3, t) * (1.0 - smoothstep(4.0, 9.0, t)) : 0.0;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = clamp(uPx * 0.035 / max(0.5, -mv.z), 1.0, 14.0); }`,
+  fragmentShader: `varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (vA < 0.01 || d > 0.25) discard;
+    gl_FragColor = vec4(vec3(0.66, 0.63, 0.58), vA * 0.55 * (1.0 - d * 4.0)); }` }));
+grains.frustumCulled = false; grains.renderOrder = 22; nearG.add(grains);
+let grainAt = 0;
+function throwDust(n, x, y, z, t, hard) {
+  const P = grainGeo.attributes.position, Vv = grainGeo.attributes.aV, T = grainGeo.attributes.aT0;
+  for (let k = 0; k < n; k++) {
+    const i = grainAt; grainAt = (grainAt + 1) % GRAINS;
+    const a = Math.random() * Math.PI * 2, r = 0.8 + Math.random() * 2.5, sp = (hard ? 5 : 8) + Math.random() * (hard ? 9 : 16), up = (hard ? 0.6 : 0.3) + Math.random() * (hard ? 4.2 : 2.4);
+    P.setXYZ(i, x + Math.cos(a) * r, y + 0.1, z + Math.sin(a) * r); Vv.setXYZ(i, Math.cos(a) * sp, up, Math.sin(a) * sp); T.setX(i, t + Math.random() * 0.15);
+  }
+  P.needsUpdate = Vv.needsUpdate = T.needsUpdate = true;
+}
 
 /* ---------------------------------------------------------------- the panel's helpers */
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = Math.floor(s % 60); return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -111,9 +137,10 @@ let cur = null, padH = 15000;
 /* the wrist panel (X), the messages */
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
-const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'hand']);
+const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
+const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!cur) return null;
@@ -139,7 +166,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP') wrist.press();
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyT') toggleHand();
-  if (e.code === 'KeyN' && S.ended) nextChapter('index.html');
+  if (e.code === 'KeyN' && S.ended) nextChapter('index.html?egress');
   if (e.code === 'BracketLeft' && S.mode === 'hand') S.rod -= FT;
   if (e.code === 'BracketRight' && S.mode === 'hand') S.rod = Math.min(0.5, S.rod + FT);
   const jump = { Digit1: START, Digit2: GETD.pdi - 20, Digit3: GETD.hg - 30, Digit4: GETD.lg - 30 }[e.code];
@@ -157,7 +184,10 @@ const clock = makeClock({ holds: () => holdsFor(LANDING, LANDING_MAJOR), lines: 
 const warpOk = () => S.mode === 'table' && S.landed < 0;
 function cycleWarp() { if (!warpOk()) { S.warp = 1; toast.say('Real time while you fly'); return; } clock.faster(S); }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
-function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
+/* on to the next chapter: the page changes while still in VR, and the next page enters VR by itself where the browser
+ * allows it (progress.js autoEnter); a break: out of VR, to this page (Continue will find the place) */
+function nextChapter(href) { location.href = href; }
+function takeBreak() { const s = renderer.xr.getSession(); if (s) s.end(); card.hide(); }
 /* back to a point on the autopilot's flight: everything reset */
 function restart(t) {
   S.t = t; S.warp = 1; S.ended = false; S.mode = 'table'; S.live = null; S.landed = -1; S.cues = {}; S.took = false; S.contactV = null;
@@ -183,9 +213,10 @@ function readControllers(now) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
     if (k === 'right') {
-      if (a && !pad.prev.ra) { if (S.ended) nextChapter('index.html'); else if (S.t > GETD.lg - 30 && S.landed < 0) toggleHand(); else pad.aDown = now; }
+      if (a && !pad.prev.ra) { if (S.ended) nextChapter('index.html?egress'); else if (S.t > GETD.lg - 30 && S.landed < 0) toggleHand(); else pad.aDown = now; }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
       if (!a && pad.prev.ra && pad.aDown >= 0) { clock.slower(S); pad.aDown = -1; }
+      if (b && !pad.prev.rb && S.ended) takeBreak();
       if (b && !pad.prev.rb && !S.ended) cycleWarp();
       if (st && !pad.prev.rs) SEAT.pending = 1;
     } else if (k === 'left') {
@@ -252,11 +283,22 @@ function attitude(dt) {
   _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y);
   attWant.setFromRotationMatrix(_m.makeBasis(_x, _y, _z));
   if (snap) { lmAtt.copy(attWant); snap = false; } else lmAtt.rotateTowards(attWant, (S.mode === 'hand' ? RATE_HAND : RATE_AUTO) * dt);
-  LMworld.compose(_s.fromArray(cur.r), lmAtt, _x.set(1, 1, 1));
+  _s.fromArray(cur.r); _q.copy(lmAtt);
+  if (S.landed >= 0 && moon) {
+    /* down: the LM settles on to its four pads (lm-model.js settleLM), each on the ground and a little into the dust */
+    if (!SET || SET.at !== S.landed) {
+      _e.setFromQuaternion(lmAtt, 'YXZ'); const st = settleLM((x, z) => moon.heightAt(x, z), cur.r[0], cur.r[2], _e.y);
+      SET = { at: S.landed, k: 0, y0: cur.r[1], y: st.y, q0: lmAtt.clone(), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(st.pitch, _e.y, st.roll, 'YXZ')) };
+    }
+    SET.k = Math.min(1, SET.k + dt / 0.8); const k = SET.k * SET.k * (3 - 2 * SET.k);
+    _s.y = SET.y0 + (SET.y - SET.y0) * k; _q.copy(SET.q0).slerp(SET.q, k);
+  }
+  LMworld.compose(_s, _q, _x.set(1, 1, 1));
   lmc.group.matrix.copy(LMworld);
-  vehicle.group.position.fromArray(cur.r); vehicle.group.quaternion.copy(lmAtt);
-  vehicle.lights.position.fromArray(cur.r);
+  vehicle.group.position.copy(_s); vehicle.group.quaternion.copy(_q);
+  vehicle.lights.position.copy(_s);
 }
+let SET = null;
 const standM = new THREE.Matrix4();
 function placeRig() {
   if (OUT.on) return placeOutside();
@@ -268,6 +310,8 @@ function placeOutside() {
   _tg.set(0, 3, 0).applyMatrix4(LMworld);
   _u.fromArray(D.upAt(cur.r)); _h1.fromArray(D.F0).addScaledVector(_u, -_h1.fromArray(D.F0).dot(_u)).normalize(); _h2.crossVectors(_u, _h1);
   rig.position.copy(_h1).multiplyScalar(Math.cos(OUT.az)).addScaledVector(_h2, Math.sin(OUT.az)).multiplyScalar(Math.cos(OUT.el)).addScaledVector(_u, Math.sin(OUT.el)).multiplyScalar(OUT.dist).add(_tg);
+  /* never under the ground: half a metre clear of the terrain wherever the camera goes (owner's headset test) */
+  if (moon && padH < 3000 && Math.hypot(cur.r[0], cur.r[2]) < 20000) { const gh = moon.heightAt(rig.position.x, rig.position.z); if (isFinite(gh)) rig.position.y = Math.max(rig.position.y, gh + 0.5); }
   _z.copy(rig.position).sub(_tg).normalize(); _x.crossVectors(_u, _z).normalize(); _y.crossVectors(_z, _x);
   rig.quaternion.setFromRotationMatrix(_m.makeBasis(_x, _y, _z));
 }
@@ -281,6 +325,7 @@ function updateOutside(dt) {
   const dz = v => Math.abs(v) < 0.15 ? 0 : v;
   OUT.az += dz(ax) * 1.1 * dt; OUT.dist = Math.min(600, Math.max(9, OUT.dist * Math.exp(dz(ay) * 1.4 * dt))); OUT.el = Math.min(1.45, Math.max(-0.2, OUT.el - dz(ey) * 0.9 * dt));
 }
+let grainLanded = -1; const _v2 = new THREE.Vector2();
 /* the shadow and the dust under the LM */
 const _sun = new THREE.Vector3();
 function updateShadow(now) {
@@ -289,6 +334,9 @@ function updateShadow(now) {
   if (!near) return;
   const gx = cur.r[0], gz = cur.r[2], gy = moon.heightAt(gx, gz);
   lmShadow.update(gx, gz, cur.r[1] - PAD_DROP - gy, _sun, 0.88 * Math.min(1, (900 - padH) / 300));
+  grainU.uT.value = now / 1000; grainU.uPx.value = renderer.getDrawingBufferSize(_v2).y;
+  if (S.landed < 0 && padH < 8 && S.running) throwDust(6, gx, gy, gz, now / 1000, false);          /* the last metres: low and fast */
+  if (S.landed >= 0 && grainLanded !== S.landed) { grainLanded = S.landed; throwDust(420, gx, gy, gz, now / 1000, true); }   /* touchdown: a last burst */
   if (dust.visible) {
     dust.position.set(gx, gy + 0.3, gz); dust.rotation.set(-Math.PI / 2, 0, 0); dust.scale.setScalar(70);
     dustU.uTime.value = now / 1000; dustU.uK.value = Math.min(1, (32 - padH) / 22);
@@ -331,7 +379,7 @@ function render() {
   renderer.info.reset();
   renderer.clear(true, true, true);
   const show = (c, s, mf, mn, n) => {
-    lmc.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on;
+    lmc.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on; card.mesh.visible = c && card.k > 0.01;
     sky.visible = s; moon.far.visible = mf; moon.near.visible = mn;
     ground.group.visible = n && low && padH < 2000; rocks.group.visible = n && low && padH < 1200;
     nearG.visible = n; vehicle.lm.visible = OUT.on;
@@ -395,7 +443,7 @@ function frame(now) {
   }
   if (S.took && S.fuel <= 0 && S.landed < 0 && !FADE.then) { FADE.target = 1; FADE.then = 'again'; }
   if (FADE.then === 'again' && FADE.k > 0.92) { FADE.then = null; restart(GETD.hg - 5); S.restarts++; FADE.target = 0; if (radio) radio.cue('again'); }
-  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); toast.say('End of chapter 5.  A: out onto the surface', 1e6); saveProgress('index.html', null, 0, true); }
+  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 5', sub: 'The descent', a: 'Continue: out onto the Moon', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
   moon.setSunOffset(GETL ? (S.t - GETL.land) * 0.508 / 3600 : 0);
   _sun.copy(moon.shared.uSun.value);
   sky.userData.setSpin(W_EARTH * (S.t - GETL.land) + 2.1);
@@ -426,6 +474,8 @@ function frame(now) {
   if (chat) chat.update(dt, { crew: ['LMP'], where: ['lm', 'moon'], quiet: S.running && !OUT.on && S.t < GETD.pdi - 60 && !(radio && radio.current(S.t)) });
   updateOutside(dt);
   updateHands(dt);
+  lmc.setBody(settings.get('body'));
+  vehicle.lm.userData.setLanded(S.landed >= 0);          /* the contact probes under three pads: crushed at touchdown */
   lmc.update(now / 1000, { viewer: camera, radio: combineRadios(radio, chat && chat.radio), busy: S.t > GETD.pdi - 30 && S.landed < 0 });
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, OUT.on ? 0 : 1.62, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
@@ -433,7 +483,7 @@ function frame(now) {
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + prog(S.t) + '  ' + Math.max(0, padH).toFixed(0) + ' m' + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
-  badge.update(dt, camera, S.warp);
+  badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && S.mode === 'table' && S.landed < 0) saveProgress('descent.html', S.t, now);
   render();
   S.frames++;
@@ -458,7 +508,9 @@ async function enterVR() {
   if ($('hz')) settings.set('hz', +$('hz').value);
   renderer.xr.setFoveation(settings.get('fov'));
   common.all();
-  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 3500);
+  card.show({ title: 'Chapter 5', sub: 'The descent' }, 6);
+  session.addEventListener('selectstart', () => sound.init());          /* sound needs a press when VR was entered by itself */
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 7500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -466,6 +518,7 @@ async function enterVR() {
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
 $('vr')?.addEventListener('click', enterVR);
+autoEnter(() => S.ready, enterVR);
 offerContinue('descent.html', $('start'));          /* after a crash or a break: on from where you were */
 $('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; document.body.classList.add('running'); });
 if (Q.has('shot')) document.body.classList.add('invr');

@@ -10,7 +10,7 @@
  * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
  * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
 import * as THREE from 'three';
-import { settings, DEFS } from './settings.js?v=16';
+import { settings, DEFS } from './settings.js?v=19';
 
 export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
   return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -158,4 +158,44 @@ export function makeWarpBadge() {
     }
   };
   return B;
+}
+
+/* A chapter's card, in front of you: its number and title for a few seconds when it starts, and at its end the way
+ * on: A continues into the next chapter (staying in VR where the browser allows it), B takes a break. It follows your
+ * head gently, not rigidly. Add card.mesh to the head; card.update(dt, camera) every frame; show it only in the cabin
+ * pass. card.show({ title, sub, a, b }, seconds): a and b are the two buttons' words (none: just a title). */
+export function makeCard() {
+  const W = 1024, H = 420, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.84, 0.3445), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+  mesh.renderOrder = 1004; mesh.visible = false;
+  const want = new THREE.Vector3(), F = 'system-ui, Segoe UI, Arial, sans-serif';
+  let placed = false;
+  const C = { mesh, k: 0, left: 0, on: false,
+    show(o, secs = 1e9) {
+      C.left = secs; C.on = true; placed = false;
+      g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(8,9,10,0.88)'; g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 30); g.fill();
+      g.strokeStyle = 'rgba(240,208,112,0.5)'; g.lineWidth = 3; g.stroke();
+      g.textAlign = 'center'; g.fillStyle = '#f0d070'; g.font = 'bold 42px ' + F; g.fillText(o.title || '', W / 2, 92, W - 60);
+      g.fillStyle = '#f2f0e8'; g.font = 'bold 74px ' + F; g.fillText(o.sub || '', W / 2, o.a ? 190 : 230, W - 60);
+      if (o.a) {
+        const btn = (x, key, text, hot) => { g.fillStyle = hot ? 'rgba(240,208,112,0.22)' : 'rgba(255,255,255,0.08)'; g.beginPath(); g.roundRect(x, 262, 452, 112, 20); g.fill();
+          g.fillStyle = '#f0d070'; g.font = 'bold 52px ' + F; g.textAlign = 'left'; g.fillText(key, x + 26, 337);
+          g.fillStyle = '#f2f0e8'; g.font = '34px ' + F; g.fillText(text, x + 84, 332, 350); };
+        btn(44, 'A', o.a, true); btn(528, 'B', o.b || 'Take a break', false);
+      }
+      tex.needsUpdate = true;
+    },
+    hide() { C.left = 0; C.on = false; },
+    update(dt, camera) {
+      C.left -= dt; if (C.left <= 0) C.on = false;
+      C.k += ((C.on ? 1 : 0) - C.k) * Math.min(1, dt * 5);
+      mesh.material.opacity = C.k;
+      if (C.k < 0.01) return;
+      want.set(0, -0.02, -1.25).applyQuaternion(camera.quaternion).add(camera.position);
+      if (!placed) { mesh.position.copy(want); mesh.quaternion.copy(camera.quaternion); placed = true; }
+      mesh.position.lerp(want, Math.min(1, dt * 2.5)); mesh.quaternion.slerp(camera.quaternion, Math.min(1, dt * 2.5));
+    }
+  };
+  return C;
 }
