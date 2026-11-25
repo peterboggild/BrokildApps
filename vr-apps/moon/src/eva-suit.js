@@ -11,12 +11,13 @@
  * makeEVASuit({ commander, player, env }):
  *   commander: the red stripes. player: your own suit as you see it looking down (no helmet, no arms: your hands
  *   are the controllers). env: an environment map for the visor and the metal (suitEnvironment(renderer, sunDir)).
+ *   visor: a material for the visor in place of the gold one (lmp.js gives a live mirror).
  * userData.helmet: the helmet (a Group on the waist: it can be lifted off, as before the suiting-up in the cabin).
  * userData.aerial: the OPS's aerial (a Group; hidden in the cabin, where it was folded down).
  * userData.joints: { waist, armL, armR, elbowL, elbowR, legL, legR, kneeL, kneeR } (Groups to turn), .pose(name).
  * One mesh per material in each jointed part: about thirty draw calls a figure. */
 import * as THREE from 'three';
-import { Parts, decal } from './lm-model.js?v=24';
+import { Parts, decal } from './lm-model.js?v=25';
 
 /* what the visor mirrors: a black sky, the sunlit ground below the horizon, the Sun low on one side, the Earth */
 export function suitEnvironment(renderer, sunAz = 1.6, sunEl = 0.23) {
@@ -78,7 +79,7 @@ export function makeEVASuit(opts = {}) {
   const glove = Std({ color: 0x8a8d90, roughness: 0.75, metalness: 0.25 });                        /* woven steel cloth */
   const blue = Std({ color: 0x3f5f9a, roughness: 0.8, metalness: 0 });                              /* silicone: fingertips, soles, hose ends */
   const hose = Std({ color: 0xd9d6cf, roughness: 0.8, metalness: 0 });
-  const gold = Std({ color: 0xd8a63a, roughness: 0.06, metalness: 1.0, envMapIntensity: env ? 1.6 : 0 });
+  const gold = opts.visor || Std({ color: 0xd8a63a, roughness: 0.06, metalness: 1.0, envMapIntensity: env ? 1.6 : 0 });
   const patchM = Std({ map: _patch, transparent: true, roughness: 0.8, metalness: 0 });
   const flagM = Std({ map: _flag, roughness: 0.8, metalness: 0 });
   const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 14);

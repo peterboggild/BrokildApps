@@ -369,6 +369,15 @@ out already. All motion is made in code from the suit's joints, eased from pose 
   (`lit(point)`), and a figure in the shade is lit by the ground's glow only.
 - **Drawing**: he is drawn with the world; where the cabin's pass follows (near the LM) he is drawn into its depth
   buffer too, as the hull is, so the cabin behind the hatch does not show through him on the porch.
+- **His visor is a mirror** of the valley, the LM and you: a 256-pixel cube map drawn from his helmet in `main.js`
+  (`reflect`), one face every other frame in the view's own two passes (far, then near), only while you are within
+  14 m of him; the frame-rate guard slows it to every sixth frame before it touches the foveation. In it you are a
+  whole suit (`meGhost`: helmet, and arms that follow your hands by a two-bone reach), the same suit your shadow is
+  drawn from, so your shadow lifts its arms with you.
+- **Solid**: you cannot pass through the LM (from above: the descent stage, the four legs with struts and pads, the
+  ladder on the front leg) or through him (`clearOf`, `collide` in `main.js`). Your body is a 0.3 m circle under
+  your head, wherever in your room you stand; it is pushed out the shortest way, so you slide along. Jumps land
+  clear too.
 - Known: the backpack passes through the top of the hatch's frame as he crawls out (the real crews barely cleared
   it); no voice yet.
 - Test: the last part of `test/egress.test.cjs` (his clock runs three times as fast there).

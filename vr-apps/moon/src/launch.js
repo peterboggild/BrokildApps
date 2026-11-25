@@ -12,20 +12,20 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=24';
-import { makeOutside } from './earth.js?v=24';
-import { makeCabin } from './cabin.js?v=24';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=24';
-import { makeRadio, combineRadios } from './radio.js?v=24';
-import { makeClock } from './clock.js?v=24';
-import { makeChatter } from './chatter.js?v=24';
-import { handOnCrew } from './crew-life.js?v=24';
-import { makePad, ARM, WR } from './pad.js?v=24';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=24';
-import { createHand, makeControllers } from './hands.js?v=24';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=24';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=24';
-import { settings, applyCommon, holdsFor } from './settings.js?v=24';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=25';
+import { makeOutside } from './earth.js?v=25';
+import { makeCabin } from './cabin.js?v=25';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=25';
+import { makeRadio, combineRadios } from './radio.js?v=25';
+import { makeClock } from './clock.js?v=25';
+import { makeChatter } from './chatter.js?v=25';
+import { handOnCrew } from './crew-life.js?v=25';
+import { makePad, ARM, WR } from './pad.js?v=25';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=25';
+import { createHand, makeControllers } from './hands.js?v=25';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=25';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=25';
+import { settings, applyCommon, holdsFor } from './settings.js?v=25';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

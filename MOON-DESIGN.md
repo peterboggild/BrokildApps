@@ -737,6 +737,30 @@ helmet, then yours), and your own helmet frames your view from then on. To judge
 helmet's edge and the visor's amber are too much or too little, and whether the chin hides too much of your own
 suit. Still to come: his voice, the flag, the rover.
 
+### 12.13 The owner's verdict on the second man, and the plan to the finale (25 November 2026)
+
+Headset: "looks great, frame rate is ok". Asked for and done next: a live reflection in the other astronaut's
+visor, the LM and the astronaut made solid, and (noted as minor) his own shadow lifting its arms.
+
+The owner's plan for the rest of the Moon, in order:
+1. The flag, planted.
+2. The rover, parked by the LM, then set up and driven.
+3. A few missions, as on Apollo 17: set up the rover, collect rock samples (the crew brought home some 110 kg),
+   record the two astronauts waving at the camera in front of the LM, carry the rocks into the LM, lift off.
+4. The finale: the film. The two astronauts waving and the lift-off as the rover's camera saw it, cut together, as
+   the proof that this part of the journey was done; to be kept as a video file on the headset if the browser
+   allows it (a render target to a 2D canvas to MediaRecorder; to be tried, not promised).
+   The owner's shape for it: the wave is filmed while you look at the camera, from the astronaut's own eyes; the
+   chapter stops with the LM some 50 m up; then the film is shown as the prize, played back on a console in Mission
+   Control at Houston: a realistic but static picture of the console as the frame (not modelled in 3D for now, no
+   room, no people), the film enlarged in its screen, in muted colour, and the words "You completed the first part
+   of the Apollo 17 mission. Have a safe trip back."
+5. The radio on the Moon (the owner's wish): contact with the other astronauts. A push-to-talk control; they cannot
+   understand you, so the answer is general ("Roger that"); the radio's voice says what should happen next; and the
+   small talk goes on, on the Moon too.
+The journey home (the owner: "later") waits on how that turns out; all its parts exist but re-entry, the
+parachutes and the splashdown.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

@@ -14,7 +14,7 @@
 <body>
 <script type="module">
 import * as THREE from 'three';
-import { makeLMModel } from '../src/vehicle.js?v=24';
+import { makeLMModel } from '../src/vehicle.js?v=25';
 const q = new URLSearchParams(location.search), num = (k, d) => q.has(k) ? +q.get(k) : d;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);

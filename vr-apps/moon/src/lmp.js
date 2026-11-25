@@ -17,8 +17,8 @@
  *   lmp.startOutside()   already down, moving about
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=24';
-import { LM } from './lm-model.js?v=24';
+import { makeEVASuit } from './eva-suit.js?v=25';
+import { LM } from './lm-model.js?v=25';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -110,7 +110,8 @@ const STAND = { lean: 0, wx: -0.08, wy: 0, alx: 0.35, alz: 0.3, arx: 0.35, arz: 
 const SPOTS = [[2.6, 7.6, 'look'], [-3.4, 9.2, 'work'], [0.6, 12.5, 'look'], [-5.4, 5.8, 'work'], [4.2, 6.4, 'you'], [-1.5, 15, 'look']];
 
 export function makeLMP(o) {
-  const fig = makeEVASuit({ env: o.env }); fig.rotation.order = 'YXZ'; fig.visible = false;
+  /* his visor: a gold mirror of the cube map the page draws from his helmet (o.mirror), the valley, the LM and you in it */
+  const fig = makeEVASuit({ env: o.env, visor: o.mirror ? new THREE.MeshBasicMaterial({ color: 0xf0bc58, envMap: o.mirror, reflectivity: 1 }) : null }); fig.rotation.order = 'YXZ'; fig.visible = false;
   const J = fig.userData.joints, mats = new Set(), base = new Map();
   fig.traverse(m => { if (m.isMesh) mats.add(m.material); });
   for (const m of mats) if (m !== fig.userData.visor) base.set(m, m.color.clone());
@@ -166,7 +167,7 @@ export function makeLMP(o) {
       set(STAND); apply(0, true);
     },
     update(dt, ctx = {}) {
-      dt *= S.rate; S.t += dt;
+      const real = dt; dt *= S.rate; S.t += dt;
       const yawLM = o.model.rotation.y, pl = ctx.player;
       if (S.phase === 'cabin') {
         /* he follows a little after you are down */
@@ -229,7 +230,7 @@ export function makeLMP(o) {
       const f = 0.36 + 0.64 * S.lit; for (const [m, c] of base) m.color.copy(c).multiplyScalar(f);
       fig.visible = true;
       /* his shadow: drawn again a few times a second (he turns, his limbs move), laid out every frame */
-      S.bakeT += dt / S.rate;
+      S.bakeT += real;
       if (S.bakeT > 0.14 && o.renderer) { S.bakeT = 0; shadow.bake(o.renderer, fig, o.sun); }
       shadow.drape(fig.position.x, fig.position.y, fig.position.z);
       dust.update(dt);
