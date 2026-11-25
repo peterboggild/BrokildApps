@@ -16,8 +16,8 @@
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
 import { state as ascentState } from './ascent.js?v=13';
-import { loadMoon } from './moon.js?v=3';
-import { makeSky } from './extras.js?v=4';
+import { loadMoon } from './moon.js?v=4';
+import { makeSky } from './extras.js?v=5';
 import { makeLunarFlight, GETL } from './lunar-space.js?v=13';
 import { makeCabin } from './cabin.js?v=13';
 import { makeLMCabin, LMC } from './lm-cabin.js?v=13';

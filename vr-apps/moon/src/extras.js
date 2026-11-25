@@ -1,7 +1,7 @@
 /* Things around the terrain: the Sun, the Earth (real imagery, also chapter 3's), rocks, a stand-in LM, a handrail.
  * The LM here is a placeholder (stage 5 replaces it). */
 import * as THREE from 'three';
-import { LUNAR_GLSL } from './moon.js?v=3';
+import { LUNAR_GLSL } from './moon.js?v=4';
 import { makeStars, ECLIPTIC_POLE } from './stars.js?v=13';
 
 const SKY_D = 2.0e6;                 /* sky bodies are drawn at this distance, inside the far plane */
@@ -168,7 +168,7 @@ export function groundRockMaterial(moon) {
   return new THREE.ShaderMaterial({
     vertexShader: ROCK_VERT, fragmentShader: ROCK_FRAG, defines: { GROUND: 1 },
     uniforms: {
-      uSun: moon.shared.uSun, uSunV: moon.shared.uSun, uExposure: moon.shared.uExposure,
+      uSun: moon.shared.uSun, uSunV: moon.shared.uSun, uExposure: moon.shared.uExposure, uEarth: moon.shared.uEarth,
       uMap: u.uMap, uMapA: u.uMapA, uGround: u.uGround, uHEnc: moon.shared.uHEnc, uHalf: { value: 1 },
       uPen: { value: 0.006 }, uTint: { value: new THREE.Color(0.105, 0.10, 0.094) }
     }
@@ -183,7 +183,7 @@ export async function makeRocks(moon, base) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: ROCK_VERT, fragmentShader: ROCK_FRAG,
     uniforms: {
-      uSun: moon.shared.uSun, uSunV: moon.shared.uSun, uExposure: moon.shared.uExposure,
+      uSun: moon.shared.uSun, uSunV: moon.shared.uSun, uExposure: moon.shared.uExposure, uEarth: moon.shared.uEarth,
       uMap: { value: moon.l6.map }, uHEnc: moon.shared.uHEnc, uHalf: { value: man.walk.half },
       uPen: { value: 0.006 }, uTint: { value: new THREE.Color(0.105, 0.10, 0.094) }
     }
