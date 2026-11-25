@@ -8,8 +8,9 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=15';
-import { makeCrewLife } from './crew-life.js?v=15';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=19';
+import { makeCrewLife } from './crew-life.js?v=19';
+import { LM } from './lm-model.js?v=19';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -44,18 +45,28 @@ export function makeLMCabin() {
   const front = new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1));
   /* in the wall's u (= -x) the Commander's window is at negative u */
   wallFrom([[-HALF, FLOOR], [HALF, FLOOR], [HALF, CEIL], [-HALF, CEIL]],
-    [tri([[-WI, WY0], [-WI, WY1], [-WO, WY0]]), tri([[WI, WY0], [WO, WY0], [WI, WY1]])], front, new THREE.Vector3(0, 0, FRONT));
+    [tri([[-WI, WY0], [-WI, WY1], [-WO, WY0]]), tri([[WI, WY0], [WO, WY0], [WI, WY1]]),
+      tri([[-LM.HATCH.half, LM.HATCH.y0], [-LM.HATCH.half, LM.HATCH.y1], [LM.HATCH.half, LM.HATCH.y1], [LM.HATCH.half, LM.HATCH.y0]])], front, new THREE.Vector3(0, 0, FRONT));
   /* window frames: a deep reveal round each triangle */
   for (const sx of [1, -1]) {
     const pts = [[sx * WI, WY0], [sx * WO, WY0], [sx * WI, WY1]];
     for (let i = 0; i < 3; i++) {
       const a = pts[i], b = pts[(i + 1) % 3], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const m = put(new THREE.BoxGeometry(len, 0.03, 0.12), black, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, FRONT + 0.06);
+      /* (from 1 cm inside the wall outwards: a face lying in the wall's own plane flickered against it, and the
+       * flicker moved with the head: owner's headset test) */
+      const m = put(new THREE.BoxGeometry(len, 0.03, 0.13), black, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, FRONT + 0.055);
       m.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
     }
   }
-  put(new THREE.PlaneGeometry(0.8, 0.8), L(0x55585a), 0, FLOOR + 0.45, FRONT - 0.01, 0, Math.PI, 0);     /* the forward hatch */
-  put(new THREE.BoxGeometry(0.06, 0.06, 0.05), metal, 0.3, FLOOR + 0.45, FRONT - 0.04);                     /* its handle */
+  /* the forward hatch: an opening in the wall (the same as the model's outside, lm-model.js), its door hinged on
+   * the Lunar Module Pilot's side and swinging inwards; a frame round it, the latch handle, the dump valve */
+  const HT = LM.HATCH, hw = HT.half * 2, hh = HT.y1 - HT.y0, hc = (HT.y0 + HT.y1) / 2;
+  const fwdDoor = new THREE.Group(); fwdDoor.position.set(-HT.half, 0, FRONT - 0.022); g.add(fwdDoor);
+  put(new THREE.BoxGeometry(hw, hh, 0.03), L(0x8d9093), HT.half, hc, 0, 0, 0, 0, fwdDoor);
+  put(new THREE.BoxGeometry(hw - 0.12, hh - 0.12, 0.012), L(0x7b7e81), HT.half, hc, -0.02, 0, 0, 0, fwdDoor);
+  put(new THREE.BoxGeometry(0.05, 0.16, 0.05), metal, hw - 0.1, hc, -0.05, 0, 0, 0, fwdDoor);                 /* the latch handle */
+  put(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 14), black, HT.half, hc + 0.2, -0.035, Math.PI / 2, 0, 0, fwdDoor);   /* the dump valve */
+  for (const [w, h, x, y] of [[hw + 0.1, 0.05, 0, HT.y1 + 0.025], [0.05, hh, -HT.half - 0.025, hc], [0.05, hh, HT.half + 0.025, hc]]) put(new THREE.BoxGeometry(w, h, 0.04), dark, x, y, FRONT - 0.026);
 
   /* ---------------- floor, ceiling (holes: the docking window over the Commander, the hatch over the midsection),
    * side and back walls, the step up to the midsection */
@@ -72,7 +83,7 @@ export function makeLMCabin() {
   }
   put(new THREE.PlaneGeometry(2 * HALF, CEIL - FLOOR), wall, 0, (FLOOR + CEIL) / 2, BACK, 0, 0, 0);
   /* the docking window's reveal, and the hatch rim and tunnel stub above the ceiling */
-  for (const [x, z, w, d] of [[0.36, 0.9, 0.02, 0.26], [0.54, 0.9, 0.02, 0.26], [0.45, 0.78, 0.2, 0.02], [0.45, 1.02, 0.2, 0.02]]) put(new THREE.BoxGeometry(w, 0.1, d), black, x, CEIL + 0.05, z);
+  for (const [x, z, w, d] of [[0.36, 0.9, 0.02, 0.26], [0.54, 0.9, 0.02, 0.26], [0.45, 0.78, 0.2, 0.02], [0.45, 1.02, 0.2, 0.02]]) put(new THREE.BoxGeometry(w, 0.11, d), black, x, CEIL + 0.045, z);
   put(new THREE.TorusGeometry(LMC.HATCH_R + 0.02, 0.03, 10, 40), metal, 0, CEIL - 0.02, 0, Math.PI / 2);
   const stub = put(new THREE.CylinderGeometry(LMC.HATCH_R, LMC.HATCH_R, 0.45, 32, 1, true), L(0x9a9c9e, { side: THREE.BackSide }), 0, CEIL + 0.225, 0);
   /* the overhead hatch itself: open (swung up into the tunnel, as for the crew coming through) or shut */
@@ -80,7 +91,7 @@ export function makeLMCabin() {
 
   /* ---------------- panels: the two flight panels under the windows, the centre console with the DSKY between the
    * stations, a side console at each station's outer wall */
-  const panel = makePanelTexture([], 'lm');
+  const panel = makePanelTexture([], 'lm', [[0, 0.22], [0.22, 0.44], [0.44, 0.54], [0.60, 0.80], [0.80, 1.0]]);
   const pm = L(0xffffff, { map: panel.texture });
   const panels = [];
   const panelAt = (u0, u1, w, h, x, y, z, rx, ry) => {
@@ -91,14 +102,20 @@ export function makeLMCabin() {
     panels.push({ mesh: m, w, h });
     return m;
   };
-  const p1 = panelAt(0.00, 0.22, 0.62, 0.36, 0.42, FLOOR + 0.88, FRONT - 0.1, -0.25, Math.PI);
-  const p2 = panelAt(0.22, 0.44, 0.62, 0.36, -0.42, FLOOR + 0.88, FRONT - 0.1, -0.25, Math.PI);
-  const p3 = panelAt(0.44, 0.60, 0.34, 0.42, 0, FLOOR + 0.58, FRONT - 0.18, -0.5, Math.PI);
+  /* just under the windows and leaning back to face your eyes (lower and more upright they were "at the knees",
+   * seen at a grazing angle: owner's headset test) */
+  panel.texture.anisotropy = 16;
+  const PY = FLOOR + 1.05, PZ = FRONT - 0.12, PT = -0.45;
+  const p1 = panelAt(0.00, 0.22, 0.62, 0.36, 0.42, PY, PZ, PT, Math.PI);
+  const p2 = panelAt(0.22, 0.44, 0.62, 0.36, -0.42, PY, PZ, PT, Math.PI);
+  const p3 = panelAt(0.44, 0.54, 0.18, 0.36, 0, PY, PZ + 0.004, PT, Math.PI);          /* between the two, clear of the hatch below */
   panelAt(0.60, 0.80, 0.42, 0.62, HALF - 0.06, FLOOR + 0.95, 0.8, -0.6, -Math.PI / 2);
   panelAt(0.80, 1.00, 0.42, 0.62, -HALF + 0.06, FLOOR + 0.95, 0.8, -0.6, Math.PI / 2);
+  /* the side panels are the sloping tops of consoles standing against the walls, not plates in the air */
+  for (const sx of [-1, 1]) { put(new THREE.BoxGeometry(0.3, 0.72, 0.66), dark, sx * (HALF - 0.15), FLOOR + 0.36, 0.8); put(new THREE.BoxGeometry(0.1, 0.5, 0.66), dark, sx * (HALF - 0.05), FLOOR + 0.97, 0.8); }
   /* the DSKY on the centre console, an attitude ball on each flight panel */
   const dsky = makeDsky();
-  const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture })); dm.position.set(0, -0.08, 0.006); p3.add(dm);
+  const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture })); dm.position.set(0, -0.04, 0.006); p3.add(dm);
   const ballTex = makeBallTexture(), balls = [];
   for (const p of [p1, p2]) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 24), L(0xffffff, { map: ballTex })); b.position.set(0, 0.06, 0.005); p.add(b); balls.push(b);
@@ -130,6 +147,9 @@ export function makeLMCabin() {
   for (const sx of [-1, 1]) put(new THREE.BoxGeometry(0.32, 0.9, 0.36), L(0x6e7174), sx * 0.7, FLOOR + 0.8, -0.55);
 
   /* ---------------- the Lunar Module Pilot, standing at the right station */
+  /* your own suit, standing at the Commander's station (as in the Command Module: no head, no forearms) */
+  const body = makeCrewman({ player: true, standing: true });
+  body.position.set(LMC.CDR.x, FLOOR + 1.6 - 0.09, LMC.CDR.z - 0.07); body.rotation.y = Math.PI; g.add(body);
   const lmp = makeCrewman({ variant: 1, standing: true });
   lmp.position.set(LMC.LMP.x, FLOOR + 1.6, LMC.LMP.z); lmp.rotation.y = Math.PI; g.add(lmp);
   const life = makeCrewLife([{ man: lmp, who: 'LMP' }]);
@@ -144,6 +164,9 @@ export function makeLMCabin() {
   return {
     group: g, panels, dsky, balls, lmp, sunIn,
     setHatchOpen(on) { hatchLid.visible = !on; stub.visible = on; },
+    setBody(on) { body.visible = on; },
+    /* the forward hatch: 0 shut, 1 swung in against the Lunar Module Pilot's side */
+    setForwardHatch(k) { fwdDoor.rotation.y = 1.65 * k; },
     setDaylight(k, sunLocal) { sunIn.intensity = 0.8 * k; sunIn.position.copy(sunLocal).multiplyScalar(3); amb.intensity = 2.4 + 0.6 * k; },
     /* the LMP's life (crew-life.js); ctx: { viewer (the camera), radio, busy } */
     life,

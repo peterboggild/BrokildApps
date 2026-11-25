@@ -42,9 +42,12 @@ export function makeCrewLife(members) {
     let w;
     if (c.forced) w = { [c.forced]: 1 };
     else if (t < c.reactUntil) w = { you: 1 };                                            /* you touched him */
+    /* beginning to speak, he turns to whom he speaks to first, as people do without thinking (owner's headset test) */
+    else if (ctx.first && talk && c.to === 'you' && !ctx.busy) w = { you: 1 };
+    else if (ctx.first && talk && c.to === 'mate') w = { mate: 1 };
     else if (c.lookedAt > 0.8 && c.cool <= 0) { w = { you: 1 }; c.cool = rnd(8, 15); }    /* you have been looking at him */
     else if (talk && c.to === 'mate') w = { mate: 0.72, panel: 0.18, you: 0.1 };
-    else if (ctx.toYou && !ctx.busy) w = { you: 0.68, panel: 0.22, mate: 0.1 };
+    else if (ctx.toYou && !ctx.busy) w = { you: 0.8, panel: 0.15, mate: 0.05 };
     else if (talk) w = { you: 0.15, panel: 0.75, away: 0.1 };
     else if (ctx.mateTalk && !ctx.busy) w = { mate: 0.45, panel: 0.35, you: 0.2 };
     else if (ctx.busy) w = { panel: 0.85, you: 0.08, mate: 0.07 };
@@ -95,7 +98,7 @@ export function makeCrewLife(members) {
       }
       c.cool -= dt;
       if (t >= c.until || (c.lookedAt > 0.8 && c.cool <= 0 && c.kind !== 'you') || (talk && !c.wasTalking))
-        choose(c, t, { you, mate, talk, toYou, mateTalk, busy: ctx.busy });
+        choose(c, t, { you, mate, talk, toYou, mateTalk, busy: ctx.busy, first: !!talk && !c.wasTalking });
       c.wasTalking = !!talk;
       if (c.kind === 'you' && you) c.target.copy(you);
       if (c.kind === 'mate' && mate) c.target.copy(mate);
@@ -109,7 +112,7 @@ export function makeCrewLife(members) {
       const part = (v, f, eye) => Math.sign(v) * Math.max(Math.abs(v) * f, Math.abs(v) - eye);
       const hy = clamp(part(yawT, frac, 0.45), -1.2, 1.2) + 0.025 * Math.sin(t * 0.31 + c.k * 2) + 0.015 * Math.sin(t * 0.83 + c.k);
       const hp = clamp(part(pitchT, frac, 0.3), -0.4, 0.35) + 0.012 * Math.sin(t * 1.6 + c.k) + 0.015 * Math.sin(t * 0.27 + c.k * 3);
-      const W = 5.5;
+      const W = t < c.reactUntil || (talk && c.kind !== 'panel') ? 8 : 5.5;        /* quicker to the one he speaks to */
       c.vy += (W * W * (hy - c.yaw) - 2 * W * c.vy) * dt; c.yaw += c.vy * dt;
       c.vp += (W * W * (hp - c.pitch) - 2 * W * c.vp) * dt; c.pitch += c.vp * dt;
       neck.rotation.set(c.pitch, c.yaw, 0);

@@ -15,22 +15,22 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?lm (start standing in the LM)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=15';
+import { state as ascentState } from './ascent.js?v=19';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=15';
-import { makeCabin } from './cabin.js?v=15';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=15';
-import { makeLaunchSound } from './launch-sound.js?v=15';
-import { makeRadio, combineRadios } from './radio.js?v=15';
-import { makeClock } from './clock.js?v=15';
-import { makeChatter } from './chatter.js?v=15';
-import { handOnCrew } from './crew-life.js?v=15';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=15';
-import { createHand, makeControllers } from './hands.js?v=15';
-import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=15';
-import { saveProgress, offerContinue } from './progress.js?v=15';
-import { settings, applyCommon, holdsFor } from './settings.js?v=15';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=19';
+import { makeCabin } from './cabin.js?v=19';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=19';
+import { makeLaunchSound } from './launch-sound.js?v=19';
+import { makeRadio, combineRadios } from './radio.js?v=19';
+import { makeClock } from './clock.js?v=19';
+import { makeChatter } from './chatter.js?v=19';
+import { handOnCrew } from './crew-life.js?v=19';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=19';
+import { createHand, makeControllers } from './hands.js?v=19';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=19';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=19';
+import { settings, applyCommon, holdsFor } from './settings.js?v=19';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -104,9 +104,10 @@ function phase(t) {
 /* ---------------------------------------------------------------- the wrist panel (X) and messages */
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
-const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'hand']);
+const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
+const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!w) return null;
@@ -147,7 +148,10 @@ function cycleWarp() {
 }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
 function setTime(t) { S.t = t; S.warp = 1; S.ended = false; clock.reset(); }
-function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
+/* on to the next chapter: the page changes while still in VR, and the next page enters VR by itself where the browser
+ * allows it (progress.js autoEnter); a break: out of VR, to this page (Continue will find the place) */
+function nextChapter(href) { location.href = href; }
+function takeBreak() { const s = renderer.xr.getSession(); if (s) s.end(); card.hide(); }
 const STICK = { x: 0, y: 0, ry: 0 };
 const pad = { prev: {}, grip: {}, aDown: -1 };
 /* grip (either hand): pull yourself through the tunnel. A (right): float through by itself; in the LM a tap makes
@@ -168,6 +172,7 @@ function readControllers(now) {
       }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
       if (!a && pad.prev.ra && pad.aDown >= 0) { clock.slower(S); pad.aDown = -1; }
+      if (b && !pad.prev.rb && S.ended) takeBreak();
       if (b && !pad.prev.rb && S.mode === 'lm' && !S.ended) cycleWarp();
       if (st && !pad.prev.rs) SEAT.pending = 1;
     } else if (k === 'left') {
@@ -201,6 +206,11 @@ function clampHead(hp) {
   const dx = hp.x - AX, dy = hp.y - AY, rho = Math.hypot(dx, dy);
   const maxR = hp.z >= Z_APEX ? Math.max(0.2, rAt(hp.z) - 0.18) : 0.24;
   if (rho > maxR) { const k = maxR / rho; hp.x = AX + dx * k; hp.y = AY + dy * k; }
+  /* over the instrument panel, not through it (owner's headset test): the way to the tunnel rises as you come up to
+   * the panel (z -0.45 to -0.8, its top at y 0.15), crosses above it, and comes down again behind it */
+  { const sm = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+    const k = sm(-0.08, -0.42, hp.z) * (1 - sm(-0.85, -1.3, hp.z)), need = -0.6 + k * 1.04;
+    if (hp.y < need) hp.y = need; }
   hp.z = Math.min(0.4, Math.max(zH - 0.6, hp.z));
   return hp;
 }
@@ -375,7 +385,7 @@ function render() {
     cabin.group.visible = c && inside && S.mode !== 'lm';
     tunnel.visible = c && inside && !S.hatchShut;
     lmc.group.visible = c && inside;
-    wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on; sign.visible = c && SIGN.k > 0.01;
+    wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on; card.mesh.visible = c && card.k > 0.01; sign.visible = c && SIGN.k > 0.01;
     sky.visible = s; moon.far.visible = m; moon.near.visible = m; near.visible = n;
   };
   show(false, true, false, false); setPlanes(1e5, 3e6); renderer.render(scene, camera);
@@ -405,13 +415,25 @@ function frame(now) {
     let nt = clock.advance(S, dt);
     if (S.mode !== 'lm' && nt > UNDOCK - 600) { if (S.warp > 1) toast.say('The clock waits until you are in the LM'); nt = Math.max(S.t, UNDOCK - 600); S.warp = 1; S.held = true; }
     S.t = Math.min(END, nt);
-    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); toast.say('End of chapter 4.  A: on to chapter 5', 1e6); saveProgress('descent.html', null, 0, true); }
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 4', sub: 'Into the LM', a: 'Continue: chapter 5, The descent', b: 'Take a break' }); saveProgress('descent.html', null, 0, true); }
   }
+  /* still in the couch after ten seconds: say what to do (and again every twenty); the stick sets you off too */
+  if (S.mode === 'cm' && S.running) {
+    S.cmT = (S.cmT || 0) + dt;
+    if (xr && Math.abs(STICK.y) > 0.4) beginCrawl();
+    if (S.cmT > 10) {
+      S.cmT = -10; S.cmHints = (S.cmHints || 0) + 1;
+      toast.say('To the LM: through the tunnel ahead. Left stick forward, or grip and pull, or A', 8);
+      /* from the second time, the big card as well */
+      if (S.cmHints >= 2) card.show({ title: 'To the Lunar Module: through the tunnel ahead', sub: 'Left stick forward  \u00b7  or grip and pull  \u00b7  or A' }, 12);
+    }
+  } else if (S.cmHints) { S.cmHints = 0; card.hide(); }
   /* the arrival: through black, standing at your station */
   if (S.mode === 'arriving' && FADE.k > 0.92) { enterLM(); FADE.target = 0; }
   /* the LM's hatch shut behind you, the tunnel closed off (the CMP refits the drogue and his hatch) */
   if (S.mode === 'lm' && !S.hatchShut && S.t > S.arrivedAt + 25) { S.hatchShut = true; sound.thump(0.3, 0.2, 900); }
   lmc.setHatchOpen(!S.hatchShut);
+  lmc.setBody(S.mode === 'lm' && settings.get('body'));
   w = L.where(S.t);
   moon.setSunOffset(L.sunOffset(S.t));
   _sun.copy(moon.shared.uSun.value);
@@ -458,7 +480,7 @@ function frame(now) {
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
-  badge.update(dt, camera, S.warp);
+  badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && !S.ended) saveProgress('lm.html', S.mode === 'lm' ? S.t : START, now);
   render();
   S.frames++;
@@ -486,7 +508,9 @@ async function enterVR() {
   if ($('hz')) settings.set('hz', +$('hz').value);
   renderer.xr.setFoveation(settings.get('fov'));
   common.all();
-  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 3500);
+  card.show({ title: 'Chapter 4', sub: 'Into the LM' }, 6);
+  session.addEventListener('selectstart', () => sound.init());          /* sound needs a press when VR was entered by itself */
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 7500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -494,6 +518,7 @@ async function enterVR() {
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
 $('vr')?.addEventListener('click', enterVR);
+autoEnter(() => S.ready, enterVR);
 offerContinue('lm.html', $('start'));          /* after a crash or a break: on from where you were */
 $('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; document.body.classList.add('running'); });
 if (Q.has('shot')) document.body.classList.add('invr');
@@ -523,6 +548,7 @@ if (Q.has('shot')) document.body.classList.add('invr');
   }
   if (Q.has('out')) { OUT.want = OUT.on = true; if (Q.has('od')) OUT.dist = num('od', 26); if (Q.has('oa')) OUT.az = num('oa', 0); if (Q.has('oe')) OUT.el = num('oe', 0); }
   if (Q.has('lm') || S.t > START + 1) enterLM(true);
+  if (Q.has('fhatch')) lmc.setForwardHatch(num('fhatch', 1));          /* test aid: the forward hatch open */
   if (Q.has('float')) { S.mode = 'crawl'; cabin.setBody(false); body.set(AX, AY, num('float', -2)); }       /* test aid: floating on the tunnel's axis at cabin z */
   const bar = $('bar');
   moon = await loadMoon(renderer, BASE, f => { if (bar) bar.style.width = (f * 100).toFixed(0) + '%'; });

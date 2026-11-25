@@ -15,7 +15,7 @@ function base(x, n, title, sub) {
   x.fillStyle = INK; x.font = '600 66px Arial'; x.fillText(title, 80, 160);
   if (sub) { x.fillStyle = DIM; x.font = '32px Arial'; x.fillText(sub, 82, 210); }
   x.fillStyle = DIM; x.font = '26px Arial'; x.textAlign = 'right';
-  x.fillText('trigger: next   ·   B: back', W - 80, H - 46);
+  x.fillText('B or trigger: next   ·   A: back   ·   Y: leave the briefing', W - 80, H - 46);
   x.textAlign = 'left';
 }
 function label(x, s, px, py, o = {}) {
@@ -208,10 +208,10 @@ export const SLIDES = [
   },
   /* 12 */ (x) => {
     base(x, 12, 'What no astronaut had', 'Curiosity is allowed');
-    const rows = [['Y', 'A large window in the wall to your left'], ['hold B', 'Step outside and look at the spacecraft'], ['left stick', 'outside: round it, nearer or further'],
-      ['right stick', 'outside: up and down · on the Moon: how far to jump'], ['A / X', 'In the couch: time runs ×4 or ×16 when nothing critical is happening'],
-      ['trigger', 'On the Moon: aim and jump · boarding: climb in at the hatch'], ['stick press', 'left: frame-rate panel · right: sit right in the couch again']];
+    const rows = [['X', 'A large window in the wall to your left (X again closes it)'], ['Y', 'Step outside and look at the spacecraft (Y again: back in)'], ['sticks', 'outside: left round it, nearer or further; right up and down'],
+      ['B / A', 'Time faster / slower (hold A: real time). It stops at events and says why'], ['grip', 'Take floating things; pull yourself through the tunnel and down the ladder'],
+      ['trigger', 'On the Moon: aim and jump · boarding: climb in at the hatch'], ['stick press', 'left: status and settings · right: sit right in the couch again']];
     rows.forEach(([k, s], i) => { const y = 340 + i * 96; x.fillStyle = 'rgba(232,176,74,0.15)'; x.fillRect(200, y - 46, 300, 66); label(x, k, 350, y, { bold: true, size: 32, align: 'center', color: AMBER }); label(x, s, 560, y, { size: 32 }); });
-    label(x, 'Trigger: leave the briefing', 1024, 1050, { bold: true, size: 34, align: 'center', color: AMBER });
+    label(x, 'B or trigger: on to chapter 1', 1024, 1050, { bold: true, size: 34, align: 'center', color: AMBER });
   }
 ];

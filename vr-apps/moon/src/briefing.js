@@ -2,13 +2,13 @@
  *
  * A dark room with one large curved screen and a 1:60 model of the Apollo-Saturn V on a pedestal. Twelve boards
  * (briefing-slides.js) walk through the mission, each with a narration; on the boards about the vehicle and the
- * launch the model demonstrates: it turns, and runs through the staging. Trigger or A: next board, B or X: back.
+ * launch the model demonstrates: it turns, and runs through the staging. B or the trigger: next board; A or X: back; Y: leave the briefing.
  *
  * URL: ?slide=1..12  ?shot  ?yaw= &pitch= */
 import * as THREE from 'three';
-import { SLIDES, W, H } from './briefing-slides.js?v=15';
-import { makeVehicle } from './vehicle.js?v=15';
-import { createHand, makeControllers } from './hands.js?v=15';
+import { SLIDES, W, H } from './briefing-slides.js?v=19';
+import { makeVehicle } from './vehicle.js?v=19';
+import { createHand, makeControllers } from './hands.js?v=19';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -94,8 +94,7 @@ function show(i) {
 function next() { if (S.slide === SLIDES.length - 1) { leave(); return; } show(S.slide + 1); }
 function back() { show(S.slide - 1); }
 function leave() {
-  const s = renderer.xr.getSession(); if (s) s.end();
-  location.href = 'launch.html';
+  location.href = 'launch.html';                    /* still in VR: chapter 1 enters VR by itself where the browser allows it */
 }
 
 /* ---------------- input */
@@ -115,8 +114,10 @@ function controllers(dt) {
   s.inputSources.forEach(src => {
     const gp = src.gamepad; if (!gp) return;
     const k = src.handedness, tr = gp.buttons[0]?.pressed, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed;
-    if ((tr && !prev[k + 't']) || (a && !prev[k + 'a'])) next();
-    if (b && !prev[k + 'b']) back();
+    /* as time in the chapters: B (or the trigger) forward, A back; X back too; Y leaves the briefing for chapter 1 */
+    if ((tr && !prev[k + 't']) || (k === 'right' && b && !prev[k + 'b'])) next();
+    if (a && !prev[k + 'a']) back();
+    if (k === 'left' && b && !prev[k + 'b']) leave();
     prev[k + 't'] = tr; prev[k + 'a'] = a; prev[k + 'b'] = b;
     const m = hands[k], grip = ctl.grips[k];
     if (m && m.parent !== grip) grip.add(m);

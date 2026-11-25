@@ -7,7 +7,8 @@
  * spacecraft. Heights below follow the pad (pad.js) with the stage lengths a little compressed to fit the eye height.
  * The Commander's eye point is EYE_OFF in this frame. */
 import * as THREE from 'three';
-import { EYE_H, SUN, EVENTS } from './ascent.js?v=15';
+import { makeLM } from './lm-model.js?v=19';
+import { EYE_H, SUN, EVENTS } from './ascent.js?v=19';
 
 export const STACK = {
   base: 8.5, sicTop: 50.5, skirtTop: 54.5, siiTop: 75, sivbAft: 80.5, sivbTop: 91.2, iuTop: 92.1, slaTop: 100.6,
@@ -290,7 +291,7 @@ export function makeVehicle(renderer) {
   for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + 0.3, y = cmY1 - 0.55, r = rExt(y); const d = new THREE.Mesh(new THREE.CircleGeometry(0.05, 12), black); d.position.set(Math.sin(a) * (r + 0.005), y, Math.cos(a) * (r + 0.005)); d.lookAt(d.position.clone().multiplyScalar(2).setY(y + 0.6)); cm.add(d); }
 
   /* ---------------- the Lunar Module, legs folded, in the adapter until it is pulled out */
-  const lm = makeLM(env, L, Std, tapeNormals);
+  const lm = makeLM(env);
   lm.matrixAutoUpdate = false; g.add(lm);
   const LM_REST = new THREE.Matrix4().makeTranslation(0, Y(S.iuTop) + 0.7, 0);
   lm.matrix.copy(LM_REST);
@@ -410,83 +411,11 @@ export function makeVehicle(renderer) {
   return { group: g, lights, update, space, csmInSivb, DOCK_DIST, HARD_DIST, setProbe, LM_REST, parts, env, lm };
 }
 
-/* The Lunar Module, legs folded as it rode in the adapter: the gold-and-black foil-wrapped descent stage with its
- * engine, the faceted grey-and-black ascent stage with its windows, thruster quads, docking tunnel and radar dish.
- * A simplified stand-in for chapters 2-3 (stage 5 builds the detailed one). Origin at the bottom of the descent stage. */
-/* The LM alone, legs deployed, with its own environment and materials (the Moon page: the LM you landed in).
- * Origin at the bottom of the descent engine; the footpads' soles PAD_DROP below it (descent-space.js). */
+/* The Lunar Module is lm-model.js (stage 5's detailed model; the same frame and interface as the stand-in it
+ * replaced). The LM alone, legs deployed, on the ground (the Moon page: the LM you landed in). Origin at the bottom
+ * of the descent engine; the footpads' soles PAD_DROP below it (descent-space.js). */
 export function makeLMModel(renderer) {
-  const L = o => new THREE.MeshLambertMaterial(o), Std = o => new THREE.MeshStandardMaterial(o);
-  const g = makeLM(environment(renderer), L, Std, tapeNormals);
-  g.userData.setLegs(true);
-  return g;
-}
-
-function makeLM(env, L, Std, tapeNormals) {
-  const g = new THREE.Group();
-  const nrm = tapeNormals(); nrm.repeat.set(3, 2);
-  const gold = Std({ color: 0xc89a3c, metalness: 0.85, roughness: 0.32, envMap: env, envMapIntensity: 1.0, normalMap: nrm, normalScale: new THREE.Vector2(1.2, 1.2) });
-  const blackFoil = Std({ color: 0x1c1b1a, metalness: 0.6, roughness: 0.35, envMap: env, envMapIntensity: 0.7, normalMap: nrm });
-  const grey = Std({ color: 0x9a9b9c, metalness: 0.55, roughness: 0.45, envMap: env, envMapIntensity: 0.7 });
-  const dark = Std({ color: 0x262626, metalness: 0.4, roughness: 0.5, envMap: env, envMapIntensity: 0.5 });
-  const glassM = Std({ color: 0x060708, metalness: 0.7, roughness: 0.05, envMap: env, envMapIntensity: 1.2 });
-  const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
-  /* descent stage: an octagon 4.2 m across, gold with black panels on alternate faces */
-  const dsY0 = 0.75, dsH = 1.6;
-  for (let k = 0; k < 8; k++) {
-    const a = k * Math.PI / 4, w = 4.2 * Math.tan(Math.PI / 8);
-    add(new THREE.BoxGeometry(w, dsH, 0.05), k % 2 ? blackFoil : gold, Math.sin(a) * 2.1, dsY0 + dsH / 2, Math.cos(a) * 2.1, 0, a, 0);
-  }
-  add(new THREE.CylinderGeometry(2.2, 2.2, 0.06, 8), gold, 0, dsY0 + dsH, 0, 0, Math.PI / 8, 0);
-  add(new THREE.CylinderGeometry(2.2, 2.2, 0.06, 8), blackFoil, 0, dsY0, 0, 0, Math.PI / 8, 0);
-  /* the descent engine */
-  add(new THREE.CylinderGeometry(0.42, 0.78, 0.75, 20, 1, true), dark, 0, dsY0 - 0.37, 0);
-  /* legs, folded up against the stage (as stowed in the adapter): a primary strut and a footpad under each corner */
-  const folded = new THREE.Group(), deployed = new THREE.Group(); g.add(folded, deployed); deployed.visible = false;
-  const rod = (parent, a, b, r) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 10), gold); m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); parent.add(m); return m; };
-  for (let k = 0; k < 4; k++) {
-    const a = k * Math.PI / 2 + Math.PI / 4, cx = Math.sin(a), cz = Math.cos(a);
-    const top = new THREE.Vector3(cx * 2.2, dsY0 + dsH - 0.1, cz * 2.2), bot = new THREE.Vector3(cx * 2.55, dsY0 - 0.2, cz * 2.55);
-    rod(folded, top, bot, 0.08);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.4, 0.12, 16), gold); pad.position.set(bot.x, bot.y - 0.08, bot.z); folded.add(pad);
-    /* deployed (from lunar orbit on): the primary strut out and down to the footpad, two side braces from the
-     * stage's lower edge meeting it, a contact probe under three of the pads */
-    const foot = new THREE.Vector3(cx * 4.15, dsY0 - 1.45, cz * 4.15);
-    rod(deployed, top, foot, 0.085);
-    const mid = top.clone().lerp(foot, 0.55);
-    for (const s of [-1, 1]) {
-      const t = new THREE.Vector3(cx, 0, cz).multiplyScalar(2.05).add(new THREE.Vector3(cz, 0, -cx).multiplyScalar(s * 0.85)); t.y = dsY0 + 0.05;
-      rod(deployed, t, mid, 0.045);
-    }
-    const dpad = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.42, 0.16, 20), gold); dpad.position.copy(foot).add(new THREE.Vector3(0, -0.08, 0)); deployed.add(dpad);
-    if (k !== 0) rod(deployed, foot.clone().add(new THREE.Vector3(0, -0.16, 0)), foot.clone().add(new THREE.Vector3(0, -1.75, 0)), 0.012);
-  }
-  g.userData.setLegs = on => { folded.visible = !on; deployed.visible = on; };
-  /* ascent stage: the crew cabin (a faceted front), the aft equipment bay, tanks either side */
-  const asY = dsY0 + dsH + 0.05;
-  const cab = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 1.9, 8), grey); cab.position.set(0, asY + 0.95, 0.15); cab.rotation.y = Math.PI / 8; g.add(cab);
-  add(new THREE.BoxGeometry(2.2, 1.3, 1.1), blackFoil, 0, asY + 0.75, -1.05);
-  for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.55, 0.55, 1.2, 16), dark, sx * 1.35, asY + 0.75, -0.15, 0, 0, Math.PI / 2);
-  /* the front: two triangular windows and the square forward hatch below them */
-  for (const sx of [-1, 1]) {
-    const tri = new THREE.Shape(); tri.moveTo(0, 0); tri.lineTo(0.42 * sx, 0); tri.lineTo(0, 0.5); tri.closePath();
-    const w = new THREE.Mesh(new THREE.ShapeGeometry(tri), glassM); w.position.set(sx * 0.12, asY + 1.2, 1.32); w.rotation.x = -0.32; if (sx < 0) w.material = glassM; g.add(w);
-  }
-  add(new THREE.PlaneGeometry(0.8, 0.8), dark, 0, asY + 0.55, 1.36);
-  /* thruster quads at the four corners, each with four nozzles */
-  for (let k = 0; k < 4; k++) {
-    const a = k * Math.PI / 2 + Math.PI / 4, q = new THREE.Group(); q.position.set(Math.sin(a) * 1.55, asY + 1.55, Math.cos(a) * 1.55); g.add(q);
-    q.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), dark));
-    for (const [x, y, z, rx, rz] of [[0, 0.22, 0, 0, 0], [0, -0.22, 0, Math.PI, 0], [0.22, 0, 0, 0, -Math.PI / 2], [-0.22, 0, 0, 0, Math.PI / 2]]) {
-      const n = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 10, 1, true), grey); n.position.set(x, y, z); n.rotation.set(rx, 0, rz); q.add(n);
-    }
-  }
-  /* the docking tunnel and drogue on top, the rendezvous radar dish, the S-band antenna */
-  const tunTop = asY + 1.9 + 0.45;
-  add(new THREE.CylinderGeometry(0.42, 0.45, 0.45, 24), grey, 0, asY + 1.9 + 0.22, 0);
-  add(new THREE.ConeGeometry(0.42, 0.18, 24, 1, true), dark, 0, tunTop - 0.05, 0, Math.PI, 0, 0);
-  const dish = new THREE.Mesh(new THREE.SphereGeometry(0.4, 20, 10, 0, Math.PI * 2, 0, 0.9), grey); dish.position.set(0, asY + 2.15, 0.85); dish.rotation.x = -1.1; g.add(dish);
-  add(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), grey, -0.9, asY + 2.0, -0.6, 0.3, 0, 0.4);
-  g.userData.top = tunTop;
+  const g = makeLM(environment(renderer));
+  g.userData.setLegs(true); g.userData.setLanded(true);
   return g;
 }

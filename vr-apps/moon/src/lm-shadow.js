@@ -13,9 +13,9 @@ export function makeLMShadow(moon) {
     x.fillRect(X(-2.1), Y(2.45), X(2.1) - X(-2.1), Y(0.8) - Y(2.45));       /* descent stage */
     x.beginPath(); x.moveTo(X(-1.25), Y(2.45)); x.lineTo(X(-1.4), Y(5.2)); x.lineTo(X(-0.6), Y(5.9)); x.lineTo(X(0.6), Y(5.9)); x.lineTo(X(1.4), Y(5.2)); x.lineTo(X(1.25), Y(2.45)); x.fill();
     x.fillRect(X(-0.4), Y(6.3), X(0.4) - X(-0.4), Y(5.85) - Y(6.3));        /* tunnel */
-    x.lineWidth = 6; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(X(s * 2.0), Y(2.3)); x.lineTo(X(s * 4.15), Y(0.15)); x.stroke(); x.beginPath(); x.moveTo(X(s * 1.6), Y(0.9)); x.lineTo(X(s * 3.2), Y(1.1)); x.stroke(); }
+    x.lineWidth = 6; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(X(s * 2.9), Y(2.2)); x.lineTo(X(s * 4.3), Y(0.15)); x.stroke(); x.beginPath(); x.moveTo(X(s * 1.6), Y(0.9)); x.lineTo(X(s * 3.2), Y(1.1)); x.stroke(); }
     x.lineWidth = 4; x.beginPath(); x.moveTo(X(0), Y(0.8)); x.lineTo(X(0), Y(0.15)); x.stroke();
-    for (const u of [-4.15, 4.15, 0]) { x.beginPath(); x.ellipse(X(u), Y(0.1), 12, 5, 0, 0, Math.PI * 2); x.fill(); }
+    for (const u of [-4.3, 4.3, 0]) { x.beginPath(); x.ellipse(X(u), Y(0.1), 12, 5, 0, 0, Math.PI * 2); x.fill(); }
     return new THREE.CanvasTexture(c);
   })();
   const NX = 8, NY = 24;

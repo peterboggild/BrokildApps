@@ -643,6 +643,46 @@ contact feels right or too much; the hand angle (set it to match, tell me the nu
 and throwing the pen; the panel (left stick press) and the settings with the stick; B faster and A slower, the small clock; fast forward through chapter 2; the panels'
 new look; the docking from outside; chapter 3's start with your hands in view.
 
+### 12.10 Stage 5, part 1: the Lunar Module itself (25 November 2026, Fable)
+
+The owner chose the LM built in code over waiting for a model, "starting with the hatch". Built: `src/lm-model.js`
+(see the README): legs on the axes with every rod joined, the ladder and the porch on the front leg, foil, the flag
+and UNITED STATES, the ascent stage's parts; the forward hatch as a real opening inside with its door. It replaced
+the stand-in everywhere (same frame, same top at 4.75 m, same pad soles). On the surface the ladder faces west,
+away from the Sun, as on Apollo 17.
+**Part 2, the egress, built the same day** (`src/egress.js`, `index.html?egress`; see the README): cabin, hatch,
+porch, ladder, the drop to the pad, the first step, then the free walk. Open: voices for it (messages only now),
+the Lunar Module Pilot following you out, EVA gloves and the gold visor, your hands snapping to the rungs, not
+walking through the LM in the free walk. **To check in the headset:** the scale of the cabin and the hatch, the
+blink and the turn when you set out, how pulling along the porch and down the ladder feels (speed, direction),
+the drop, comfort on the ladder looking down. **Part 3:** the rover parked by the LM, the flag. Not built: the MESA, the rover stowed on the descent stage, the real quad doors.
+**To check in the headset:** the LM from the surface (scale, the foil in the low Sun, the ladder and porch), from
+outside in chapters 3-5 (Y), the docking in chapter 2 with the new model.
+
+**His third run (chapters 4-5, same day)** and what came of it (same PR):
+- The LM's window frames flickered, "a shadow that follows where I look": each frame box had a face lying exactly in
+  the wall's plane (z-fighting, its pattern moving with the head). Frames, hatch frame and the docking window's
+  reveal now start a centimetre inside the wall. **Never leave two faces in one plane.**
+- The LM's panels were "at the knees": raised to just under the windows and leaned back 26 degrees towards the eyes.
+  The side panels were tilted plates with their controls cut off: the panel drawing now lays its sub-panels out
+  within each panel's own stretch (`sections`), and the side panels top consoles standing against the walls.
+- No body in the LM: your own suit stands at the Commander's station (`setBody`, the "Your own body" setting).
+- The engine bell was see-through from some angles (the stand-in's one-sided bell): two-sided in the new model.
+- The rods under three footpads are real (the contact probes); they go at touchdown now.
+- The DSKY is gone from the Command Module (it broke the panel for him); the LM keeps its one.
+- **Chapters without leaving VR**: at a chapter's end a card: A continues, B takes a break; a title card at each
+  start. The page changes while in VR and the next enters VR by itself on the Quest's 'sessiongranted' event
+  (`autoEnter` in `src/progress.js`). Not testable in the emulator: **the first thing to check in the headset**.
+  If it does not work there, you land on the next chapter's start page as before.
+
+**After his first landing (same day, same PR):** the footpads hung in the air: the LM now settles on to all four
+(`settleLM` in `src/lm-model.js`: it leans with the ground, pads 4 cm into the dust), at touchdown and on the surface
+page. The outside camera could go under the ground: held half a metre above the terrain, every frame. Dust: besides
+the sheets, grains thrown out in the last 8 m and at touchdown, each on its own arc in lunar gravity (no cloud: there
+is no air). No exhaust plume, on purpose (nearly invisible in vacuum). The crew turn to whom they speak to first.
+Chapter 4's start: a message after 10 s in the couch (and a card from the second time), the stick sets you off, and
+the way to the tunnel rises over the instrument panel. Briefing: B or trigger forward, A back, Y leaves.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

@@ -9,7 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { makeCrewLife } from './crew-life.js?v=15';
+import { makeCrewLife } from './crew-life.js?v=19';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
@@ -157,7 +157,8 @@ export function makeCabin() {
   /* where the displays sit (panel, centre x, y, width, height, metres on the panel): the panel keeps those places
    * clear, a plain framed field with no switch under or across a display (simplified from the real layout) */
   const DISPLAYS = { dsky: [1, -0.27, -0.12, 0.15, 0.17], timer: [1, 0, 0.26, 0.13, 0.035], ball: [0, 0.05, 0.1, 0.128, 0.128] };
-  const keepOut = Object.values(DISPLAYS).map(([k, x, y, dw, dh]) => {
+  /* (the DSKY is no longer shown in the Command Module: the owner found it broke the panel; its place is panel again) */
+  const keepOut = [DISPLAYS.timer, DISPLAYS.ball].map(([k, x, y, dw, dh]) => {
     const p = panels[k], m = 0.025, du = p.u1 - p.u0;
     return { u0: p.u0 + ((x - dw / 2 - m) / p.w + 0.5) * du, u1: p.u0 + ((x + dw / 2 + m) / p.w + 0.5) * du, v0: (y - dh / 2 - m) / p.h + 0.5, v1: (y + dh / 2 + m) / p.h + 0.5 };
   });
@@ -194,7 +195,7 @@ export function makeCabin() {
   /* the DSKY (guidance computer display) on the centre panel, and the mission event timer */
   const dsky = makeDsky();
   const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture, ...NO_STENCIL }));
-  dm.position.set(DISPLAYS.dsky[1], DISPLAYS.dsky[2], 0.006); panels[1].mesh.add(dm);
+  dm.position.set(DISPLAYS.dsky[1], DISPLAYS.dsky[2], 0.006);      /* not added: see DISPLAYS */
   const timer = makeTimer();
   const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.035), new THREE.MeshBasicMaterial({ map: timer.texture, ...NO_STENCIL }));
   tm.position.set(DISPLAYS.timer[1], DISPLAYS.timer[2], 0.006); panels[1].mesh.add(tm);
@@ -652,7 +653,8 @@ function makeFlagTexture() {
  * instruments with white scales, grey talkback indicators. The layout is made up, not the real one switch by switch
  * (it would not read at the headset's resolution anyway). style: 'cm' (light blue-grey) or 'lm' (darker grey).
  * keepOut: rectangles (u0, u1, v0, v1 in the texture) where displays go: plain fields, no switch under or across them. */
-export function makePanelTexture(keepOut = [], style = 'cm') {
+/* sections: the stretches of u ([u0, u1]) each panel shows; sub-panels are laid out within a stretch and never cut by its edge */
+export function makePanelTexture(keepOut = [], style = 'cm', sections = [[0, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 1]]) {
   const W = 4096, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   let seed = 17;
@@ -678,14 +680,15 @@ export function makePanelTexture(keepOut = [], style = 'cm') {
     x.fillStyle = rgb(); x.fillRect(gx + gw / 2 - tw / 2, gy - 9, tw, 18); label(name, gx + gw / 2, gy + 5, 15);
   };
   /* sub-panels: screwed-on plates of switches, instruments, indicators */
-  for (let sec = 0; sec < 3; sec++) {
-    const X0 = sec * W / 3 + 24, X1 = (sec + 1) * W / 3 - 24;
+  for (const [su0, su1] of sections) {
+    const X0 = su0 * W + 14, X1 = su1 * W - 14;
     let y = 30;
     while (y < H - 120) {
       const bh = 160 + Math.floor(rnd() * 120);
       let xx = X0;
-      while (xx < X1 - 160) {
-        const bw = Math.min(X1 - xx, 190 + Math.floor(rnd() * 260));
+      while (xx < X1 - 120) {
+        let bw = Math.min(X1 - xx, 190 + Math.floor(rnd() * 260));
+        if (X1 - (xx + bw) < 150) bw = X1 - xx;                    /* the last one takes what is left: nothing cut */
         const pw = bw - 8, ph = Math.min(bh, H - 24 - y) - 8;
         x.fillStyle = rgb((rnd() - 0.5) * 0.05); x.fillRect(xx, y, pw, ph);
         x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(xx, y, pw, 2); x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(xx, y + ph - 2, pw, 2);

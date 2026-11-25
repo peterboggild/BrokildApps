@@ -36,3 +36,11 @@ export function continueLink(before) {
   a.style.cssText = before.style.cssText; a.style.background = '#1f2a18'; a.style.borderColor = '#5f7c36';
   before.parentNode.insertBefore(a, before);
 }
+
+/* Staying in VR from one chapter to the next: when a page is left while in VR, the Quest's browser tells the next page
+ * (the 'sessiongranted' event) that it may enter VR by itself. Then enter as soon as the page is ready. Elsewhere
+ * nothing happens and the start page shows as before. */
+export function autoEnter(isReady, enterVR) {
+  if (!navigator.xr || !navigator.xr.addEventListener) return;
+  navigator.xr.addEventListener('sessiongranted', () => { const t = setInterval(() => { if (isReady()) { clearInterval(t); enterVR(); } }, 200); });
+}

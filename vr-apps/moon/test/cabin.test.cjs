@@ -127,8 +127,12 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     }
     const events = { stop, reached: o.S.t, inMax };
     /* A (a tap): one step slower; B: one step faster; the small clock while fast; the place saved for Continue */
-    o.setTime(30000); o.S.warp = 1000; __dev.controllers.right.updateButtonValue('a-button', 1); await sleep(250); __dev.controllers.right.updateButtonValue('a-button', 0); await sleep(400);
-    events.slower = o.S.warp;
+    /* (a tap is under 0.6 s; software GL's frames can be longer than that and read it as a hold: try a few times) */
+    for (let k = 0; k < 6; k++) {
+      o.setTime(30000); o.S.warp = 1000; await new Promise(r => { o.afterFrame = r; });
+      __dev.controllers.right.updateButtonValue('a-button', 1); await new Promise(r => { o.afterFrame = r; }); __dev.controllers.right.updateButtonValue('a-button', 0); await sleep(700);
+      events.slower = o.S.warp; if (events.slower === 100) break;
+    }
     __dev.controllers.right.updateButtonValue('b-button', 1); await sleep(250); __dev.controllers.right.updateButtonValue('b-button', 0); await sleep(400);
     events.faster = o.S.warp; events.badge = o.badge.on;
     await sleep(5600); events.saved = JSON.parse(localStorage.getItem('moon-progress') || 'null');

@@ -9,16 +9,19 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=15';
-import { PAD_DROP } from './descent-space.js?v=15';
-import { makeLMShadow } from './lm-shadow.js?v=15';
+import { makeLMModel } from './vehicle.js?v=19';
+import { PAD_DROP } from './descent-space.js?v=19';
+import { makeLMShadow } from './lm-shadow.js?v=19';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers } from './hands.js?v=15';
-import { makeWrist } from './wrist.js?v=15';
-import { settings, applyCommon } from './settings.js?v=15';
-import { continueLink } from './progress.js?v=15';
+import { makeControllers, createHand } from './hands.js?v=19';
+import { makeWrist, makeToast } from './wrist.js?v=19';
+import { makeLMCabin } from './lm-cabin.js?v=19';
+import { makeEgress } from './egress.js?v=19';
+import { settleLM } from './lm-model.js?v=19';
+import { settings, applyCommon } from './settings.js?v=19';
+import { continueLink, autoEnter } from './progress.js?v=19';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -67,6 +70,13 @@ const HEADING = -82 * Math.PI / 180;       /* ground track: travelling west, a l
 const GM = 4.9028e12;
 
 let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
+/* out of the LM (egress.js, ?egress): the model, its cabin, your hands, a message in front of you, a black veil */
+let lmModel = null, lmHemi = null, lmc = null, egress = null, toast = null;
+const hands = { left: createHand('left'), right: createHand('right') }, EH = { left: { grip: false, pos: null }, right: { grip: false, pos: null } };
+const fadeScene = new THREE.Scene();
+const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+fadeScene.add(veil);
+const _eye = new THREE.Vector3(), _eu = new THREE.Euler();
 const suit = makeSuitSound();
 const OPT = { teleport: true, fan: true };
 const common = applyCommon(renderer, null);
@@ -108,6 +118,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface');
   if (e.code === 'KeyP') S.still = !S.still;
+  if (e.code === 'KeyF' && egress && egress.active) egress.go();
   if (e.code === 'BracketRight') { S.sunOffset += 1; moon.setSunOffset(S.sunOffset); }
   if (e.code === 'BracketLeft') { S.sunOffset -= 1; moon.setSunOffset(S.sunOffset); }
 });
@@ -135,10 +146,13 @@ function readControllers(dt) {
     const k = src.handedness;
     /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
     const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a'] && k === 'right') next = true;
+    if (a && !pad.prev[k + 'a'] && k === 'right') { if (egress.active) egress.go(); else next = true; }
+    EH[k].grip = (gp.buttons[1]?.value || 0) > 0.5; EH[k].pos = ctl.grips[k].visible ? ctl.grips[k].position : null;
+    if (hands[k]) { if (hands[k].parent !== ctl.grips[k]) ctl.grips[k].add(hands[k]); hands[k].userData.pose(gp.buttons[0]?.value || 0, gp.buttons[1]?.value || 0, [3, 4, 5].some(n => gp.buttons[n]?.touched), false, dt); }
     if (st && !pad.prev[k + 's'] && k === 'left') hud.press();
     pad.prev[k + 'a'] = a; pad.prev[k + 's'] = st;
   }
+  if (egress.active) { aimTeleport(null); return; }               /* climbing out: no walking, teleport or turning yet */
   if (next) { const names = Object.keys(VIEWS); setView(names[(names.indexOf(S.view) + 1) % names.length]); }
   TP.reach += (reach - TP.reach) * Math.min(1, dt * 6);
   aimTeleport(trig && OPT.teleport && S.view === 'surface' && !TP.blink && ctl.rays.right.visible ? ctl.rays.right : null);
@@ -269,7 +283,7 @@ function headGround(out) {
   return out;
 }
 function trackSteps() {
-  if (S.view !== 'surface') { STEP.last = null; return; }
+  if (S.view !== 'surface' || egress.active) { STEP.last = null; return; }
   headGround(_h);
   if (!STEP.last) { STEP.last = _h.clone(); return; }
   const dx = _h.x - STEP.last.x, dz = _h.z - STEP.last.z, d = Math.hypot(dx, dz);
@@ -284,6 +298,9 @@ function trackSteps() {
 
 /* ---------------------------------------------------------------- the wrist panel (X): status and settings */
 function info() {
+  if (egress.active) return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: 'Leaving the Lunar Module', next: null, after: 'the walk on the Moon', get: 0, warp: 1,
+    rows: [['Where', { cabin: 'in the cabin', turn: 'at the hatch', path: 'on the way down', drop: 'the last drop', pad: 'on the footpad' }[egress.E.stage] || '']],
+    keys: [['grip', 'pull yourself along'], ['A', 'go by itself / stop'], ['L stick', 'press: panel, settings']], fps: S.fps };
   return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'the moonwalk is still to come' : 'A: the next view', get: 0, warp: 1,
     rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
     keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
@@ -316,12 +333,25 @@ function render() {
     prints.group.visible = nearOn && close; ground.group.visible = nearOn && close;
     arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && cabinOn && close;
     rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
+    toast.mesh.visible = cabinOn && toast.k > 0.01; hands.left.visible = hands.right.visible = cabinOn;
+    lmc.group.visible = false;
   };
+  /* the LM's cabin, seen from inside and through the open hatch: its own pass with its own lights (they would
+   * flood the LM's outside), over the same depth, before the things in your hands */
+  const inCabin = close && (egress.active || (egress.E.stage === 'done' && _cam.distanceTo(lm.children[0].position) < 9));
   if (close) {
     /* standing on the Moon: distant terrain first, then everything within a few kilometres over a fresh depth buffer */
     show(true, false, false); setPlanes(100, FAR); renderer.render(scene, camera);
     renderer.clearDepth();
-    show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera);
+    if (!inCabin) { show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera); }
+    else {
+      show(false, true, false); setPlanes(0.05, 40e3); renderer.render(scene, camera);
+      show(false, false, false); lm.visible = true; lmModel.visible = false; lmSun.visible = false; lmHemi.visible = false; lmShadow.mesh.visible = false; lmc.group.visible = true;
+      renderer.render(scene, camera);
+      lmModel.visible = true; lmSun.visible = true; lmHemi.visible = true; lmShadow.mesh.visible = true;
+      show(false, false, true); lm.visible = false; renderer.render(scene, camera);
+    }
+    if (egress.fade > 0.003) { veil.material.opacity = egress.fade; camera.matrixWorld.decompose(veil.position, veil.quaternion, veil.scale); veil.scale.set(1, 1, 1); veil.translateZ(-0.1); veil.updateMatrixWorld(true); setPlanes(0.02, 10); renderer.render(fadeScene, camera); }
   } else {
     const alt = VIEWS[S.view].alt;
     show(true, true, false); setPlanes(Math.max(50, alt * 0.25), FAR); renderer.render(scene, camera);
@@ -348,7 +378,12 @@ function frame(t) {
   const xr = renderer.xr.isPresenting;
   if (ctl) ctl.update();
   if (xr) readControllers(dt);
-  if (S.view === 'surface') {
+  toast.update(dt, camera);
+  if (S.view === 'surface' && egress.active) {
+    egress.update(dt, xr ? [EH.left, EH.right] : []);
+    lmc.update(t / 1000, { viewer: camera });
+    lmc.setDaylight(1, _eye.copy(moon.shared.uSun.value).applyAxisAngle(new THREE.Vector3(0, 1, 0), -lmModel.rotation.y));
+  } else if (S.view === 'surface') {
     if (!xr) {
       const sp = (keys.ShiftLeft ? 6 : 1.5) * dt, h = (S.heading + S.yaw * Math.PI / 180);
       const fx = -Math.sin(h), fz = -Math.cos(h);
@@ -395,6 +430,8 @@ async function enterVR() {
   S.heading = 0; S.yaw = 0; S.pitch = 0;
   /* the panel rides on the left controller */
   if (!ctl) { ctl = makeControllers(renderer, camera.parent); ctl.grips.left.add(hud.mesh); }
+  if (egress.active) { egress.recentre(); toast.say('Chapter 6: Out onto the Moon', 5); }
+  session.addEventListener('selectstart', () => suit.init());
   document.body.classList.add('invr');
   session.addEventListener('end', () => { document.body.classList.remove('invr'); renderer.setSize(innerWidth, innerHeight); });
 }
@@ -407,18 +444,28 @@ async function start() {
   rocks = await makeRocks(moon, BASE);
   /* the LM you landed in (chapter 5 sets it down here: pads on the ground at the site, facing along the approach) */
   lm = new THREE.Group();
-  { const m = makeLMModel(renderer); m.position.y = moon.heightAt(0, 0) + PAD_DROP; m.rotation.y = Math.atan2(Math.sin(HEADING), -Math.cos(HEADING)); lm.add(m);
+  { const m = makeLMModel(renderer), yaw = Math.atan2(Math.sin(HEADING), -Math.cos(HEADING)), st = settleLM((x, z) => moon.heightAt(x, z), 0, 0, yaw);
+    m.rotation.order = 'YXZ'; m.rotation.set(st.pitch, yaw, st.roll); m.position.y = st.y; lm.add(m);          /* all four pads on the ground, a little in the dust */
+    lmModel = m;
+    lmc = makeLMCabin(); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
-    const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi);
+    const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;
     lmShadow = makeLMShadow(moon); lm.add(lmShadow.mesh); }
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
-  hud = makeWrist(['hz', 'fov']);
+  hud = makeWrist(['hz', 'fov', 'hand']);
+  toast = makeToast(); head.add(toast.mesh);
   ground = makeGround(moon, BASE);
   prints = makePrints(moon);
-  prints.trail(0.4, 5.3, 6, 13.2);                   /* your own way here from the ladder */
+  prints.trail(-5.2, 0.3, 5.6, 13.2);              /* (the ladder is on the front leg, which faces west) */                   /* your own way here from the ladder */
   scene.add(moon.far, moon.near, ground.group, rocks.group, lm, sky, prints.group, arcLine, marker);
+  egress = makeEgress({ model: lmModel, lmc, moon, rig, camera, toast, suit, prints,
+    eye: () => (renderer.xr.isPresenting ? _eye.copy(camera.position) : _eye.set(0, 1.65, 0)),
+    yaw: () => (renderer.xr.isPresenting ? _eu.setFromQuaternion(camera.quaternion, 'YXZ').y : S.yaw * Math.PI / 180),
+    done: (x, z, heading) => { S.pos.set(x, 0, z); S.heading = heading; STEP.last = null; } });
+  if (Q.has('egress')) S.view = 'surface';
   setView(S.view, Q.has('theta') ? num('theta', 0) : undefined);
+  if (Q.has('egress')) egress.begin();
   if (Q.has('x')) { S.pos.set(num('x', 6), 0, num('z', 14)); if (ground.ok && !ground.detailed(S.pos.x, S.pos.z)) await ground.request(S.pos.x, S.pos.z); }
   S.heading = num('heading', S.view === 'surface' ? 25 : 0) * Math.PI / 180;
   if (Q.has('trail')) prints.trail(S.pos.x + 0.3, S.pos.z - 1.2, S.pos.x + 1.5, S.pos.z - 9);      /* test aid: prints ahead (north) */
@@ -438,11 +485,12 @@ const wake = () => { if (Q.has('shot')) return; readOptions(); suit.init(); };
 addEventListener('pointerdown', wake); addEventListener('keydown', wake);
 if (Q.has('shot')) document.body.classList.add('invr');
 $('vr')?.addEventListener('click', enterVR);
+autoEnter(() => S.ready, enterVR);
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },
