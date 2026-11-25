@@ -10,7 +10,7 @@
  *   S.t = clock.advance(S, dt);      every frame, while running
  *   clock.faster(S);                 B: one step faster (it stays at the fastest)
  *   clock.slower(S);                 A: one step slower (down to real time; held: real time at once) */
-import { settings } from './settings.js?v=23';
+import { settings } from './settings.js?v=24';
 
 export function makeClock({ holds, lines, warps, cap = 10, toast }) {
   let skip = -Infinity;                          /* stops at or before this have been passed on purpose */

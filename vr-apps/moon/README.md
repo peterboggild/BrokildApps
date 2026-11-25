@@ -345,7 +345,33 @@ small spacecraft. About 43 draw calls and 25 000 triangles a figure.
   now and then to you); you wear the Commander's, in the cabin and on the ground (it stands under your eyes, turns
   with you and is scaled to your height).
 - Viewer: `tools/suit.html` (`?az &el &d &at &lmp &player &sun`), pictures with `tools/shot-suit.cjs`.
-- Next: the Lunar Module Pilot comes down the ladder and moves about; the flag; the rover.
+- **The helmets go on in the cabin** (the journey is flown bare-headed): chapter 6 opens with the Lunar Module
+  Pilot's helmet in his hands and his head bare in the communications cap; he lifts it on, then yours comes down
+  over your head, and only then is the cabin let down to vacuum (about ten seconds in all).
+- **Your helmet from inside** (`makeHelmetView`): the shell's dark lining at the edge of your view, the brow's rim
+  above, a faint amber towards the visor's edges, clear in the middle. It is fixed to the suit, not to your head:
+  you look about inside it (it turns with your body, a little behind your look).
+- Next: the flag; the rover.
+
+## The Lunar Module Pilot on the surface (`src/lmp.js`)
+
+Seven seconds after you are down he follows, as you did: backwards through the hatch on hands and knees, along the
+porch, down the ladder a foot and a hand at a time, the slow drop to the footpad, a hop back onto the ground (to one side
+if you stand where he would land). Then he moves about in front of the LM in the lope: long low
+hops from one foot to the other, leaning into it. At each spot he looks round, bends to work at something, or turns
+to you and lifts an arm; if you stand in his way he stops and turns to you. If the chapter starts on the ground he is
+out already. All motion is made in code from the suit's joints, eased from pose to pose.
+- **What grounds him**: bootprints, dust thrown out at each landing on clean arcs (no air), and his shadow: the
+  figure as the Sun sees it, drawn into a small texture seven times a second and draped along the ground (it leaves
+  his feet when he hops). `makeFigureShadow` also gives you your own long shadow, from a whole suit that is never
+  drawn itself.
+- **The LM's shadow dims** him, and your own suit: `lm-shadow.js` keeps its baked silhouette on the page's side too
+  (`lit(point)`), and a figure in the shade is lit by the ground's glow only.
+- **Drawing**: he is drawn with the world; where the cabin's pass follows (near the LM) he is drawn into its depth
+  buffer too, as the hull is, so the cabin behind the hatch does not show through him on the porch.
+- Known: the backpack passes through the top of the hatch's frame as he crawls out (the real crews barely cleared
+  it); no voice yet.
+- Test: the last part of `test/egress.test.cjs` (his clock runs three times as fast there).
 
 ## Chapter 6: on the Moon (`surface.html`, `src/egress.js`)
 

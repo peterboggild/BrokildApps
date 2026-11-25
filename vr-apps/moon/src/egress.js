@@ -15,14 +15,15 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=23';
-import { LMC } from './lm-cabin.js?v=23';
+import { LM } from './lm-model.js?v=24';
+import { LMC } from './lm-cabin.js?v=24';
 
 const G_MOON = 1.62;
 
 export function makeEgress(o) {
   /* o: model (the LM, placed), lmc (its cabin), moon, rig, camera, toast, suit, prints, eye(): the eye in the rig's
-   * frame (Vector3), yaw(): the view's own yaw there (rad), resetLook(), done(x, z, heading) */
+   * frame (Vector3), yaw(): the view's own yaw there (rad), resetLook(), done(x, z, heading); helmet: your own helmet
+   * as you see it (eva-suit.js makeHelmetView), for the suiting-up before the cabin is let down */
   const E = { active: false, stage: 'off', s: 0, auto: false, fade: 0, fadeTo: 0, door: 0, t: 0, H: 1.62, theta: 0, off: new THREE.Vector3(),
     vy: 0, drop: null, pending: 0, said: {} };
   const M = new THREE.Matrix4(), ry = () => o.model.rotation.y;
@@ -78,6 +79,7 @@ export function makeEgress(o) {
       o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
       E.active = true; E.stage = 'cabin'; E.t = 0; E.s = 0; E.auto = false; E.door = 0; E.said = {}; E.pending = 1; E.fade = 1; E.fadeTo = 0;
       o.lmc.setForwardHatch(0); o.model.userData.hatch.visible = true; o.lmc.setBody(true);
+      if (o.helmet) { o.helmet.set(0); o.lmc.setSuitUp(0); }
       /* the Lunar Module Pilot stands back, clear of the hatch as it swings in */
       o.lmc.lmp.position.x = -0.5; o.lmc.lmp.position.z = 0.36;
       E.theta = ry() + Math.PI; capture();
@@ -87,6 +89,7 @@ export function makeEgress(o) {
       o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
       E.active = false; E.stage = 'done'; E.fade = 0; E.fadeTo = 0; E.door = 1;
       o.lmc.setForwardHatch(1); o.model.userData.hatch.visible = false; o.lmc.setBody(false);
+      if (o.helmet) { o.helmet.set(1); o.lmc.setSuitUp(1); }
       o.lmc.lmp.position.x = -0.5; o.lmc.lmp.position.z = 0.36;
     },
     /* recapture where you stand (entering VR: the headset's own origin is anywhere) */
@@ -105,8 +108,14 @@ export function makeEgress(o) {
       if (E.pending && ++E.pending > 4) { capture(); E.pending = 0; if (E.stage === 'cabin') E.theta = ry() + Math.PI - o.yaw(); }   /* facing the windows, whichever way you stand */
       if (E.stage === 'cabin') {
         place(V(LMC.CDR.x, LMC.FLOOR, LMC.CDR.z), E.theta);
-        if (E.t > 2) say('dep', 'The cabin is down to vacuum. The hatch is coming open.', 5);
-        if (E.t > 4) { E.door = Math.min(1, E.door + dt / 4); o.lmc.setForwardHatch(E.door * E.door * (3 - 2 * E.door)); o.model.userData.hatch.visible = false; }
+        /* first the helmets (the journey was flown bare-headed): his, then yours, down over your head */
+        const T0 = o.helmet ? 9.5 : 0;
+        if (o.helmet && E.t < T0 + 1) {
+          if (E.t > 0.8) say('helm', 'Helmets on: your crewmate\u2019s, then yours', 6);
+          o.lmc.setSuitUp((E.t - 1) / 4); o.helmet.set((E.t - 5.2) / 3.8);
+        }
+        if (E.t > T0 + 2) say('dep', 'The cabin is down to vacuum. The hatch is coming open.', 5);
+        if (E.t > T0 + 4) { E.door = Math.min(1, E.door + dt / 4); o.lmc.setForwardHatch(E.door * E.door * (3 - 2 * E.door)); o.model.userData.hatch.visible = false; }
         if (E.door >= 1) say('go', 'Out backwards through the hatch: grip and pull, or A', 1e6);
         if (E.door >= 1 && hands.some(h => h.grip)) { E.stage = 'turn'; E.fadeTo = 1; }
       } else if (E.stage === 'turn') {
