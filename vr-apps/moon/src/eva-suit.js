@@ -11,11 +11,12 @@
  * makeEVASuit({ commander, player, env }):
  *   commander: the red stripes. player: your own suit as you see it looking down (no helmet, no arms: your hands
  *   are the controllers). env: an environment map for the visor and the metal (suitEnvironment(renderer, sunDir)).
+ * userData.helmet: the helmet (a Group on the waist: it can be lifted off, as before the suiting-up in the cabin).
  * userData.aerial: the OPS's aerial (a Group; hidden in the cabin, where it was folded down).
  * userData.joints: { waist, armL, armR, elbowL, elbowR, legL, legR, kneeL, kneeR } (Groups to turn), .pose(name).
  * One mesh per material in each jointed part: about thirty draw calls a figure. */
 import * as THREE from 'three';
-import { Parts, decal } from './lm-model.js?v=23';
+import { Parts, decal } from './lm-model.js?v=24';
 
 /* what the visor mirrors: a black sky, the sunlit ground below the horizon, the Sun low on one side, the Earth */
 export function suitEnvironment(renderer, sunAz = 1.6, sunEl = 0.23) {
@@ -141,18 +142,20 @@ export function makeEVASuit(opts = {}) {
   /* the insignia on the right breast, the flag on the left shoulder */
   T.add(new THREE.CircleGeometry(0.048, 28), patchM, 0.135, 0.45, -0.222, 0.2, Math.PI - 0.3, 0);
   T.add(new THREE.PlaneGeometry(0.085, 0.053), flagM, -0.438, 0.45, 0.015, 0, -Math.PI / 2, 0);
+  let helmet = null;
   /* the neck ring and the helmet: the LEVA's white shell, open at the face, the gold visor in it */
   if (!opts.player) {
     /* (big: the LEVA is nearly as wide as the chest, as in the photographs; hy its centre, R its radius) */
     const hy = 0.785, R = 0.212;
     T.add(new THREE.CylinderGeometry(0.16, 0.175, 0.07, 24), white, 0, 0.6, 0.0);
+    helmet = part(waist, 0, 0, 0); const HP = of(helmet);
     /* (the shell: the back and sides, the crown down to the brow, the chin; the opening faces -z) */
-    T.add(new THREE.SphereGeometry(R, 30, 18, Math.PI * 11 / 6, Math.PI * 4 / 3, 0, Math.PI * 0.95), white, 0, hy, 0.0);
-    T.add(new THREE.SphereGeometry(R, 30, 8, 0, Math.PI * 2, 0, Math.PI * 0.3), white, 0, hy, 0.0);
-    T.add(new THREE.SphereGeometry(R, 30, 6, 0, Math.PI * 2, Math.PI * 0.72, Math.PI * 0.25), white, 0, hy, 0.0);
-    T.add(new THREE.SphereGeometry(R - 0.009, 32, 22), gold, 0, hy, 0.0);                                           /* the gold visor (the whole bubble, seen in the opening) */
-    T.add(new THREE.TorusGeometry(R - 0.004, 0.015, 6, 24, Math.PI * 0.62), white, 0, hy, -0.014, Math.PI / 2 - 0.9, 0, Math.PI * 0.19);   /* the brow's rim */
-    if (opts.commander) { const st = new THREE.TorusGeometry(R + 0.003, 0.011, 5, 24, 2.25); st.rotateZ(0.62); st.rotateY(Math.PI / 2); st.scale(3.4, 1, 1); T.add(st, red, 0, hy, 0); }   /* the broad stripe over the crown, fore and aft */
+    HP.add(new THREE.SphereGeometry(R, 30, 18, Math.PI * 11 / 6, Math.PI * 4 / 3, 0, Math.PI * 0.95), white, 0, hy, 0.0);
+    HP.add(new THREE.SphereGeometry(R, 30, 8, 0, Math.PI * 2, 0, Math.PI * 0.3), white, 0, hy, 0.0);
+    HP.add(new THREE.SphereGeometry(R, 30, 6, 0, Math.PI * 2, Math.PI * 0.72, Math.PI * 0.25), white, 0, hy, 0.0);
+    HP.add(new THREE.SphereGeometry(R - 0.009, 32, 22), gold, 0, hy, 0.0);                                           /* the gold visor (the whole bubble, seen in the opening) */
+    HP.add(new THREE.TorusGeometry(R - 0.004, 0.015, 6, 24, Math.PI * 0.62), white, 0, hy, -0.014, Math.PI / 2 - 0.9, 0, Math.PI * 0.19);   /* the brow's rim */
+    if (opts.commander) { const st = new THREE.TorusGeometry(R + 0.003, 0.011, 5, 24, 2.25); st.rotateZ(0.62); st.rotateY(Math.PI / 2); st.scale(3.4, 1, 1); HP.add(st, red, 0, hy, 0); }   /* the broad stripe over the crown, fore and aft */
   }
   /* ---------------- arms: the shoulder's bellows, upper arm, the elbow's bellows, forearm, wrist ring, glove */
   if (!opts.player) for (const s of [-1, 1]) {
@@ -180,6 +183,33 @@ export function makeEVASuit(opts = {}) {
     void name;
   };
   pose();
-  root.userData.joints = J; root.userData.pose = pose; root.userData.visor = gold; root.userData.aerial = aerial;
+  root.userData.joints = J; root.userData.pose = pose; root.userData.visor = gold; root.userData.aerial = aerial; root.userData.helmet = helmet; root.userData.waist = waist;
   return root;
+}
+
+/* Your own helmet as you see it from inside (chapter 6): the shell's dark lining round the edge of your view, the
+ * brow's rim above, and the visor's faint amber towards its edges (clear in the middle). The helmet is fixed to the
+ * suit, not to your head: you look about inside it. Put the group at your eyes each frame, turned with your body.
+ * set(k): 0 off (not drawn), up to 1 on: it comes down over your head from above, then the visor's tint comes in. */
+export function makeHelmetView() {
+  const group = new THREE.Group(), shell = new THREE.Group(); group.add(shell);
+  const R = 0.2, lining = new THREE.MeshBasicMaterial({ color: 0x232426, side: THREE.BackSide }), rim = new THREE.MeshBasicMaterial({ color: 0x8d8b85, side: THREE.BackSide });
+  const add = (geo, mat) => shell.add(new THREE.Mesh(geo, mat));
+  add(new THREE.SphereGeometry(R, 30, 18, Math.PI * 11 / 6, Math.PI * 4 / 3, 0, Math.PI * 0.95), lining);      /* the back and the sides; the opening faces -z */
+  add(new THREE.SphereGeometry(R, 30, 8, 0, Math.PI * 2, 0, Math.PI * 0.25), lining);                             /* the crown */
+  add(new THREE.SphereGeometry(R - 0.001, 30, 2, 0, Math.PI * 2, Math.PI * 0.25, Math.PI * 0.025), rim);           /* the brow's rim */
+  add(new THREE.SphereGeometry(R, 30, 6, 0, Math.PI * 2, Math.PI * 0.82, Math.PI * 0.18), lining);                 /* the chin */
+  /* the visor: clear ahead, amber towards the edges (vertex alpha by the angle off straight ahead) */
+  const vg = new THREE.SphereGeometry(R - 0.012, 36, 24), pos = vg.attributes.position, col = new Float32Array(pos.count * 4);
+  for (let i = 0; i < pos.count; i++) {
+    const ang = Math.acos(Math.max(-1, Math.min(1, -pos.getZ(i) / (R - 0.012)))), k = Math.max(0, Math.min(1, (ang - 0.55) / 0.75));
+    col[i * 4] = 0.42; col[i * 4 + 1] = 0.3; col[i * 4 + 2] = 0.1; col[i * 4 + 3] = 0.015 + 0.3 * k * k * (3 - 2 * k);
+  }
+  vg.setAttribute('color', new THREE.BufferAttribute(col, 4));
+  const visor = new THREE.Mesh(vg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, side: THREE.BackSide, depthWrite: false, opacity: 0 }));
+  visor.renderOrder = 5; group.add(visor);
+  for (const o of [group, shell, visor, ...shell.children]) o.frustumCulled = false;
+  const api = { group, k: 1, set(k) { api.k = k = Math.max(0, Math.min(1, k)); group.visible = k > 0; const d = Math.min(1, k / 0.75); shell.position.y = 0.55 * (1 - d * d * (3 - 2 * d)); visor.material.opacity = Math.max(0, (k - 0.75) / 0.25); visor.visible = k > 0.75; } };
+  api.set(1);
+  return api;
 }

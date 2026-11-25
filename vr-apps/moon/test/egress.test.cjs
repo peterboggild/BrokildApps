@@ -7,7 +7,7 @@
  * opens by itself; a grip sets you out, turned to face the cabin; pulling with a gripping hand moves you along the
  * way out (and only along it); A goes on by itself, through the hatch, over the porch, down the ladder, the drop to
  * the pad, onto the ground; the walk is then yours, standing on the terrain beyond the footpad with two prints;
- * both eyes drawn inside and outside; no errors. */
+ * both eyes drawn inside and outside; the Lunar Module Pilot then follows you out and down and moves about; no errors. */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright-core');
@@ -43,8 +43,14 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const ein = await eyes2();
   ok('in the cabin: both eyes drawn', ein.every(v => v > 4 && v < 250), ein.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-cabin.png') });
+  /* first the helmets: his is in his hands, yours is not on; then both are */
+  const h0 = await p.evaluate(() => ({ mine: __moon.helm.k, his: __moon.lmc.lmp.userData.helmet.position.y }));
+  await p.evaluate(() => { __moon.egress.E.t = 9.2; });
+  await p.waitForFunction(() => __moon.egress.E.t > 9.6, null, { timeout: 120000 });
+  const h1 = await p.evaluate(() => ({ mine: __moon.helm.k, his: __moon.lmc.lmp.userData.helmet.position.y }));
+  ok('the helmets go on before the cabin is let down', h0.mine === 0 && Math.abs(h0.his) > 0.05 && h1.mine === 1 && Math.abs(h1.his) < 0.01, JSON.stringify([h0, h1]));
   /* the hatch opens by itself */
-  await p.evaluate(() => { __moon.egress.E.t = 4; });
+  await p.evaluate(() => { __moon.egress.E.t = 13.5; });
   await p.waitForFunction(() => __moon.egress.E.door >= 1, null, { timeout: 300000 });
   ok('the hatch opens', await p.evaluate(() => __moon.lm.userData.hatch.visible === false));
   /* a grip sets you out */
@@ -83,6 +89,22 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     return { active: o.egress.active, onGround: Math.abs(r.y - o.moon.heightAt(r.x, r.z)) < 0.05, dist: Math.hypot(r.x - f.x, r.z - f.z), prints: o.prints.count ?? null, pos: [o.S.pos.x, o.S.pos.z].map(v => +v.toFixed(2)) }; });
   ok('the walk is yours: on the ground a step beyond the footpad', !end.active && end.onGround && end.dist < 1.2, JSON.stringify(end));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-moon.png') });
+  /* the Lunar Module Pilot follows you down (lmp.js; three times the speed, for the emulator's sake) */
+  ok('the Lunar Module Pilot is in the cabin still', await p.evaluate(() => __moon.lmp.S.phase === 'cabin' && __moon.lmc.lmp.visible));
+  await p.evaluate(() => { __moon.lmp.S.rate = 3; __moon.lmp.S.t = 6.9; });
+  const seen2 = {};
+  for (let k = 0; k < 2400; k++) {
+    const ph = await p.evaluate(() => __moon.lmp.S.phase); seen2[ph] = true;
+    if (ph === 'roam') break;
+    await p.waitForTimeout(250);
+  }
+  ok('he comes out: the porch, the ladder, the drop, the pad', seen2.crawl && seen2.ladder && seen2.pad && seen2.roam, Object.keys(seen2).join(' '));
+  await p.waitForFunction(() => __moon.lmp.S.falls >= 6, null, { timeout: 600000 });
+  const man = await p.evaluate(() => { const L = __moon.lmp.S, f = __moon.lmp.fig; return { h: +(L.pos.y - __moon.moon.heightAt(L.pos.x, L.pos.z)).toFixed(2), cabin: __moon.lmc.lmp.visible, far: +Math.hypot(L.pos.x, L.pos.z).toFixed(1), falls: L.falls, ok: [f.position.x, f.position.y, f.position.z, L.yaw].every(isFinite) }; });
+  ok('he moves about on the ground in the lope', man.h > -0.05 && man.h < 0.4 && !man.cabin && man.far > 5 && man.far < 20 && man.ok, JSON.stringify(man));
+  const e3 = await eyes2();
+  ok('with him outside: both eyes drawn', e3.every(v => v > 4 && v < 250), e3.map(v => v.toFixed(0)).join(' / '));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-lmp.png') });
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');

@@ -725,6 +725,18 @@ second box that hid them is gone.
   5. The ladder was two or three feet beyond the hands: it leans, and you do not. Your eyes' column is moved in.
 - **Next**: the Lunar Module Pilot down the ladder and moving about (the lope), the flag, the rover.
 
+### 12.12 The second man down (25 November 2026, Fable)
+
+`src/lmp.js`: the Lunar Module Pilot follows you out and down, then lopes about in front of the LM, with his
+shadow, prints and dust; you have your own shadow too, and the LM's shadow dims whoever stands in it. Motion is
+procedural (poses eased towards targets), no clips. To judge in the headset: the lope's rhythm (0.85 s a hop, up to
+1.3 m/s), whether the shadows cost frame rate (they are redrawn into small textures during the XR frame, as mirrors
+are), and how he looks close up. The owner asked when the helmets go on: the journey is flown bare-headed (he chose to
+keep the faces in the launch and the descent, against history), so chapter 6 now opens with a suiting-up beat (his
+helmet, then yours), and your own helmet frames your view from then on. To judge in the headset: whether the
+helmet's edge and the visor's amber are too much or too little, and whether the chin hides too much of your own
+suit. Still to come: his voice, the flag, the rover.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

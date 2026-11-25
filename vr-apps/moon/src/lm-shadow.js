@@ -28,9 +28,20 @@ export function makeLMShadow(moon) {
    * and laid out along the ground; a finer drape, a little higher, so the ground's small bumps do not poke through
    * it (owner's headset test: holes in the shadow). Image geometry: across is horizontal, square to the Sun; up in
    * the image is w = y cos(el) + (distance down-Sun) sin(el), and a point's shadow falls w / sin(el) down-Sun. */
-  const W0 = -1.6, W1 = 8.6, HALF = 5.4;
+  const W0 = -1.6, W1 = 8.6, HALF = 5.4, SZ = 1024;
+  let pix = null, cosEl = 1; const _r = new THREE.Vector3();
+  /* 1 in the Sun, 0 in the LM's shadow (a world point; anywhere down-Sun of the LM) */
+  function lit(p) {
+    if (!baked || !pix) return 1;
+    _r.copy(p).sub(baked.R);
+    const u = _r.dot(baked.right), along = _r.dot(baked.sh), w = _r.y * cosEl + along * baked.sinEl;
+    if (along * cosEl - _r.y * baked.sinEl < -4.5) return 1;                 /* up-Sun of the LM */
+    const i = Math.round((u + HALF) / (2 * HALF) * (SZ - 1)), j = Math.round((w - W0) / (W1 - W0) * (SZ - 1));
+    if (i < 0 || j < 0 || i >= SZ || j >= SZ) return 1;
+    return 1 - pix[(j * SZ + i) * 4 + 1] / 255;
+  }
   function bake(renderer, model, sun) {
-    const rt = baked ? baked.rt : new THREE.WebGLRenderTarget(1024, 1024, { samples: 4 });
+    const rt = baked ? baked.rt : new THREE.WebGLRenderTarget(SZ, SZ, { samples: 4 });
     const sh = new THREE.Vector3(-sun.x, 0, -sun.z).normalize(), el = Math.asin(sun.y);
     const upP = new THREE.Vector3(sh.x * Math.sin(el), Math.cos(el), sh.z * Math.sin(el));
     model.updateMatrixWorld(true);
@@ -46,6 +57,8 @@ export function makeLMShadow(moon) {
     renderer.xr.enabled = false; renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 1); renderer.clear();
     renderer.render(sc, cam);
     renderer.setRenderTarget(prev); renderer.setClearColor(cc, ca); renderer.xr.enabled = xr;
+    /* the silhouette, kept on this side too: lit(point) asks whether the Sun reaches a point (lmp.js, your own suit) */
+    try { pix = pix || new Uint8Array(SZ * SZ * 4); renderer.readRenderTargetPixels(rt, 0, 0, SZ, SZ, pix); cosEl = Math.cos(el); } catch (e) { pix = null; }
     if (parent) { parent.add(model); parent.children.splice(at, 0, parent.children.pop()); }
     sc.overrideMaterial.dispose();
     if (!baked) { NX = 20; NY = 88; geo.dispose(); geo = new THREE.PlaneGeometry(1, 1, NX, NY); mesh.geometry = geo; mesh.material.alphaMap = rt.texture; mesh.material.needsUpdate = true; }
@@ -72,5 +85,5 @@ export function makeLMShadow(moon) {
     pos.needsUpdate = true; geo.computeBoundingSphere();
     mesh.material.opacity = opacity;
   }
-  return { mesh, update, bake };
+  return { mesh, update, bake, lit };
 }

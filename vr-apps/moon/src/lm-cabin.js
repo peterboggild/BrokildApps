@@ -8,10 +8,10 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=23';
-import { makeEVASuit } from './eva-suit.js?v=23';
-import { makeCrewLife } from './crew-life.js?v=23';
-import { LM } from './lm-model.js?v=23';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=24';
+import { makeEVASuit } from './eva-suit.js?v=24';
+import { makeCrewLife } from './crew-life.js?v=24';
+import { LM } from './lm-model.js?v=24';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -169,6 +169,14 @@ export function makeLMCabin(opts = {}) {
     lmp.position.set(LMC.LMP.x, FLOOR, LMC.LMP.z); lmp.rotation.y = Math.PI - 0.45; lmp.scale.setScalar(0.92); lmp.userData.aerial.visible = false; g.add(lmp);
     /* (the cabin's floodlights are tuned for its matt greys: the white cloth would burn out in them) */
     for (const s of [body, lmp]) { const seen = new Set(); s.traverse(o => { if (o.isMesh && !seen.has(o.material) && o.material !== s.userData.visor) { seen.add(o.material); o.material.color.multiplyScalar(0.6); } }); }
+    /* before the suiting-up his helmet is in his hands, his head bare in the communications cap (the head of
+     * cabin.js's crewman, set on this suit's neck); it goes on over his head, and from then the visor hides him */
+    const donor = makeCrewman({ variant: 1, standing: true }), neck = donor.userData.neck, face = donor.userData.face;
+    neck.position.set(0, 0.62, -0.01); lmp.userData.waist.add(neck);
+    const hel = lmp.userData.helmet; let suitK = 1;
+    const setSuit = k => { suitK = k = Math.max(0, Math.min(1, k)); const e = x => x * x * (3 - 2 * x), a = e(Math.min(1, k * 2)), b = e(Math.max(0, k * 2 - 1));
+      hel.position.set(0, -0.5 + 0.98 * a - 0.48 * b, -0.42 + 0.4 * a + 0.02 * b); hel.rotation.x = -0.5 * (1 - a); neck.visible = k < 0.97; };
+    setSuit(1);
     /* his life in the stiff suit: the whole torso turns, slowly, now and then towards you; the arms work a little */
     const J = lmp.userData.joints, _v = new THREE.Vector3(); let yaw = 0, last = null;
     life = { update(t, ctx = {}) {
@@ -179,7 +187,14 @@ export function makeLMCabin(opts = {}) {
       J.waist.rotation.y = yaw; J.waist.rotation.x = -0.1 + 0.015 * Math.sin(t * 0.7);
       J.elbowL.rotation.x = 0.75 + 0.12 * Math.sin(t * 0.37); J.elbowR.rotation.x = 0.7 + 0.1 * Math.sin(t * 0.29 + 1);
       J.armL.rotation.x = 0.4 + 0.06 * Math.sin(t * 0.23 + 2); J.armR.rotation.x = 0.38 + 0.05 * Math.sin(t * 0.31);
-    }, touch() {}, react() {} };
+      if (suitK < 1) {
+        /* the helmet in his hands: before his chest, then lifted over his head; he looks at you meanwhile, and blinks */
+        const lift = Math.sin(Math.PI * Math.min(1, suitK * 1.15)), up = 0.75 + 1.45 * lift * (suitK < 0.5 ? 1 : 0.9);
+        J.armL.rotation.x = J.armR.rotation.x = up; J.elbowL.rotation.x = J.elbowR.rotation.x = 1.15 + 0.5 * lift;
+        J.armL.rotation.z = -0.05; J.armR.rotation.z = 0.05;
+        neck.rotation.y = 0.5 * yaw; face.uBlink.value = (t % 3.4) < 0.13 ? 1 : 0;
+      } else { J.armL.rotation.z = -0.3; J.armR.rotation.z = 0.3; }
+    }, touch() {}, react() {}, setSuit };
   } else {
     body = makeCrewman({ player: true, standing: true });
     body.position.set(LMC.CDR.x, FLOOR + 1.6 - 0.09, LMC.CDR.z - 0.07); body.rotation.y = Math.PI; g.add(body);
@@ -199,6 +214,8 @@ export function makeLMCabin(opts = {}) {
     group: g, panels, dsky, balls, lmp, sunIn,
     setHatchOpen(on) { hatchLid.visible = !on; stub.visible = on; },
     setBody(on) { body.visible = on; },
+    /* the Lunar Module Pilot's helmet (the surface suits only): 0 in his hands, 1 on */
+    setSuitUp(k) { if (life.setSuit) life.setSuit(k); },
     /* seen from outside: the windows' deep frames (they reach out through the hull) are not drawn */
     setOutside(on) { for (const r of reveals) r.visible = !on; },
     /* the forward hatch: 0 shut, 1 swung in against the Lunar Module Pilot's side */
