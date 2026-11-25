@@ -317,6 +317,7 @@ function frame(now) {
   vHemi.position.fromArray(w.up); vHemi.color.setRGB(0.05, 0.05, 0.06); vHemi.groundColor.setRGB(0.55, 0.53, 0.5); vHemi.intensity = 0.15 + 0.6 * fill;
   _y.copy(_sun).applyQuaternion(_q.copy(rig.quaternion).invert());
   cabin.setDaylight(lit, _y);
+  sky.userData.stars.setDark(1 - lit);
   /* the engine: the cabin trembles, the sound */
   cabin.group.position.set((Math.random() - 0.5) * 0.0005 * w.engine, (Math.random() - 0.5) * 0.0005 * w.engine, 0);
   sound.drive(w.engine * 0.55, S.warp);
