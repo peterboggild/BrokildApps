@@ -3,8 +3,8 @@
 A realistic Apollo-style flight to the Taurus-Littrow valley for the Meta Quest 3 browser. Design, decisions and
 stages: `MOON-DESIGN.md` in the repository root. This file describes what is built.
 
-**State: stages 0 to 2, and stage 3 part 1.** The Moon test (below), the briefing, chapter 1 (the launch), chapter 2
-(to the Moon) and chapter 3 (lunar orbit).
+**State: stages 0 to 3.** The Moon test (below), the briefing, chapter 1 (the launch), chapter 2 (to the Moon),
+chapter 3 (lunar orbit) and chapter 4 (into the LM).
 The Moon test: three views of one baked Moon, to judge realism and frame rate in the headset
 before anything else is built:
 
@@ -181,6 +181,34 @@ Not in it yet: the crawl into the LM and undocking (next), earthshine on the Moo
 
 Test aids: `lunar.html?t=`, `?still`, `?shot`, `?out&od=&oa=&oe=`, `?yaw=&pitch=` (the window beside you: yaw 62);
 `tools/shot-lunar.cjs`; `test/lunar.test.cjs` (emulated Quest 3). Hooks on `window.__lunar`.
+
+## Chapter 4: into the LM (`lm.html`)
+
+GET 106:40 to 110:05, in the descent orbit (chapter 3's flight and Moon). Design chapter 9.
+
+- **The crawl**: you start in your couch; the tunnel to the LM is open (probe, drogue and hatch stowed) and the LMP
+  has gone ahead. **Grip** with either hand takes hold where the hand is; pull, and you move the other way (the hand
+  stays where it took hold); let go and you drift, slowing gently. Or **A** (F on the screen) floats you through, or
+  the left stick. You stay inside the cabin's cone and the tunnel. Through the LM's overhead hatch and down into its
+  cabin, a short fade, and you stand at the Commander's station at your own height (seated players are lower,
+  which is fine). The clock will not pass ten minutes before undocking until you are aboard.
+- **The LM's cabin** (`src/lm-cabin.js`), simplified from the 1969 LM, in the LM model's own frame so the hatch
+  meets the tunnel outside: the two triangular windows (forward and down, as for the landing), the docking window
+  over your head, the flight panels with their attitude balls, the DSKY on the centre console, side consoles,
+  armrests with the hand controllers, restraint cables, the ascent engine cover and the alignment telescope. The
+  LMP stands beside you (the crewman of `cabin.js`, standing).
+- **Undocking** at GET 107:47:56: the latches let go, the CSM backs away overhead (look up through the docking
+  window), comes round to a point ahead, right and below, where both windows look, nose towards you, for the
+  inspection of your legs; the separation burn at GET 108:17:56 opens the distance. The LM's legs are deployed in
+  this chapter (`makeLM` in `src/vehicle.js` now has both: folded, and deployed with each strut meeting its pad and
+  the contact probes).
+- **Radio**: 21 lines (`tools/script/lm.json`), two cued on your arrival.
+- **The end**: go for powered descent (GET 110:00). A (or N) opens the Moon page until the descent is built.
+  Chapter 3 now ends with A taking you here.
+
+Test aids: `lm.html?t=`, `?lm` (standing in the LM), `?float=z` (on the tunnel's axis at cabin z), `?still`,
+`?shot`, `?out&od=&oa=&oe=`; `tools/shot-lm.cjs`; `test/lm.test.cjs` (emulated Quest 3, including a real grip-and-pull
+with the emulated controller). Hooks on `window.__lm`.
 
 ## How the Moon is drawn
 

@@ -226,6 +226,9 @@ export function makeCabin() {
   let cheatOn = false;
   return {
     group: g, covers, dsky, timer, ball, sunIn, amb, panels, crewmen, get body() { return body; },
+    /* the forward hatch at the end of the tunnel: closed, or taken out (with the probe and drogue) for the crew to
+     * go through to the LM */
+    setTunnelOpen(on) { fwd.visible = !on; },
     setCovers(on) { covers.forEach(c => { c.visible = on; }); if (cheatOn) frames['side-left'].visible = false; },
     /* the cheat window */
     setCheat(on) { cheatOn = on; cheatWall.visible = !on; cheatRim.visible = on; frames['side-left'].visible = !on; },
@@ -262,7 +265,7 @@ export function makeCabin() {
  * ("Snoopy cap"). Seated as you are: thighs forward, shins down. The face is kept plain on purpose: at arm's
  * length a detailed face that does not move is worse than none. */
 let _suitTex = null, _flagTex = null;
-function makeCrewman(opts = {}) {
+export function makeCrewman(opts = {}) {
   const g = new THREE.Group();
   if (!_suitTex) { _suitTex = makeSuitTexture(); _flagTex = makeFlagTexture(); }
   const L = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...NO_STENCIL, ...o });
@@ -339,8 +342,14 @@ varying float vLy;`).replace('void main() {', `void main() {
     put(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.011, 8, 22), sx < 0 ? ringR : ringB), sx * 0.265, -0.515, -0.15);
     put(cap(0.043, 0.07, glove), sx * 0.265, -0.52, -0.215, 1.5).scale.set(1.15, 1, 0.8);
   }
-  /* legs: thighs forward, shins down, boots */
+  /* legs: thighs forward, shins down, boots; or standing (in the LM) */
   for (const sx of [-1, 1]) {
+    if (opts.standing) {
+      put(cap(0.085, 0.34, suit), sx * 0.11, -0.82, 0.1, 0.04);
+      put(cap(0.07, 0.36, suit), sx * 0.11, -1.24, 0.08, -0.03);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.27), grey), sx * 0.11, -1.52, 0.02);
+      continue;
+    }
     put(cap(0.085, 0.3, suit), sx * 0.105, -0.63, -0.1, 1.5);
     put(cap(0.07, 0.3, suit), sx * 0.105, -0.86, -0.32, 0.12);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.26), grey), sx * 0.105, -1.08, -0.38);
@@ -431,7 +440,7 @@ function dress(g, point, M, door, h0) {
 }
 
 /* the painted inner wall: panels with seams and fasteners, Velcro patches, stencilled markings, wear */
-function makeWallTexture() {
+export function makeWallTexture() {
   const W = 4096, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   let seed = 41;
@@ -525,7 +534,7 @@ function makeFlagTexture() {
 }
 
 /* ---------------------------------------------------------------- textures made in code */
-function makePanelTexture() {
+export function makePanelTexture() {
   const W = 4096, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   let seed = 17;
@@ -579,7 +588,7 @@ function makePanelTexture() {
   return { texture, switches };
 }
 
-function makeDsky() {
+export function makeDsky() {
   const c = document.createElement('canvas'); c.width = 300; c.height = 340;
   const x = c.getContext('2d'), texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -602,7 +611,7 @@ function makeDsky() {
   return { texture, draw, f };
 }
 
-function makeTimer() {
+export function makeTimer() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 72;
   const x = c.getContext('2d'), texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -620,7 +629,7 @@ function makeTimer() {
   return { texture, draw };
 }
 
-function makeBallTexture() {
+export function makeBallTexture() {
   const c = document.createElement('canvas'); c.width = 512; c.height = 256;
   const x = c.getContext('2d');
   x.fillStyle = '#dedcd4'; x.fillRect(0, 0, 512, 128);

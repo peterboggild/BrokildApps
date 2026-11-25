@@ -547,6 +547,16 @@ stage 0's landing Sun, so the approach shows a crescent and the first passes ove
 terminator), the Earth's size and brightness, and whether the side window is enough or the hatch window should face
 the Moon. Part 2: the crawl through the tunnel, the LM cabin and undocking.
 
+### 12.6 Stage 3, part 2 as built (25 November 2026)
+
+Chapter 4 (`vr-apps/moon/lm.html`), design chapter 9; the README describes it. Locomotion through the tunnel is
+grab-and-pull (the hand stays where it took hold), with an automatic float and the stick as alternatives; the
+change of attitude from lying in the couch to standing in the LM happens in a fade, never as a turn of the view.
+The LM's cabin is primitive geometry with the CM's panel textures: stage 5 (Fable) should replace it together with
+the LM's outside. Weak points the owner should judge: whether pulling yourself along feels right in the headset
+(tested only with an emulated controller), the LM cabin's proportions at your own height, and how the
+Command Module reads in formation through the small windows.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

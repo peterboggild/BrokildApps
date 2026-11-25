@@ -105,7 +105,7 @@ const hud = (() => {
     g.fillStyle = '#d8d8d8'; g.font = '26px monospace';
     g.fillText('GET ' + fmt(S.t) + (S.warp > 1 ? '  x' + S.warp : ''), 20, 108);
     g.fillText('above the Moon ' + km(w.alt) + (w.hidden ? '  LOS' : ''), 20, 146);
-    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 3.  A: the surface', 20, 184); }
+    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 3.  A: chapter 4', 20, 184); }
     else g.fillText((w.speed / 1000).toFixed(2) + ' km/s   ' + phase(S.t), 20, 184);
     g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 222);
     g.fillText('stick press: L panel, R re-seat', 12, 246);
@@ -122,7 +122,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyC') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO') OUT.want = !OUT.want;
-  if (e.code === 'KeyN' && S.ended) nextChapter('index.html');
+  if (e.code === 'KeyN' && S.ended) nextChapter('lm.html');
   if (JUMPS[e.code] !== undefined) setTime(JUMPS[e.code]);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -141,7 +141,7 @@ function readControllers() {
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a']) { if (S.ended) nextChapter('index.html'); else cycleWarp(); }
+    if (a && !pad.prev[k + 'a']) { if (S.ended) nextChapter('lm.html'); else cycleWarp(); }
     if (k === 'left' && b && !pad.prev[k + 'b']) cabin.setCheat(!cabin.cheat);
     if (k === 'right') OUT.want = !!b;
     if (st && !pad.prev[k + 's']) { if (k === 'left') hud.on = !hud.on; else SEAT.pending = 1; }
@@ -339,7 +339,7 @@ function frame(now) {
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 3. The crawl into the LM and the landing are still to come; A (N on this screen) takes you to the surface now.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 3. A (N on this screen) goes on to chapter 4, into the LM.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (w.hidden ? '  · behind the Moon' : '') + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now, w);
   render();

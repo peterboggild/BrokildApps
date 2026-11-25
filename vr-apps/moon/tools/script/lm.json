@@ -1,0 +1,31 @@
+{
+  "about": "Radio and intercom for chapter 4: into the LM. The crawl through the tunnel, the LM cabin, undocking (GET 107:47:56), the Command Module coming round to look at the legs, separation, and go for powered descent. t = GET (seconds from liftoff); cue lines play on events. America is the Command and Service Module, Challenger the Lunar Module. Original lines in the style of Apollo procedure; not quotes.",
+  "voices": {
+    "CAPCOM": { "voice": "Microsoft David Desktop", "rate": 0, "pitch": 1.04, "channel": "houston" },
+    "CMP":    { "voice": "Microsoft David",         "rate": 1, "pitch": 0.98, "channel": "intercom" },
+    "LMP":    { "voice": "Microsoft Mark",          "rate": 1, "pitch": 1.09, "channel": "intercom" }
+  },
+  "lines": [
+    { "id": "q01", "t": 384010, "who": "CMP", "text": "Your turn. Probe and drogue are stowed, and the tunnel is clear." },
+    { "id": "q02", "t": 384022, "who": "LMP", "text": "Come on through. Head first, hand over hand. Mind the hatch rim at the bottom." },
+    { "id": "q03", "t": 384075, "who": "CMP", "text": "Take your time. Grab the tunnel wall and pull yourself along, nice and easy." },
+    { "id": "q04", "cue": "arrive", "delay": 1.5, "who": "LMP", "text": "Welcome aboard Challenger. Your restraints are by your feet." },
+    { "id": "q05", "cue": "arrive", "delay": 9, "who": "CMP", "text": "America here. I'm putting the drogue and the hatch back in. Close yours on your side." },
+    { "id": "q06", "t": 386000, "who": "CAPCOM", "text": "Challenger, Houston. You are go for undocking." },
+    { "id": "q07", "t": 386014, "who": "LMP", "text": "Roger, go for undocking. Thank you, Houston." },
+    { "id": "q08", "t": 387960, "who": "CMP", "text": "Two minutes. Are you ready, Challenger?" },
+    { "id": "q09", "t": 387970, "who": "LMP", "text": "Ready when you are, America." },
+    { "id": "q10", "t": 388062, "who": "CMP", "text": "Undocking in ten seconds." },
+    { "id": "q11", "t": 388076, "who": "CMP", "text": "Undock. We are apart. Backing away now." },
+    { "id": "q12", "t": 388092, "who": "LMP", "text": "Look up through the docking window. There she goes." },
+    { "id": "q13", "t": 388200, "who": "CMP", "text": "I'm coming round in front of you, so I can see your legs." },
+    { "id": "q14", "t": 388400, "who": "CMP", "text": "All four legs are down and locked, and the probes look good. You are a beautiful sight, Challenger." },
+    { "id": "q15", "t": 388425, "who": "LMP", "text": "Thank you, America. See you in three days." },
+    { "id": "q16", "t": 389816, "who": "CMP", "text": "Separation burn in one minute. Stand by." },
+    { "id": "q17", "t": 389890, "who": "CMP", "text": "Burn complete. Opening it up. Good luck, Challenger." },
+    { "id": "q18", "t": 393800, "who": "CAPCOM", "text": "America, Houston. We see a good circularization burn." },
+    { "id": "q19", "t": 395600, "who": "CAPCOM", "text": "Challenger, Houston. All your systems look good going round." },
+    { "id": "q20", "t": 396000, "who": "CAPCOM", "text": "Challenger, Houston. If you read, you are go for powered descent." },
+    { "id": "q21", "t": 396014, "who": "LMP", "text": "Roger, go for PDI. Here we go." }
+  ]
+}

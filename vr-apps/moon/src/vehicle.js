@@ -425,14 +425,27 @@ function makeLM(env, L, Std, tapeNormals) {
   add(new THREE.CylinderGeometry(2.2, 2.2, 0.06, 8), blackFoil, 0, dsY0, 0, 0, Math.PI / 8, 0);
   /* the descent engine */
   add(new THREE.CylinderGeometry(0.42, 0.78, 0.75, 20, 1, true), dark, 0, dsY0 - 0.37, 0);
-  /* legs, folded up against the stage: a primary strut and a footpad tucked under each corner */
+  /* legs, folded up against the stage (as stowed in the adapter): a primary strut and a footpad under each corner */
+  const folded = new THREE.Group(), deployed = new THREE.Group(); g.add(folded, deployed); deployed.visible = false;
+  const rod = (parent, a, b, r) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 10), gold); m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); parent.add(m); return m; };
   for (let k = 0; k < 4; k++) {
     const a = k * Math.PI / 2 + Math.PI / 4, cx = Math.sin(a), cz = Math.cos(a);
     const top = new THREE.Vector3(cx * 2.2, dsY0 + dsH - 0.1, cz * 2.2), bot = new THREE.Vector3(cx * 2.55, dsY0 - 0.2, cz * 2.55);
-    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, top.distanceTo(bot), 10), gold);
-    strut.position.copy(top).add(bot).multiplyScalar(0.5); strut.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bot.clone().sub(top).normalize()); g.add(strut);
-    add(new THREE.CylinderGeometry(0.45, 0.4, 0.12, 16), gold, bot.x, bot.y - 0.08, bot.z, Math.atan2(cz, 1) * 0.0);
+    rod(folded, top, bot, 0.08);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.4, 0.12, 16), gold); pad.position.set(bot.x, bot.y - 0.08, bot.z); folded.add(pad);
+    /* deployed (from lunar orbit on): the primary strut out and down to the footpad, two side braces from the
+     * stage's lower edge meeting it, a contact probe under three of the pads */
+    const foot = new THREE.Vector3(cx * 4.15, dsY0 - 1.45, cz * 4.15);
+    rod(deployed, top, foot, 0.085);
+    const mid = top.clone().lerp(foot, 0.55);
+    for (const s of [-1, 1]) {
+      const t = new THREE.Vector3(cx, 0, cz).multiplyScalar(2.05).add(new THREE.Vector3(cz, 0, -cx).multiplyScalar(s * 0.85)); t.y = dsY0 + 0.05;
+      rod(deployed, t, mid, 0.045);
+    }
+    const dpad = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.42, 0.16, 20), gold); dpad.position.copy(foot).add(new THREE.Vector3(0, -0.08, 0)); deployed.add(dpad);
+    if (k !== 0) rod(deployed, foot.clone().add(new THREE.Vector3(0, -0.16, 0)), foot.clone().add(new THREE.Vector3(0, -1.75, 0)), 0.012);
   }
+  g.userData.setLegs = on => { folded.visible = !on; deployed.visible = on; };
   /* ascent stage: the crew cabin (a faceted front), the aft equipment bay, tanks either side */
   const asY = dsY0 + dsH + 0.05;
   const cab = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 1.9, 8), grey); cab.position.set(0, asY + 0.95, 0.15); cab.rotation.y = Math.PI / 8; g.add(cab);
