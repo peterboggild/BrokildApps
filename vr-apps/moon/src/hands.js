@@ -21,6 +21,7 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
+import { settings } from './settings.js?v=14';
 
 const D = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -29,8 +30,15 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const INDEX_OPEN = [44, 52, 22], INDEX_SHUT = [70, 95, 30];        // resting on the trigger / trigger pulled
 const REST_LOOSE = [60, 84, 26], REST_TIGHT = [73, 98, 33];        // the other three, holding the controller / squeezing it
 
+/* the hand tipped up against the controller (degrees, about the palm's crosswise axis): held as you point, the
+ * controller points a little higher than the index finger would on the bare grip pose (owner's headset test: 15-20
+ * degrees low). No documented offset exists for the Quest 3 in WebXR, so it is a setting ('hand', default 17), to
+ * be matched to your own hand in the headset. */
+
 export function createHand(side) {
-  const root = new THREE.Group(), h = new THREE.Group(); root.add(h);
+  const root = new THREE.Group(), tilt = new THREE.Group(), h = new THREE.Group(); root.add(tilt); tilt.add(h);
+  tilt.rotation.x = settings.get('hand') * D; root.userData.tilt = tilt;
+  settings.onChange(k => { if (k === 'hand') tilt.rotation.x = settings.get('hand') * D; });
   if (side === 'left') h.scale.x = -1;
   const GLOVE = 0x6a7a90;
   const leather = new THREE.MeshStandardMaterial({ color: GLOVE, roughness: 0.7, metalness: 0.02 });
@@ -109,6 +117,24 @@ function loadModel(side, root, standIn, leather, st) {
     model.traverse(o => { if (o.isSkinnedMesh) mesh = o; if (o.isBone || o.name) bones[o.name] = o; });
     if (!mesh || !bones.wrist) return;
     mesh.material = leather; mesh.frustumCulled = false;
+    /* The bones relative to the hand, not the world. three.js skins with each bone's world matrix, sent to the GPU
+     * in 32-bit floats: tens of thousands of kilometres from the origin (chapter 3 starts 66,000 km out in the Moon's
+     * frame) that is metres of error and the hand tears into random shapes (owner's headset test). Worked out here in
+     * 64-bit and only the small hand-local matrices go to the GPU: bone' = M^-1 . boneWorld . boneInverse . B, with
+     * the bind matrix and its inverse then left as identity ('detached'). */
+    {
+      const B = mesh.bindMatrix.clone(), skel = mesh.skeleton, inv = new THREE.Matrix4(), mm = new THREE.Matrix4();
+      mesh.bindMode = THREE.DetachedBindMode; mesh.bindMatrix.identity(); mesh.bindMatrixInverse.identity();
+      skel.update = function () {
+        inv.copy(mesh.matrixWorld).invert();
+        for (let i = 0; i < this.bones.length; i++) {
+          const b = this.bones[i];
+          mm.multiplyMatrices(inv, b ? b.matrixWorld : mesh.matrixWorld).multiply(this.boneInverses[i]).multiply(B);
+          mm.toArray(this.boneMatrices, i * 16);
+        }
+        if (this.boneTexture !== null) this.boneTexture.needsUpdate = true;
+      };
+    }
     if (bones['index-finger-tip']) root.userData.tip = bones['index-finger-tip'];
     const sx = side === 'left' ? -1 : 1;                           // which side of the rod the palm is on
     model.position.set(-0.008 * sx, 0.02, 0);                      // the rod lies in the crease at the root of the fingers, not in the middle of the palm
@@ -136,8 +162,36 @@ function loadModel(side, root, standIn, leather, st) {
       const dn = Math.max(st.th, st.full);
       run(tc, [[[Z, ts.opp * (TH.opp + TH.oppDown * dn) * D], [tc[0].x, ts.f[0] * (TH.f0 + TH.f0Down * dn) * D]], [[tc[1].x, ts.f[1] * (TH.f1 + TH.f1Down * dn) * D]], [[tc[2].x, ts.f[2] * (TH.f2 + TH.f2Down * dn) * D]]]);
     };
-    standIn.visible = false; root.add(model); root.userData.model = model; root.userData.modelPose();
+    standIn.visible = false; root.userData.tilt.add(model); root.userData.model = model; root.userData.modelPose();
   }, undefined, e => console.warn('hand model not loaded, keeping the simple hand', e));
 }
 /* the thumb's angles (degrees): how far it is swung round to face the fingers, and how much each joint is bent; the "Down" parts are added when it presses */
 export const TH = { opp: 46, oppDown: 6, f0: 16, f0Down: 6, f1: 30, f1Down: 10, f2: 30, f2Down: 14 };
+
+/* The controllers by hand. three.js numbers its controllers in the order they connect, which is not the order of
+ * session.inputSources and changes when they come back (headset off and on, a controller asleep): taking one from
+ * each meant the hands could swap sides (owner's headset test). Here every frame reads each input source's own pose
+ * from the XR frame, by its handedness, into one group per hand under parent (the camera's parent).
+ *   const ctl = makeControllers(renderer, head);   ctl.update() first thing every frame;
+ *   ctl.grips.left / .right (grip space: the hand), ctl.rays.left / .right (target ray), ctl.src.left / .right */
+export function makeControllers(renderer, parent) {
+  const mk = () => { const g = new THREE.Group(); g.visible = false; parent.add(g); return g; };
+  const grips = { left: mk(), right: mk() }, rays = { left: mk(), right: mk() }, src = { left: null, right: null };
+  const place = (o, pose) => {
+    if (!pose) { o.visible = false; return; }
+    const p = pose.transform.position, q = pose.transform.orientation;
+    o.position.set(p.x, p.y, p.z); o.quaternion.set(q.x, q.y, q.z, q.w); o.visible = true;
+  };
+  function update() {
+    const s = renderer.xr.getSession(), frame = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
+    src.left = src.right = null;
+    if (s && frame && ref) for (const is of s.inputSources) {
+      const h = is.handedness; if (!(h in grips) || src[h]) continue;
+      src[h] = is;
+      place(grips[h], is.gripSpace ? frame.getPose(is.gripSpace, ref) : null);
+      place(rays[h], frame.getPose(is.targetRaySpace, ref));
+    }
+    for (const h of ['left', 'right']) if (!src[h]) { grips[h].visible = false; rays[h].visible = false; }
+  }
+  return { grips, rays, src, update };
+}

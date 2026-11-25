@@ -45,6 +45,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok('starts where chapter 2 ends', Math.abs(fl.startDist - 66000e3) < 1e5, (fl.startDist / 1e6).toFixed(1) + ' thousand km');
   /* the warp stops at the burn and allows x10 at most there */
   const wp = await p.evaluate(async () => {
+    __lunar.settings.set('ff', 'major');                 /* events only (the default stops for the radio too) */
     __lunar.setTime(319650 - 300); __lunar.S.warp = 1000;
     await new Promise(r => setTimeout(r, 2500));
     const a = { t: __lunar.S.t, warp: __lunar.S.warp };
@@ -88,13 +89,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   });
   ok('Earthrise in your window', er.angle < 15 && er.aboveHorizon > 0, `${er.angle.toFixed(1)} deg from the window's line of sight, ${er.aboveHorizon.toFixed(1)} deg above the horizon`);
   /* the outside view */
-  await p.evaluate(() => { __lunar.setTime(338719); __dev.controllers.right.updateButtonValue('b-button', 1); });
+  await p.evaluate(() => { __lunar.setTime(338719); (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)); });
   await p.waitForFunction(() => __lunar.OUT.on, null, { timeout: 30000 });
   await frames(30);
   const eo = await eyes();
   ok('outside view: both eyes drawn', eo.every(v => v > 4 && v < 250), eo.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'lunar-outside.png') });
-  await p.evaluate(() => { __dev.controllers.right.updateButtonValue('b-button', 0); });
+  await p.evaluate(() => { (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)); });
   /* the end */
   const end = await p.evaluate(async () => { __lunar.S.running = true; __lunar.setTime(__lunar.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __lunar.S.ended, t: __lunar.S.t }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));

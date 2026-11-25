@@ -9,12 +9,15 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=13';
-import { PAD_DROP } from './descent-space.js?v=13';
-import { makeLMShadow } from './lm-shadow.js?v=13';
+import { makeLMModel } from './vehicle.js?v=14';
+import { PAD_DROP } from './descent-space.js?v=14';
+import { makeLMShadow } from './lm-shadow.js?v=14';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
+import { makeControllers } from './hands.js?v=14';
+import { makeWrist } from './wrist.js?v=14';
+import { settings, applyCommon } from './settings.js?v=14';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -65,6 +68,8 @@ const GM = 4.9028e12;
 let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
 const suit = makeSuitSound();
 const OPT = { teleport: true, fan: true };
+const common = applyCommon(renderer, null);
+settings.onChange(k => { if (k === 'fov') S.foveation = settings.get('fov'); });   /* the frame-rate guard goes on from there */
 
 /* A point above the Moon at `theta` degrees along the track from the site, in the site frame, with its axes. */
 const _c = new THREE.Vector3(), _u = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
@@ -115,7 +120,7 @@ renderer.domElement.addEventListener('pointermove', e => {
 });
 
 const pad = { prev: {}, snap: 0 };
-const ctrl = {};                                     /* handedness -> target-ray space (a Group in the rig) */
+let ctl = null;                                      /* the controllers by hand (hands.js), made with the session */
 function readControllers(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
@@ -124,17 +129,17 @@ function readControllers(dt) {
     const gp = src.gamepad; if (!gp) continue;
     if (src.handedness === 'right') trig = !!gp.buttons[0]?.pressed;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-    if (src.handedness === 'left') { mx = ax[0]; mz = ax[1]; } else { turn = ax[0]; reach = -ax[1]; }
+    if (src.handedness === 'left') { hud.stick(ax[0], ax[1]); if (!hud.capturesStick) { mx = ax[0]; mz = ax[1]; } } else { turn = ax[0]; reach = -ax[1]; }
     const k = src.handedness;
-    const a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed;
-    if (a && !pad.prev[k + 'a']) next = true;
-    if (b && !pad.prev[k + 'b']) toggle = true;
-    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b;
+    /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
+    const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
+    if (a && !pad.prev[k + 'a'] && k === 'right') next = true;
+    if (st && !pad.prev[k + 's'] && k === 'left') hud.press();
+    pad.prev[k + 'a'] = a; pad.prev[k + 's'] = st;
   }
   if (next) { const names = Object.keys(VIEWS); setView(names[(names.indexOf(S.view) + 1) % names.length]); }
   TP.reach += (reach - TP.reach) * Math.min(1, dt * 6);
-  aimTeleport(trig && OPT.teleport && S.view === 'surface' && !TP.blink ? ctrl.right : null);
-  if (toggle && hud) hud.on = !hud.on;
+  aimTeleport(trig && OPT.teleport && S.view === 'surface' && !TP.blink && ctl.rays.right.visible ? ctl.rays.right : null);
   /* snap turn, 30 degrees */
   if (Math.abs(turn) > 0.7 && !pad.snap) { S.heading -= Math.sign(turn) * Math.PI / 6; pad.snap = 1; }
   if (Math.abs(turn) < 0.3) pad.snap = 0;
@@ -275,74 +280,12 @@ function trackSteps() {
   STEP.last.copy(_h);
 }
 
-/* ---------------------------------------------------------------- HUD (a test instrument, not part of the experience) */
-function makeHud() {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
-  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  mesh.renderOrder = 999;
-  let last = 0;
-  return {
-    mesh, on: true,
-    draw(now) {
-      if (now - last < 500) return; last = now;
-      g.clearRect(0, 0, 512, 256); g.fillStyle = 'rgba(0,0,0,0.72)'; g.fillRect(0, 0, 512, 256);
-      g.fillStyle = S.fps > 68 ? '#9fe6a0' : S.fps > 55 ? '#f0d070' : '#ff8a70';
-      g.font = 'bold 76px monospace'; g.fillText(S.fps.toFixed(0) + ' fps', 20, 84);
-      g.fillStyle = '#d8d8d8'; g.font = '30px monospace';
-      g.fillText(S.ms.toFixed(1) + ' ms   ' + S.calls + ' calls', 20, 132);
-      g.fillText((S.tris / 1000).toFixed(0) + 'k triangles', 20, 172);
-      g.fillText(VIEWS[S.view].label, 20, 212);
-      g.fillStyle = '#8a8a8a'; g.font = '22px monospace'; g.fillText('A/X next view   B/Y hide', 20, 244);
-      tex.needsUpdate = true;
-    }
-  };
+/* ---------------------------------------------------------------- the wrist panel (X): status and settings */
+function info() {
+  return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'the moonwalk is still to come' : 'A: the next view', get: 0, warp: 1,
+    rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
+    keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
 }
-
-/* ---------------------------------------------------------------- rendering */
-function setPlanes(n, f) {
-  const fix = c => {
-    const e = c.projectionMatrix.elements;
-    e[10] = -(f + n) / (f - n); e[14] = -2 * f * n / (f - n);
-    c.projectionMatrixInverse.copy(c.projectionMatrix).invert();
-  };
-  if (renderer.xr.isPresenting) { const xc = renderer.xr.getCamera(); fix(xc); xc.cameras.forEach(fix); }
-  else { camera.near = n; camera.far = f; camera.updateProjectionMatrix(); }
-}
-const _cam = new THREE.Vector3();
-function render() {
-  const xr = renderer.xr.isPresenting;
-  scene.updateMatrixWorld(true);
-  if (xr) renderer.xr.updateCamera(camera);
-  _cam.setFromMatrixPosition(camera.matrixWorld);
-  rocks.update(_cam);
-  moon.setDetail(_cam, S.view === 'surface');
-  renderer.info.reset();
-  renderer.clear(true, true, false);
-  const close = S.view === 'surface';
-  const show = (farOn, nearOn, cabinOn) => {
-    moon.far.visible = farOn; sky.visible = farOn && !S.dark;
-    moon.near.visible = nearOn; rocks.group.visible = nearOn && close; lm.visible = nearOn;
-    prints.group.visible = nearOn && close; ground.group.visible = nearOn && close;
-    arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && cabinOn && close;
-    rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
-  };
-  if (close) {
-    /* standing on the Moon: distant terrain first, then everything within a few kilometres over a fresh depth buffer */
-    show(true, false, false); setPlanes(100, FAR); renderer.render(scene, camera);
-    renderer.clearDepth();
-    show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera);
-  } else {
-    const alt = VIEWS[S.view].alt;
-    show(true, true, false); setPlanes(Math.max(50, alt * 0.25), FAR); renderer.render(scene, camera);
-    renderer.clearDepth();
-    show(false, false, true); setPlanes(0.05, 100); renderer.render(scene, camera);
-  }
-  S.calls = renderer.info.render.calls; S.tris = renderer.info.render.triangles;
-}
-
-let lastT = 0, acc = 0, accN = 0, slow = 0;
 function frame(t) {
   if (lmSun) lmSun.position.copy(moon.shared.uSun.value).multiplyScalar(100).add(lmSun.target.position);     /* the LM lit by the Sun of the moment */
   if (lmShadow && lmShadowSun !== S.sunOffset) { lmShadowSun = S.sunOffset; lmShadow.update(0, 0, 0, moon.shared.uSun.value); }   /* its shadow (only when the Sun moves) */
@@ -358,6 +301,7 @@ function frame(t) {
     if ($('stat')) $('stat').textContent = `${S.fps.toFixed(0)} fps · ${S.calls} draw calls · ${(S.tris / 1000).toFixed(0)}k triangles`;
   }
   const xr = renderer.xr.isPresenting;
+  if (ctl) ctl.update();
   if (xr) readControllers(dt);
   if (S.view === 'surface') {
     if (!xr) {
@@ -381,7 +325,7 @@ function frame(t) {
   }
   if (xr) { head.position.set(0, 0, 0); head.rotation.set(0, 0, 0); }
   else { head.position.set(0, 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if (hud) hud.draw(t);
+  if (hud) hud.draw(t, info());
   stepBlink(dt);
   scene.updateMatrixWorld(true);
   if (renderer.xr.isPresenting) renderer.xr.updateCamera(camera);
@@ -400,18 +344,12 @@ async function enterVR() {
   renderer.xr.setFramebufferScaleFactor(num('scale', +($('scale')?.value || 1)));
   const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
-  S.foveation = 0.5; renderer.xr.setFoveation(S.foveation);
-  const hz = +($('hz')?.value || 72);
-  if (session.updateTargetFrameRate && session.supportedFrameRates?.includes(hz)) session.updateTargetFrameRate(hz).catch(() => {});
+  if ($('hz')) settings.set('hz', +$('hz').value);
+  S.foveation = settings.get('fov'); renderer.xr.setFoveation(S.foveation);
+  common.all();
   S.heading = 0; S.yaw = 0; S.pitch = 0;
-  /* the fps panel rides on the left controller */
-  for (const i of [0, 1]) {
-    const grip = renderer.xr.getControllerGrip(i), ray = renderer.xr.getController(i);
-    rig.add(grip); rig.add(ray);
-    grip.addEventListener('connected', e => { if (e.data && e.data.handedness === 'left') grip.add(hud.mesh); });
-    ray.addEventListener('connected', e => { if (e.data) ctrl[e.data.handedness] = ray; });
-  }
-  hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
+  /* the panel rides on the left controller */
+  if (!ctl) { ctl = makeControllers(renderer, camera.parent); ctl.grips.left.add(hud.mesh); }
   document.body.classList.add('invr');
   session.addEventListener('end', () => { document.body.classList.remove('invr'); renderer.setSize(innerWidth, innerHeight); });
 }
@@ -430,7 +368,7 @@ async function start() {
     lmShadow = makeLMShadow(moon); lm.add(lmShadow.mesh); }
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
-  hud = makeHud();
+  hud = makeWrist(['hz', 'fov']);
   ground = makeGround(moon, BASE);
   prints = makePrints(moon);
   prints.trail(0.4, 5.3, 6, 13.2);                   /* your own way here from the ladder */

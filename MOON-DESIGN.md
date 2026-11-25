@@ -579,7 +579,7 @@ the order of the journey:
    Moon page beside the new LM. If one drops, say which.
 2. **Comfort**: in chapters 2 and 3 the spacecraft never turns faster than 1.5° a second as you see it (at high
    warp it holds still); in chapter 5 the pitch-over turns at 2.5° a second. Too much, too little?
-3. **Chapter 2, docking**: the LM through the rendezvous window (raise your head to it), or hold B.
+3. **Chapter 2, docking**: the LM through the rendezvous window (raise your head to it), or Y for outside.
 4. **Chapter 3, Earthrise** in the window beside you (left), at GET 89:25; the crescent's night side in earthshine
    on the approach; the low pass at 15 km.
 5. **Chapter 4, the crawl**: grip and pull (does the direction feel right, the speed, the walls holding you?), or
@@ -590,6 +590,46 @@ the order of the journey:
    **seams between terrain levels while moving** (a Fable item).
 7. **Stars**: is "Faint" visible on the Quest's screen, or too strong? (One number: `LEVELS` in `src/stars.js`.)
 8. **The surface**: the LM you landed in, its long shadow, the walk.
+
+### 12.9 The owner's first headset run of chapters 2-5, and what came of it (25 November 2026)
+
+His notes, and what was done (PR "moon-crew-life"; tested in the flat preview and the emulated Quest 3 only):
+
+- **The crew were statues that talk.** Now they live (`src/crew-life.js`): real-sized eyes behind openings in the
+  scan's lids (set back so the skin covers them from the side, his second note), saccades, blinks, the lids
+  following the eyes, eye contact (both eyes converge on you); the head turns at the neck, a little towards whom
+  they speak to; the jaw opens with the loudness of their own voice; jointed arms that rest, reach and gesture.
+  Your hand on one of them stops at his suit, turns red, and he answers (16 lines). 50 lines of small talk, now and
+  then (not authentic, his wish; `tools/script/crew.json`, `src/chatter.js`).
+- **The DSKY and the event timer sat on switches.** The panel keeps their places clear. And the panels were
+  redrawn in the style of the real ones (his photographs): CM light blue-grey, LM darker; plates with screws, white
+  group lines with names, chrome switch rings, guards, black instruments with white scales, talkbacks. Made up, not
+  the real layout switch by switch.
+- **The hands swapped sides** after the headset was off and on: they now follow each controller by its handedness,
+  read from the XR frame every frame (`makeControllers` in `src/hands.js`).
+- **The index finger pointed 15-20 degrees low**: the hand is tipped up 17 degrees, and it is a setting ("Hand angle",
+  0-32) to match in the headset (no documented offset for the Quest 3 in WebXR). Then the same for Portalkniven.
+- **The floating things**: taken with the grip, carried, let go with the hand's speed and spin; a real pen.
+- **The status panel spoiled being there**: hidden; a left stick press shows it (redone: phase, what comes next,
+  figures, buttons), again the settings, a third time away. A faster, B slower (his wish: one press back, not round
+  through the fastest), X the cheat window, Y outside (both latch).
+- **Settings in the experience** (`src/settings.js`): fast forward, turning comfort, frame rate, foveation, the two
+  volumes, your body, the hand angle. Resolution cannot change in a running WebXR session.
+- **Fast forward did not work, without saying why.** `src/clock.js`, the same everywhere: by default it stops at events
+  and radio lines and says why, A goes on past them; x10 at most through an event, the big steps for quiet stretches;
+  or major events only; or free.
+- **The left eye saw two Earths** from far out: the sky dome worked its directions from the middle of the head, not
+  from each eye; now from the eye (`src/earth.js`).
+- **The CM and LM did not dock**: the probe only touched. Now it retracts after capture and pulls them ring to ring
+  before the latches fire; chapter 3 starts hard docked. Chapter 4 keeps the old spacing: the inside of the CM and
+  its outside do not match, and hard docked the tunnel you crawl through would be 40 cm. To do: align them.
+- **The hands tore into random shapes** at the start of chapter 3: the skinned hand was skinned in world coordinates
+  in 32-bit floats, 66,000 km out; now relative to the hand (`src/hands.js`).
+
+**To check in the headset**, besides §12.8: the faces close up and from the side (eyes, lids, the jaw), whether eye
+contact feels right or too much; the hand angle (set it to match, tell me the number); touching a crewman; taking
+and throwing the pen; the panel (left stick press) and the settings with the stick; A faster and B slower; fast forward through chapter 2; the panels'
+new look; the docking from outside; chapter 3's start with your hands in view.
 
 ## 13. Testing
 

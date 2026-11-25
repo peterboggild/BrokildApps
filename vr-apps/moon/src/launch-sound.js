@@ -7,7 +7,7 @@
  *   firing above you; the third stage quiet.
  * - The controllers vibrate with it (the view itself is never shaken).
  * - The radio (radio.js) feeds in here, so all sound goes through one compressor. */
-import { EVENTS } from './ascent.js?v=13';
+import { EVENTS } from './ascent.js?v=14';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -31,7 +31,8 @@ export function intensity(t) {
 }
 
 export function makeLaunchSound() {
-  let ctx = null, out = null, rumbleG, roarG, crackleG, fanG, ready = false;
+  let ctx = null, out = null, voice = null, rumbleG, roarG, crackleG, fanG, ready = false;
+  const level = { sound: 1, voices: 1 };
   const bangsDone = new Set();
 
   function init() {
@@ -41,8 +42,10 @@ export function makeLaunchSound() {
     ctx = new AC();
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.25;
-    out = ctx.createGain(); out.gain.value = 0.9;
-    out.connect(comp).connect(ctx.destination);
+    /* two buses into the compressor: out (engines, the cabin, bangs) and voice (the radio), each with its own volume */
+    const master = ctx.createGain(); master.gain.value = 0.9; master.connect(comp).connect(ctx.destination);
+    out = ctx.createGain(); out.gain.value = level.sound; out.connect(master);
+    voice = ctx.createGain(); voice.gain.value = level.voices; voice.connect(master);
     const sr = ctx.sampleRate;
     const noise = (sec, kind) => {
       const n = Math.floor(sr * sec), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
@@ -156,7 +159,12 @@ export function makeLaunchSound() {
     roarG.gain.setTargetAtTime(0.1 * k * mute, now, 0.15); crackleG.gain.setTargetAtTime(0, now, 0.1);
   }
   function thump(level = 0.5, dur = 0.4, freq = 600) { if (ready) bang(level, dur, freq); }
-  return { init, update, hatch, ambience, drive, thump, get ctx() { return ctx; }, get out() { return out; }, get ready() { return ready; } };
+  /* volumes (0..1) from the settings: sound (everything but the voices), voices (the radio) */
+  function setLevels(l) {
+    Object.assign(level, l);
+    if (out) { out.gain.setTargetAtTime(level.sound, ctx.currentTime, 0.05); voice.gain.setTargetAtTime(level.voices, ctx.currentTime, 0.05); }
+  }
+  return { init, update, hatch, ambience, drive, thump, setLevels, get ctx() { return ctx; }, get out() { return out; }, get voice() { return voice; }, get ready() { return ready; } };
 }
 
 /* controller vibration with the rocket */

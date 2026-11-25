@@ -6,9 +6,9 @@
  *
  * URL: ?slide=1..12  ?shot  ?yaw= &pitch= */
 import * as THREE from 'three';
-import { SLIDES, W, H } from './briefing-slides.js?v=13';
-import { makeVehicle } from './vehicle.js?v=13';
-import { createHand } from './hands.js?v=13';
+import { SLIDES, W, H } from './briefing-slides.js?v=14';
+import { makeVehicle } from './vehicle.js?v=14';
+import { createHand, makeControllers } from './hands.js?v=14';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -108,15 +108,17 @@ addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-80, Math.min(80, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
 const prev = {};
 const hands = { left: createHand('left'), right: createHand('right') };
+let ctl = null;                     /* the controllers by hand (hands.js), made with the session */
 function controllers(dt) {
-  const s = renderer.xr.getSession(); if (!s) return;
-  s.inputSources.forEach((src, i) => {
+  const s = renderer.xr.getSession(); if (!s || !ctl) return;
+  ctl.update();
+  s.inputSources.forEach(src => {
     const gp = src.gamepad; if (!gp) return;
     const k = src.handedness, tr = gp.buttons[0]?.pressed, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed;
     if ((tr && !prev[k + 't']) || (a && !prev[k + 'a'])) next();
     if (b && !prev[k + 'b']) back();
     prev[k + 't'] = tr; prev[k + 'a'] = a; prev[k + 'b'] = b;
-    const m = hands[k], grip = renderer.xr.getControllerGrip(i);
+    const m = hands[k], grip = ctl.grips[k];
     if (m && m.parent !== grip) grip.add(m);
     if (m) m.userData.pose(gp.buttons[0]?.value || 0, gp.buttons[1]?.value || 0, [3, 4, 5].some(n => gp.buttons[n]?.touched), false, dt);
   });
@@ -148,7 +150,7 @@ async function enterVR() {
   const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
   renderer.xr.setFoveation(0.5);
-  for (const i of [0, 1]) rig.add(renderer.xr.getControllerGrip(i));
+  if (!ctl) ctl = makeControllers(renderer, camera.parent);
   camera.position.set(0, 0, 0);
   document.body.classList.add('invr');
   say();

@@ -50,9 +50,12 @@ to the launch. Test: `test/briefing.test.cjs`; screenshots `tools/shot-brief.cjs
 ## Chapter 1: the launch (`launch.html`)
 
 **Curiosity, not authentic** (the owner's wish: authentic, but allowing curiosity):
-- **Y**: a large window opens in the wall to your left (`setCheat` in `src/cabin.js`; its own wall cells, a red rim).
-- **Hold B**: you leave the spacecraft and look at it from outside (`placeOutside` in `src/launch.js`): left stick
-  round it and nearer or further (7-600 m), right stick up and down; the horizon stays level. Release to return.
+- **X**: a large window opens in the wall to your left (`setCheat` in `src/cabin.js`; its own wall cells, a red rim);
+  X again closes it.
+- **Y**: you leave the spacecraft and look at it from outside (`placeOutside` in `src/launch.js`): left stick
+  round it and nearer or further (7-600 m), right stick up and down; the horizon stays level. Y again to return.
+  (Both stay till pressed again, so you can change the speed or the settings meanwhile; until November 2026 the
+  cheat window was Y and outside was B held.)
 - The **vehicle from outside** (`src/vehicle.js`): the three stages with their paint, the F-1 and J-2 engines with
   their flames (the F-1 plume blooms with height), the stages and the interstage skirt falling away at staging with
   the retro-rocket flash, the escape tower pulling the boost cover off and flying away, the Service Module, and the
@@ -60,11 +63,13 @@ to the launch. Test: `test/briefing.test.cjs`; screenshots `tools/shot-brief.cjs
   at ignition (`src/pad.js`).
 
 **Hands, faces, body:**
-- Your **gloved hands** follow the controllers (Portalkniven's hands, `src/hands.js`, in the cabin glove colour).
-  Touching a panel turns the hand red, a small "Not now" sign appears and the controller ticks.
+- Your **gloved hands** follow the controllers (Portalkniven's hands, `src/hands.js`, in the cabin glove colour),
+  each by its handedness (they could swap sides after the headset was taken off and on), tipped up 17° against the
+  controller (a setting, "Hand angle"). Touching a panel turns the hand red, a small "Not now" sign appears and the
+  controller ticks. Touching a crewmate the hand stops at his suit and turns red, and he answers.
 - The crew's **faces** are a photoscanned head (Lee Perry-Smith, see Sources) seen through the bubble helmet, under
-  the communications cap, the scan's closed eyes opened (cut out, with eyeballs behind), the two crewmates tinted and
-  proportioned differently; their heads and eyes move a little.
+  the communications cap, the two crewmates tinted and proportioned differently. They live (`src/crew-life.js`):
+  see "The crew" below.
 - Looking down you see **your own suit** in the couch (torso, hoses, legs; no arms: your hands are the
   controllers). An option on the start page.
 
@@ -91,7 +96,7 @@ beyond. You sit upright; the cabin is turned round you so the main display conso
   Velcro patches, stencilled markings and wear (a generated texture), with the hatch and its latch gear, handholds,
   cable runs, floodlights and couch struts on them, and stowage lockers on the aft bulkhead. Your crewmates wear
   the launch suit: white, with the red and blue hose connectors and hoses, wrist rings, gloves, the flag on the
-  shoulder, and the clear bubble helmet over the communications cap. Their faces are kept plain on purpose.
+  shoulder, and the clear bubble helmet over the communications cap.
 - **Seating in VR**: the headset's own origin is wherever the Quest was last recentred, so the couch is brought to
   you when the session starts (`seat()` in `src/launch.js`); a thumbstick press re-seats you.
 - **The cover**: until the escape tower is jettisoned (T+3:18) the boost protective cover blinds every window except
@@ -138,7 +143,7 @@ spacecraft and Earth as chapter 1; the pad frame of the launch, frozen at liftof
   open and drift away, the CSM pitches round, closes in and docks with the LM (probe, capture, the twelve latches),
   then pulls it out of the S-IVB on springs; the S-IVB drifts off and is gone after 8 km. Bangs at each event.
   The rendezvous windows look forward along the nose: to see the LM coming, raise your head to the window, as the
-  pilot did at the sighting device, or hold B for the outside view.
+  pilot did at the sighting device, or Y for the outside view.
 - **The coast**: the attitude follows the procedure (nose along the velocity before the burn, the Earth overhead;
   from GET 6:00 the slow roll of passive thermal control, never faster than 1.4° a second to look at). In the
   Earth's shadow the Sun goes out, outside and in the cabin. The Moon (`assets/earth/moon2k.jpg`, from the colour
@@ -245,6 +250,52 @@ Not in it yet: redesignating the landing point (LPD), the engine's own sound and
 Test aids: `descent.html?t=`, `?still`, `?shot`, `?out&od=&oa=&oe=`; keys T (take over), arrows (tilt), [ ] (rate);
 `tools/shot-descent.cjs`; `test/descent.test.cjs` (emulated Quest 3: the guided flight, the pitch-over, a gentle and
 a hard landing by hand, the autopilot's landing). Hooks on `window.__descent`.
+
+## The panel, the settings, fast forward
+
+**The panel over your left hand** (`src/wrist.js`) is hidden until you press **the left stick**: the status (the chapter, where
+you are in it and what comes next with its time, the figures that matter there: heights, distances, speed, fuel;
+the mission clock and the time warp; the buttons; the frame rate in small type). Again: **the settings**
+(`src/settings.js`; left stick up and down to choose, left and right to change), a third time puts it away. At a
+chapter's end it opens by itself with the way on (A); in the descent it opens when you take over by hand (its
+figures are what you fly by). The settings are kept in the browser and follow you from chapter to chapter: fast
+forward, turning comfort (the fastest the spacecraft turns as you see it: 0.75, 1.5 or 3°/s), frame rate (72, 90,
+120 Hz), foveation, the radio's volume and the engines', your own body, the hand angle. Resolution is not there: a
+WebXR session cannot change it while running (the start page).
+
+**Fast forward** (A one step faster, B one step slower, hold A for real time at once; `src/clock.js`, the same in every chapter):
+- *stops at events and voices* (the default): fast until an event or a radio line, then real time there with a word
+  in front of you saying why; A goes on fast again, past it. Through an event (a burn, the docking, Earthrise, the
+  landing...) ×10 at most; the big steps (to ×10,000) are for the long quiet stretches.
+- *stops at major events*: the same, not stopping for the radio.
+- *never stops*: the flight in chapters 1-4 is worked out from the clock alone, so staging, docking and orbits are
+  right wherever you land. Two things stay real time in every setting: chapter 4 waits until you are in the LM,
+  and flying the descent yourself.
+
+**Things floating** in the Command Module (`src/floaters.js`): the checklist card (with its cord in chapter 2) and
+a Fisher space pen. Close the grip near one and it is in your hand; let go and it floats on with the speed, direction
+and spin your hand gave it, bouncing softly off the cabin.
+
+## The crew
+
+`src/crew-life.js` moves them; `src/cabin.js` (`makeCrewman`) builds them; `tools/crew.html` is a close-up to look
+at them (`tools/shot-crew.cjs` takes its pictures).
+- **Eyes**: real-sized eyeballs (iris, pupil, a wet highlight) behind openings cut in the scan's closed lids, set back
+  so the skin covers them from the side. They look at one thing at a time and jump to the next (saccades), with tiny
+  movements while fixing; both eyes converge on what they look at, so eye contact is real. The lids follow the eyes
+  up and down, and blink every few seconds and with big glances.
+- **Head**: turns at the neck, part of the way to what the eyes look at, slowly; a little drift and breathing.
+- **What they look at**: the panel mostly, now and then the other crewman, something off to the side, or you; back
+  at you if you look at one of them for a while. Speaking, a little towards whom they speak to: you, the other
+  crewman when answering him, the panel when calling Houston. In the descent the LMP keeps to the panel.
+- **Jaw**: opens with the loudness of the speaker's own voice as it plays (the radio measures each speaker).
+- **Hands**: jointed arms (two-bone IK), resting on the armrests, now and then reaching to the panel, the chest
+  connectors or the thigh; talking to you, the hand nearer you lifts a little.
+- **Touched** (your hand on one of them: spheres round the body): the hand stops at the suit and turns red, he turns
+  to you and says something ("Hands off, Commander", "What are you doing?"... eight each).
+- **Small talk** (`src/chatter.js`, `tools/script/crew.json`, 50 lines): a remark every few minutes of real time,
+  only in a quiet moment and where it fits (the pad, weightless, the Earth or the Moon in the windows, the LM). Not
+  authentic, by the owner's wish. Fast forward never stops for it.
 
 ## The stars
 

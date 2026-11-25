@@ -4,8 +4,8 @@
  * Floating origin: the camera rig stays at the origin; every frame the world is placed relative to the vehicle
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
-import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=13';
-import { makeStars, CELESTIAL_POLE } from './stars.js?v=13';
+import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=14';
+import { makeStars, CELESTIAL_POLE } from './stars.js?v=14';
 
 const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
@@ -72,7 +72,7 @@ export function makeOutside(renderer) {
   skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   skyTex.wrapS = THREE.ClampToEdgeWrapping; skyTex.wrapT = THREE.ClampToEdgeWrapping;
   shared.uSky.value = skyTex;
-  const worker = new Worker(new URL('./sky-worker.js?v=13', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./sky-worker.js?v=14', import.meta.url), { type: 'module' });
   let skyBusy = false, skyAlt = -1, skySun = 9, nextId = 1, skyReady = null;
   const ready = new Promise(r => { skyReady = r; });
   worker.onmessage = e => {
@@ -98,7 +98,10 @@ export function makeOutside(renderer) {
   /* ---------------- sky dome (around the camera, behind everything) */
   const skyMat = new THREE.ShaderMaterial({
     uniforms: shared, depthTest: false, depthWrite: false, side: THREE.BackSide, ...NO_STENCIL,
-    vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
+    /* the direction from this eye (cameraPosition is each eye's own in VR), not from the dome's centre: the dome is a
+     * metre across round the middle of your head, so its own directions were off by up to two degrees in each eye,
+     * and from far out the sky's Earth stood beside the Earth itself in one eye (owner's headset test) */
+    vertexShader: `varying vec3 vDir; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vDir = w.xyz - cameraPosition; vec4 p = projectionMatrix * viewMatrix * w; gl_Position = p.xyww; }`,
     fragmentShader: `precision highp float; varying vec3 vDir; ${SKY_GLSL} ${DISPLAY}
       void main(){
         vec3 d = normalize(vDir);

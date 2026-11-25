@@ -90,13 +90,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok('on the ground: both eyes drawn', e5.every(v => v > 4 && v < 250), e5.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'descent-landed.png') });
   /* the outside view */
-  await p.evaluate(() => __dev.controllers.right.updateButtonValue('b-button', 1));
+  await p.evaluate(() => (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)));
   await p.waitForFunction(() => __descent.OUT.on, null, { timeout: 30000 });
   await frames(15);
   const eo = await eyes();
   ok('outside view: both eyes drawn', eo.every(v => v > 4 && v < 250), eo.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'descent-outside.png') });
-  await p.evaluate(() => __dev.controllers.right.updateButtonValue('b-button', 0));
+  await p.evaluate(() => (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)));
   /* the end */
   const end = await p.evaluate(async () => { const O = __descent; O.S.landed = O.S.t - 41; await new Promise(r => setTimeout(r, 1500)); return O.S.ended; });
   ok('the chapter ends after the landing', end);
