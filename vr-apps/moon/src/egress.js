@@ -15,8 +15,8 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=21';
-import { LMC } from './lm-cabin.js?v=21';
+import { LM } from './lm-model.js?v=22';
+import { LMC } from './lm-cabin.js?v=22';
 
 const G_MOON = 1.62;
 

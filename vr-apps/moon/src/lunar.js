@@ -14,22 +14,22 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=21';
+import { state as ascentState } from './ascent.js?v=22';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=21';
-import { makeCabin } from './cabin.js?v=21';
-import { makeLaunchSound } from './launch-sound.js?v=21';
-import { makeRadio, combineRadios } from './radio.js?v=21';
-import { makeClock } from './clock.js?v=21';
-import { makeChatter } from './chatter.js?v=21';
-import { handOnCrew } from './crew-life.js?v=21';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=21';
-import { createHand, makeControllers } from './hands.js?v=21';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=21';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=21';
-import { settings, applyCommon, holdsFor } from './settings.js?v=21';
-import { makeFloaters } from './floaters.js?v=21';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=22';
+import { makeCabin } from './cabin.js?v=22';
+import { makeLaunchSound } from './launch-sound.js?v=22';
+import { makeRadio, combineRadios } from './radio.js?v=22';
+import { makeClock } from './clock.js?v=22';
+import { makeChatter } from './chatter.js?v=22';
+import { handOnCrew } from './crew-life.js?v=22';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=22';
+import { createHand, makeControllers } from './hands.js?v=22';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=22';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=22';
+import { settings, applyCommon, holdsFor } from './settings.js?v=22';
+import { makeFloaters } from './floaters.js?v=22';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

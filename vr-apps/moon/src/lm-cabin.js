@@ -8,9 +8,9 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=21';
-import { makeCrewLife } from './crew-life.js?v=21';
-import { LM } from './lm-model.js?v=21';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=22';
+import { makeCrewLife } from './crew-life.js?v=22';
+import { LM } from './lm-model.js?v=22';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -121,7 +121,8 @@ export function makeLMCabin(opts = {}) {
   panelAt(0.60, 0.80, 0.42, 0.62, HALF - 0.06, FLOOR + 0.95, 0.8, -0.6, -Math.PI / 2);
   panelAt(0.80, 1.00, 0.42, 0.62, -HALF + 0.06, FLOOR + 0.95, 0.8, -0.6, Math.PI / 2);
   /* the side panels are the sloping tops of consoles standing against the walls, not plates in the air */
-  for (const sx of [-1, 1]) { put(new THREE.BoxGeometry(0.3, 0.72, 0.66), dark, sx * (HALF - 0.15), FLOOR + 0.36, 0.8); put(new THREE.BoxGeometry(0.1, 0.5, 0.66), dark, sx * (HALF - 0.05), FLOOR + 0.97, 0.8); }
+  /* (one cabinet under each, its top below the panel's lower edge; a second box behind the panel hid it: owner's headset test) */
+  for (const sx of [-1, 1]) put(new THREE.BoxGeometry(0.26, 0.64, 0.66), dark, sx * (HALF - 0.13), FLOOR + 0.32, 0.8);
   /* the DSKY on the centre console, an attitude ball on each flight panel */
   const dsky = makeDsky();
   const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture })); dm.position.set(0, -0.04, 0.006); p3.add(dm);
