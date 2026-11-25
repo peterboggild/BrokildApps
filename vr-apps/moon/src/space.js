@@ -10,7 +10,7 @@
  *   384,400 km in the same plane, placed so that the spacecraft meets it; its pull is not modelled in this chapter,
  *   which ends where the Moon's gravity takes over (66,000 km from it).
  * GET = ground elapsed time, seconds from liftoff. */
-import { state as ascentState, RE } from './ascent.js?v=25';
+import { state as ascentState, RE } from './ascent.js?v=26';
 
 export const MU = 3.986004418e14, R_PARK = RE + 167000, R_MOON_ORBIT = 384400e3, R_MOON = 1737.4e3, SOI = 66000e3;
 export const W_EARTH = 7.2921159e-5, W_MOON = 2 * Math.PI / (27.3217 * 86400);

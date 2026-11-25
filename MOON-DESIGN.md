@@ -761,7 +761,15 @@ The owner's plan for the rest of the Moon, in order:
 The journey home (the owner: "later") waits on how that turns out; all its parts exist but re-entry, the
 parachutes and the splashdown.
 
-## 13. Testing
+### 12.14 The radio, the ladder both ways, the moon walk (25 November 2026)
+
+From the owner's headset run: the triggers jump, which got in the way at the ladder, so near the LM they grip
+instead (and say why they do not jump); stepping off the pad took several pushes, now one; and he asked for the
+ladder upwards too, for a "Moon walk" gait as the default (a comfort setting), and for the radio (5 above). Voice
+ids: the surface's lines are `sf...`; an earlier run with short ids overwrote other chapters' voice files in the
+working copy (restored from git before anything was committed): new scripts must take a prefix no other script
+uses, since all voices share one folder.
+
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
   SwiftShader (`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`), wait by

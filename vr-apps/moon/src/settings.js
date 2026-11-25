@@ -12,6 +12,7 @@ export const DEFS = {
   voices: { label: 'Radio voices', options: [[0, 'off'], [0.5, 'low'], [1, 'normal']], def: 1 },
   sound: { label: 'Engines and cabin', options: [[0, 'off'], [0.5, 'low'], [1, 'normal']], def: 1 },
   hand: { label: 'Hand angle', options: [[0, '0 deg (the bare grip)'], [10, '+10 deg'], [17, '+17 deg'], [25, '+25 deg'], [32, '+32 deg']], def: 17 },
+  walk: { label: 'Moon walk (comfort)', options: [[1, 'hopping steps'], [0, 'level']], def: 1 },
   body: { label: 'Your own body', options: [[true, 'shown'], [false, 'hidden']], def: true }
 };
 const KEY = 'moon-settings';

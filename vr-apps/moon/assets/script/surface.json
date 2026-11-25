@@ -1,0 +1,369 @@
+{
+  "about": "Radio for chapter 6, on the Moon. All lines are cued by what happens (none by mission time). CAPCOM speaks from Houston (Quindar tones); the Lunar Module Pilot speaks over the suits' radio. 'ack' lines answer your own transmission (the left trigger held and let go): they cannot understand you, so the answers are general. 'next' lines say what comes next. 'small' lines are small talk on the surface. Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "LMP": "loop"
+  },
+  "lines": [
+    {
+      "id": "sfm01",
+      "t": null,
+      "who": "LMP",
+      "text": "Okay. Helmets and gloves. Mine first, then yours.",
+      "dur": 3.6,
+      "cue": "helm",
+      "delay": null
+    },
+    {
+      "id": "sfm02",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. You are go for depressurisation, and go for the surface.",
+      "dur": 5.26,
+      "cue": "dep",
+      "delay": null
+    },
+    {
+      "id": "sfm03",
+      "t": null,
+      "who": "LMP",
+      "text": "Hatch is open. Out you go, backwards. Mind the pack on the frame.",
+      "dur": 3.94,
+      "cue": "go",
+      "delay": null
+    },
+    {
+      "id": "sfm04",
+      "t": null,
+      "who": "LMP",
+      "text": "You're on the porch. Feet first down the ladder. Take your time.",
+      "dur": 3.41,
+      "cue": "porch",
+      "delay": null
+    },
+    {
+      "id": "sfm05",
+      "t": null,
+      "who": "LMP",
+      "text": "That's the last rung. It's a long step down to the pad.",
+      "dur": 2.88,
+      "cue": "drop",
+      "delay": null
+    },
+    {
+      "id": "sfm06",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, we see you on the footpad. One more step.",
+      "dur": 3.68,
+      "cue": "pad",
+      "delay": null
+    },
+    {
+      "id": "sfm07",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Roger, Challenger. We copy you on the surface at Taurus-Littrow. There are a lot of smiles down here.",
+      "dur": 6.48,
+      "cue": "moon",
+      "delay": null
+    },
+    {
+      "id": "sfm08",
+      "t": null,
+      "who": "LMP",
+      "text": "Okay, I'm coming out. Don't go far.",
+      "dur": 2.49,
+      "cue": "lmpout",
+      "delay": null
+    },
+    {
+      "id": "sfm09",
+      "t": null,
+      "who": "LMP",
+      "text": "And that makes two of us. Oh, what a place. What a place.",
+      "dur": 3.74,
+      "cue": "lmpdown",
+      "delay": null
+    },
+    {
+      "id": "sfn01",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Take a few minutes to look round the Lunar Module and get your legs. The flag is next on the list.",
+      "dur": 7.26,
+      "cue": "next-look",
+      "delay": null
+    },
+    {
+      "id": "sfn02",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Nothing more on the list for now. The valley is yours.",
+      "dur": 4.94,
+      "cue": "next-wait",
+      "delay": null
+    },
+    {
+      "id": "sfa01",
+      "t": null,
+      "who": "LMP",
+      "text": "Roger that.",
+      "dur": 0.89,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa02",
+      "t": null,
+      "who": "LMP",
+      "text": "Copy.",
+      "dur": 0.69,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa03",
+      "t": null,
+      "who": "LMP",
+      "text": "I hear you.",
+      "dur": 0.87,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa04",
+      "t": null,
+      "who": "LMP",
+      "text": "Okay. I'm with you.",
+      "dur": 1.46,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa05",
+      "t": null,
+      "who": "LMP",
+      "text": "Say again? You're breaking up a little.",
+      "dur": 2.16,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa06",
+      "t": null,
+      "who": "LMP",
+      "text": "Yeah. You said it.",
+      "dur": 1.28,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa07",
+      "t": null,
+      "who": "LMP",
+      "text": "Roger. Sounds good to me.",
+      "dur": 1.79,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa08",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Roger, Challenger.",
+      "dur": 1.65,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa09",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Copy that, Challenger.",
+      "dur": 1.88,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa10",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. We read you five by five.",
+      "dur": 3.46,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa11",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Houston copies.",
+      "dur": 1.39,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfa12",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, you are a little broken. Say again when you can.",
+      "dur": 3.92,
+      "cue": "ack",
+      "delay": null
+    },
+    {
+      "id": "sfb01",
+      "t": null,
+      "who": "LMP",
+      "text": "Hey, easy. There you are.",
+      "dur": 1.86,
+      "cue": "bump",
+      "delay": null
+    },
+    {
+      "id": "sfb02",
+      "t": null,
+      "who": "LMP",
+      "text": "Whoa. Plenty of room out here, you know.",
+      "dur": 2.43,
+      "cue": "bump",
+      "delay": null
+    },
+    {
+      "id": "sfs01",
+      "t": null,
+      "who": "LMP",
+      "text": "Look at those mountains. They don't look real.",
+      "dur": 2.36,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs02",
+      "t": null,
+      "who": "LMP",
+      "text": "This dust gets on everything.",
+      "dur": 1.62,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs03",
+      "t": null,
+      "who": "LMP",
+      "text": "Hey, watch this. It's the only way to travel.",
+      "dur": 2.88,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs04",
+      "t": null,
+      "who": "LMP",
+      "text": "I could do this all day.",
+      "dur": 1.29,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs05",
+      "t": null,
+      "who": "LMP",
+      "text": "You can see our tracks all the way back to the ladder.",
+      "dur": 2.4,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs06",
+      "t": null,
+      "who": "LMP",
+      "text": "That Sun is bright. I can't look anywhere near it.",
+      "dur": 2.54,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs07",
+      "t": null,
+      "who": "LMP",
+      "text": "No wind. Nothing moves here unless we move it.",
+      "dur": 2.62,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs08",
+      "t": null,
+      "who": "LMP",
+      "text": "Just look at the Earth up there.",
+      "dur": 1.52,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs09",
+      "t": null,
+      "who": "LMP",
+      "text": "It's so quiet. Just the fan and my own breathing.",
+      "dur": 2.56,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs10",
+      "t": null,
+      "who": "LMP",
+      "text": "You can feel the ground crunch, right through the boots.",
+      "dur": 2.88,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs11",
+      "t": null,
+      "who": "LMP",
+      "text": "Old Challenger looks good sitting there, doesn't she?",
+      "dur": 2.74,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs12",
+      "t": null,
+      "who": "LMP",
+      "text": "Every rock here has been waiting three billion years for us.",
+      "dur": 2.87,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs13",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. You two look like you're having a fine time.",
+      "dur": 4.17,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs14",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Your consumables look good. No hurry.",
+      "dur": 4.32,
+      "cue": "small",
+      "delay": null
+    },
+    {
+      "id": "sfs15",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, the picture is beautiful down here.",
+      "dur": 2.96,
+      "cue": "small",
+      "delay": null
+    }
+  ]
+}

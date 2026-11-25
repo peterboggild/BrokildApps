@@ -9,21 +9,23 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=25';
-import { PAD_DROP } from './descent-space.js?v=25';
-import { makeLMShadow } from './lm-shadow.js?v=25';
+import { makeLMModel } from './vehicle.js?v=26';
+import { PAD_DROP } from './descent-space.js?v=26';
+import { makeLMShadow } from './lm-shadow.js?v=26';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=25';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=25';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=25';
-import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=25';
-import { makeLMP, makeFigureShadow } from './lmp.js?v=25';
-import { makeEgress } from './egress.js?v=25';
-import { settleLM } from './lm-model.js?v=25';
-import { settings, applyCommon } from './settings.js?v=25';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=25';
+import { makeControllers, createHand } from './hands.js?v=26';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=26';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=26';
+import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=26';
+import { makeLMP, makeFigureShadow } from './lmp.js?v=26';
+import { makeMoonRadio } from './moon-radio.js?v=26';
+import { LM } from './lm-model.js?v=26';
+import { makeEgress } from './egress.js?v=26';
+import { settleLM } from './lm-model.js?v=26';
+import { settings, applyCommon } from './settings.js?v=26';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=26';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -125,7 +127,7 @@ function clearOf(x, z) {
     }
     _cl.set(lmModel.position.x + _cl.x * c + _cl.z * sn, 0, lmModel.position.z - _cl.x * sn + _cl.z * c);
   }
-  if (lmp && lmp.on && ['pad', 'off', 'roam'].includes(lmp.S.phase)) pushOut(_cl, lmp.S.pos.x, lmp.S.pos.z, 0.45 + BODY);
+  if (lmp && lmp.on && ['pad', 'off', 'roam'].includes(lmp.S.phase)) { const bx = _cl.x, bz = _cl.z; pushOut(_cl, lmp.S.pos.x, lmp.S.pos.z, 0.45 + BODY); if (bx !== _cl.x || bz !== _cl.z) mradio.bump(); }
   return _cl;
 }
 /* keep your head's column clear (your head is where you are, wherever in your room you stand) */
@@ -205,7 +207,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (!CH6) { if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface'); }
   if (e.code === 'KeyP') S.still = !S.still;
-  if (e.code === 'KeyF' && egress && egress.active) egress.go();
+  if (e.code === 'KeyF' && egress && egress.active) egress.go(); else if (e.code === 'KeyF' && egress && atLadder()) egress.mount();
   if (e.code === 'BracketRight') { S.sunOffset += 1; moon.setSunOffset(S.sunOffset); }
   if (e.code === 'BracketLeft') { S.sunOffset -= 1; moon.setSunOffset(S.sunOffset); }
 });
@@ -220,11 +222,21 @@ renderer.domElement.addEventListener('pointermove', e => {
 });
 
 const pad = { prev: {}, snap: 0 };
+/* the radio on the Moon (moon-radio.js): hold X (T on the screen) to transmit */
+const mradio = makeMoonRadio({ get toast() { return toast; }, level: () => settings.get('voices'), onLMP: () => lmp && lmp.hail() });
+let pttHeld = false, walkMoved = 0, walkD = 0, hopY = 0, tpWarn = 0, mountHint = 0;
+const _pd = new THREE.Vector3();
+/* by the front footpad (within reach of the ladder), on the ground */
+function atLadder() {
+  if (!CH6 || !egress || egress.active || egress.E.stage !== 'done') return false;
+  lmModel.localToWorld(_pd.set(0, 0, LM.FOOT_R + 0.6));
+  return Math.hypot(_cam.x - _pd.x, _cam.z - _pd.z) < 1.5;
+}
 let ctl = null;                                      /* the controllers by hand (hands.js), made with the session */
 function readControllers(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
-  let mx = 0, mz = 0, turn = 0, reach = 0, next = false, toggle = false, trig = false;
+  let mx = 0, mz = 0, turn = 0, reach = 0, next = false, toggle = false, trig = false, grab = false, ptt = false;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     if (src.handedness === 'right') trig = !!gp.buttons[0]?.pressed;
@@ -234,12 +246,24 @@ function readControllers(dt) {
     /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
     const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
     if (a && !pad.prev[k + 'a'] && k === 'right') { if (egress.active) egress.go(); else if (!CH6) next = true; }
-    EH[k].grip = (gp.buttons[1]?.value || 0) > 0.5; EH[k].pos = ctl.grips[k].visible ? ctl.grips[k].position : null;
+    /* climbing, the triggers grip too (the grips and the triggers both take hold of the ladder) */
+    const tg = (gp.buttons[0]?.value || 0) > 0.5, sq = (gp.buttons[1]?.value || 0) > 0.5;
+    if ((tg || sq) && !pad.prev[k + 'g']) grab = true; pad.prev[k + 'g'] = tg || sq;
+    if (k === 'left' && gp.buttons[4]?.pressed) ptt = true;
+    EH[k].grip = sq || (egress.active && tg); EH[k].pos = ctl.grips[k].visible ? ctl.grips[k].position : null;
     if (hands[k]) { if (hands[k].parent !== ctl.grips[k]) ctl.grips[k].add(hands[k]); hands[k].userData.pose(gp.buttons[0]?.value || 0, gp.buttons[1]?.value || 0, [3, 4, 5].some(n => gp.buttons[n]?.touched), false, dt); }
     if (st && !pad.prev[k + 's'] && k === 'left') hud.press();
     pad.prev[k + 'a'] = a; pad.prev[k + 's'] = st;
   }
+  pttHeld = ptt;
   if (egress.active) { aimTeleport(null); return; }               /* climbing out: no walking, teleport or turning yet */
+  /* by the footpad a grip or a trigger takes you onto the ladder */
+  if (grab && atLadder()) { egress.mount(); aimTeleport(null); return; }
+  /* near the LM the triggers are for the ladder, not for jumping (owner's wish) */
+  if (trig && CH6 && S.view === 'surface' && Math.hypot(_cam.x - lmModel.position.x, _cam.z - lmModel.position.z) < 10) {
+    if (performance.now() > tpWarn) { tpWarn = performance.now() + 6000; toast.say('Move further away from the lunar lander to teleport', 4); }
+    trig = false;
+  }
   if (next) { const names = Object.keys(VIEWS); setView(names[(names.indexOf(S.view) + 1) % names.length]); }
   TP.reach += (reach - TP.reach) * Math.min(1, dt * 6);
   aimTeleport(trig && OPT.teleport && S.view === 'surface' && !TP.blink && ctl.rays.right.visible ? ctl.rays.right : null);
@@ -251,6 +275,7 @@ function readControllers(dt) {
     const d = new THREE.Vector3(); camera.getWorldDirection(d); d.y = 0; d.normalize();
     const r = new THREE.Vector3(-d.z, 0, d.x), sp = 1.5 * dt;
     S.pos.addScaledVector(d, -mz * sp).addScaledVector(r, mx * sp);
+    walkMoved += Math.hypot(mx, mz) * sp;
   }
 }
 
@@ -388,10 +413,10 @@ function trackSteps() {
 function info() {
   if (egress.active) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Leaving the Lunar Module', next: null, after: 'the walk on the Moon', get: 0, warp: 1,
     rows: [['Where', { cabin: 'in the cabin', turn: 'at the hatch', path: 'on the way down', drop: 'the last drop', pad: 'on the footpad' }[egress.E.stage] || '']],
-    keys: [['grip', 'pull yourself along'], ['A', 'go by itself / stop'], ['L stick', 'press: panel, settings']], fps: S.fps };
+    keys: [['grip, trigger', 'pull yourself along'], ['A', 'go by itself / stop'], ['L stick', 'press: panel, settings']], fps: S.fps };
   if (CH6) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Walking in the valley of Taurus-Littrow', next: null, after: 'the flag and the rover are still to come', get: 0, warp: 1,
     rows: [['From the LM', Math.hypot(S.pos.x, S.pos.z).toFixed(0) + ' m']],
-    keys: [['L stick', 'walk'], ['R stick', 'turn 30 deg'], ['trigger', 'aim a jump, let go'], ['L stick', 'press: panel, settings']], fps: S.fps };
+    keys: [['L stick', 'walk'], ['R stick', 'turn 30 deg'], ['R trigger', 'aim a jump (10 m from the LM)'], ['X', 'hold: talk on the radio'], ['grip', 'at the ladder: climb'], ['L stick', 'press: panel, settings']], fps: S.fps };
   return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'chapter 6 is the way here from the landing' : 'A: the next view', get: 0, warp: 1,
     rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
     keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
@@ -535,6 +560,7 @@ function frame(t) {
   if (ctl) ctl.update();
   if (xr) readControllers(dt);
   toast.update(dt, camera); card.update(dt, camera);
+  if (CH6 || Q.has('egress')) mradio.update(dt, { ptt: (xr ? pttHeld : !!keys.KeyT) && S.view === 'surface', lmpOut: !!lmp && lmp.on && lmp.S.phase === 'roam', quiet: !egress.active && !!lmp && lmp.S.phase === 'roam' });
   if (lmp && S.view === 'surface' && (CH6 || Q.has('egress'))) lmp.update(dt, { walking: !egress.active, player: rig.position });
   if (CH6) saveProgress('surface.html', egress.active ? 0 : 1, t);
   if (S.view === 'surface' && egress.active) {
@@ -547,13 +573,19 @@ function frame(t) {
       const fx = -Math.sin(h), fz = -Math.cos(h);
       if (keys.KeyW) { S.pos.x += fx * sp; S.pos.z += fz * sp; } if (keys.KeyS) { S.pos.x -= fx * sp; S.pos.z -= fz * sp; }
       if (keys.KeyA) { S.pos.x += fz * sp; S.pos.z -= fx * sp; } if (keys.KeyD) { S.pos.x -= fz * sp; S.pos.z += fx * sp; }
+      if (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD) walkMoved += sp;
     }
     collide();
     const lim = walkLimit();
     S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
-    rig.position.set(S.pos.x, moon.heightAt(S.pos.x, S.pos.z), S.pos.z);
+    /* the moon walk: each stride a small arc, as the low gravity makes of every step (a setting; on by default) */
+    let arc = 0;
+    if (walkMoved > 1e-5) { walkD += walkMoved; const q = (walkD % STEP.stride) / STEP.stride; arc = 0.11 * 4 * q * (1 - q); }
+    walkMoved = 0; hopY += ((settings.get('walk') ? arc : 0) - hopY) * Math.min(1, dt * 16);
+    rig.position.set(S.pos.x, moon.heightAt(S.pos.x, S.pos.z) + hopY, S.pos.z);
     rig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), S.heading);
     shadowMe(dt);
+    if (atLadder() && performance.now() > mountHint) { mountHint = performance.now() + 30000; toast.say('The ladder: grip or trigger here to climb back up', 4); }
   } else {
     const v = VIEWS[S.view];
     if (!S.still) {
@@ -578,6 +610,7 @@ function frame(t) {
 
 /* ---------------------------------------------------------------- start */
 async function enterVR() {
+  if (CH6 || Q.has('egress')) mradio.init();
   if (!navigator.xr) return;
   readOptions();
   suit.init();
@@ -617,14 +650,14 @@ async function start() {
     lmc = makeLMCabin({ inwardOnly: true, eva: true, env });
     lmShadow = makeLMShadow(moon);
     /* the Lunar Module Pilot, who follows you down and moves about in front of the LM (lmp.js) */
-    lmp = makeLMP({ moon, model: m, env, renderer, sun, mirror: cubeRT.texture, cabinLmp: lmc.lmp, shade: p => lmShadow.lit(p), get prints() { return prints; }, get toast() { return toast; } });
+    lmp = makeLMP({ moon, model: m, env, renderer, sun, mirror: cubeRT.texture, voice: k => mradio.cue(k), cabinLmp: lmc.lmp, shade: p => lmShadow.lit(p), get prints() { return prints; }, get toast() { return toast; } });
     scene.add(lmp.fig, lmp.extras); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
     const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;
     lm.add(lmShadow.mesh); }
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
-  hud = makeWrist(['hz', 'fov', 'hand']);
+  hud = makeWrist(['walk', 'voices', 'hz', 'fov', 'hand']);
   toast = makeToast(); head.add(toast.mesh);
   card = makeCard(); head.add(card.mesh);
   ground = makeGround(moon, BASE);
@@ -632,7 +665,7 @@ async function start() {
   prints.trail(-5.2, 0.3, 5.6, 13.2);              /* (the ladder is on the front leg, which faces west) */                   /* your own way here from the ladder */
   scene.add(moon.far, moon.near, ground.group, rocks.group, lm, sky, prints.group, arcLine, marker);
   scene.add(helm.group);
-  egress = makeEgress({ model: lmModel, lmc, moon, rig, camera, toast, suit, prints, helmet: helm,
+  egress = makeEgress({ model: lmModel, lmc, moon, rig, camera, toast, suit, prints, helmet: helm, voice: k => mradio.cue(k, false),
     eye: () => (renderer.xr.isPresenting ? _eye.copy(camera.position) : _eye.set(0, 1.65, 0)),
     yaw: () => (renderer.xr.isPresenting ? _eu.setFromQuaternion(camera.quaternion, 'YXZ').y : S.yaw * Math.PI / 180),
     done: (x, z, heading) => { S.pos.set(x, 0, z); S.heading = heading; STEP.last = null; } });
@@ -660,7 +693,7 @@ function readOptions() {
 }
 $('opt-fan')?.addEventListener('change', readOptions);
 /* on the computer, sound starts with the first click or key (browsers do not allow it earlier) */
-const wake = () => { if (Q.has('shot')) return; readOptions(); suit.init(); };
+const wake = () => { if (Q.has('shot')) return; readOptions(); suit.init(); if (CH6 || Q.has('egress')) mradio.init(); };
 addEventListener('pointerdown', wake); addEventListener('keydown', wake);
 if (Q.has('shot')) document.body.classList.add('invr');
 $('vr')?.addEventListener('click', enterVR);
@@ -669,7 +702,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },

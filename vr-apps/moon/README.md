@@ -405,7 +405,21 @@ knees, facing the cabin, along the porch, feet first down the ladder, the drop f
   last pass, lit by the Sun outside and by a fill light inside.
 - **The LM's shadow** (`lm-shadow.js`, `bake`): the model itself as the Sun sees it, drawn once into a texture and
   draped over the ground on a fine grid (chapter 5 keeps the drawn silhouette, which follows the LM down).
-- Words come as messages in front of you; there are no voices for this part yet.
+- **Both ways**: from the ground, a grip or a trigger by the front footpad puts you on the pad at the ladder
+  (`egress.mount()`; the view blinks and you face the ladder). A pull up, or A, and you jump for the last rung,
+  climb, crawl in over the porch and stand up in the cabin; out again as before. On the pad, one push back from
+  the ladder (or A, coming down) sets you on the ground in one gliding step, as the other astronaut does.
+- **The triggers**: climbing, they grip as the grips do. Within 10 m of the LM the right trigger does not aim a
+  jump ("Move further away from the lunar lander to teleport"): there it belongs to the ladder.
+- **The moon walk**: walking with the stick, each stride is a small arc (0.11 m), the bobbing gait of one sixth
+  of a g. On by default; "Moon walk (comfort)" on the settings page turns it level.
+- **The radio** (`src/moon-radio.js`, script `tools/script/surface.json`): Houston and the Lunar Module Pilot say
+  what happens (the helmets, the go for the surface, the hatch, the porch, the last rung, the first step) and what
+  comes next (`setNext`). Hold **X** (T on the screen) to transmit: the key clicks, the channel hisses, and when
+  you let go one of them answers in general terms ("Roger that", "Say again?"): nobody can understand you, and
+  nothing you say is recorded or leaves the headset (no microphone is opened). If the answer is his and he is
+  standing, he turns to you. Small talk comes every minute or two while you both walk about; walk into him and he
+  says so. One line at a time; the words are shown too. The voices are the Windows voices for now.
 - Test: `test/egress.test.cjs`.
 
 ## The stars

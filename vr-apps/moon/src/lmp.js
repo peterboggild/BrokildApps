@@ -17,8 +17,8 @@
  *   lmp.startOutside()   already down, moving about
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=25';
-import { LM } from './lm-model.js?v=25';
+import { makeEVASuit } from './eva-suit.js?v=26';
+import { LM } from './lm-model.js?v=26';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -166,6 +166,8 @@ export function makeLMP(o) {
       S.spot = 0; spotWorld(0, S.pos); S.yaw = o.model.rotation.y + Math.PI; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 5;
       set(STAND); apply(0, true);
     },
+    /* he answers you on the radio: if he is standing, he turns to you */
+    hail() { if (S.phase === 'roam' && S.mode === 'act') { S.act = 'you'; S.actT = 0.9; S.actD = Math.max(S.actD, 5); } },
     update(dt, ctx = {}) {
       const real = dt; dt *= S.rate; S.t += dt;
       const yawLM = o.model.rotation.y, pl = ctx.player;
@@ -175,6 +177,7 @@ export function makeLMP(o) {
         else if (S.t > 7) {
           begin('crawl'); S.zc = 0.8; S.yaw = yawLM; if (o.cabinLmp) o.cabinLmp.visible = false;
           if (o.toast) o.toast.say('The Lunar Module Pilot is coming out', 5);
+          if (o.voice) o.voice('lmpout');
           set({ wx: -1.45, alx: 1.45, arx: 1.45, alz: 0.1, arz: 0.1, el: 0.3, er: 0.3, ll: -0.55, lr: -0.55, kl: -0.95, kr: -0.95 }); S.cyc = 0;
           toWorld(S.pos.set(0, 2.45 + 0.5 - 0.94, S.zc)); apply(0, true);
         }
@@ -221,7 +224,7 @@ export function makeLMP(o) {
         const T = 1.0, k = clamp(S.t / T, 0, 1);
         S.pos.lerpVectors(S.from, S.to, k); S.pos.y += 0.3 * 4 * k * (1 - k);
         set({ wx: -0.15, alx: 0.6, arx: 0.6, alz: 0.5, arz: 0.5, ll: -0.1, lr: 0.25, kl: -0.5, kr: -0.4 });
-        if (k >= 1) { S.pos.copy(S.to); footfall(1, 1.3); footfall(-1, 1.3); S.phase = 'roam'; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 4; S.spot = -1; }
+        if (k >= 1) { S.pos.copy(S.to); footfall(1, 1.3); footfall(-1, 1.3); S.phase = 'roam'; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 4; S.spot = -1; if (o.voice) o.voice('lmpdown'); }
       } else if (S.phase === 'roam') roam(dt, pl);
       apply(dt, false);
       /* in the LM's shadow only the ground's glow lights him */

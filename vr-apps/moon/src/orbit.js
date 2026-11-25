@@ -11,21 +11,21 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=25';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=25';
-import { makeOutside } from './earth.js?v=25';
-import { makeCabin } from './cabin.js?v=25';
-import { makeLaunchSound } from './launch-sound.js?v=25';
-import { makeRadio, combineRadios } from './radio.js?v=25';
-import { makeClock } from './clock.js?v=25';
-import { makeChatter } from './chatter.js?v=25';
-import { handOnCrew } from './crew-life.js?v=25';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=25';
-import { createHand, makeControllers } from './hands.js?v=25';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=25';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=25';
-import { settings, applyCommon, holdsFor } from './settings.js?v=25';
-import { makeFloaters } from './floaters.js?v=25';
+import { state as ascentState, SUN, RE } from './ascent.js?v=26';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=26';
+import { makeOutside } from './earth.js?v=26';
+import { makeCabin } from './cabin.js?v=26';
+import { makeLaunchSound } from './launch-sound.js?v=26';
+import { makeRadio, combineRadios } from './radio.js?v=26';
+import { makeClock } from './clock.js?v=26';
+import { makeChatter } from './chatter.js?v=26';
+import { handOnCrew } from './crew-life.js?v=26';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=26';
+import { createHand, makeControllers } from './hands.js?v=26';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=26';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=26';
+import { settings, applyCommon, holdsFor } from './settings.js?v=26';
+import { makeFloaters } from './floaters.js?v=26';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
