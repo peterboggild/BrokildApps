@@ -14,21 +14,22 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=14';
+import { state as ascentState } from './ascent.js?v=15';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=14';
-import { makeCabin } from './cabin.js?v=14';
-import { makeLaunchSound } from './launch-sound.js?v=14';
-import { makeRadio, combineRadios } from './radio.js?v=14';
-import { makeClock } from './clock.js?v=14';
-import { makeChatter } from './chatter.js?v=14';
-import { handOnCrew } from './crew-life.js?v=14';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=14';
-import { createHand, makeControllers } from './hands.js?v=14';
-import { makeWrist, makeToast, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=14';
-import { settings, applyCommon, holdsFor } from './settings.js?v=14';
-import { makeFloaters } from './floaters.js?v=14';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=15';
+import { makeCabin } from './cabin.js?v=15';
+import { makeLaunchSound } from './launch-sound.js?v=15';
+import { makeRadio, combineRadios } from './radio.js?v=15';
+import { makeClock } from './clock.js?v=15';
+import { makeChatter } from './chatter.js?v=15';
+import { handOnCrew } from './crew-life.js?v=15';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=15';
+import { createHand, makeControllers } from './hands.js?v=15';
+import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=15';
+import { saveProgress, offerContinue } from './progress.js?v=15';
+import { settings, applyCommon, holdsFor } from './settings.js?v=15';
+import { makeFloaters } from './floaters.js?v=15';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -100,13 +101,14 @@ function phase(t) {
 const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
+const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!L || !w) return null;
   const ev = [[L.EV.loi, 'LOI burn, behind the Moon'], [321935, 'Earthrise'], [L.EV.doi, 'DOI burn'], [338719, 'the low pass, 15 km'], [END, 'end of the chapter']];
   return { chapter: 'Chapter 3 \u00b7 Lunar orbit', now: phase(S.t) + (w.hidden ? ', out of touch' : ''), next: S.ended ? null : nextOf(ev, S.t), after: 'chapter 4, into the LM', get: S.t, warp: S.warp,
     rows: [['Above the Moon', fmtDist(w.alt)], ['Speed', fmtSpeed(w.speed)], ['Radio', w.hidden ? 'behind the Moon (LOS)' : 'in touch with Houston'], ['Fast forward', settings.text('ff')]],
     alert: S.ended ? 'End of chapter 3.  A: on to chapter 4' : null,
-    keys: [['A', 'faster (hold: real time)'], ['B', 'slower'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
+    keys: [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
 /* ---------------------------------------------------------------- input */
@@ -136,7 +138,7 @@ function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; clock
 function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
 const STICK = { x: 0, y: 0, ry: 0 };
 const pad = { prev: {}, aDown: -1 };
-/* A (right): one step faster, held: real time at once; B (right): one step slower; X (left): the cheat window;
+/* B (right): one step faster; A (right): one step slower, held: real time at once; X (left): the cheat window;
  * Y (left): outside (both stay till pressed again); left stick press: the panel, then the settings; right stick
  * press: re-seat */
 function readControllers(now) {
@@ -147,8 +149,8 @@ function readControllers(now) {
     if (k === 'right') {
       if (a && !pad.prev.ra) { pad.aDown = now; if (S.ended) nextChapter('lm.html'); }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
-      if (!a && pad.prev.ra && pad.aDown >= 0) { if (!S.ended) cycleWarp(); pad.aDown = -1; }
-      if (b && !pad.prev.rb && !S.ended) clock.slower(S);
+      if (!a && pad.prev.ra && pad.aDown >= 0) { if (!S.ended) clock.slower(S); pad.aDown = -1; }
+      if (b && !pad.prev.rb && !S.ended) cycleWarp();
       if (st && !pad.prev.rs) SEAT.pending = 1;
     } else if (k === 'left') {
       if (a && !pad.prev.la) cabin.setCheat(!cabin.cheat);       /* X: the cheat window, Y: outside (both stay) */
@@ -275,7 +277,7 @@ function render() {
   moon.setDetail(_cam, false);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, s, m, n) => { cabin.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; sign.visible = c && SIGN.k > 0.01;
+  const show = (c, s, m, n) => { cabin.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on; sign.visible = c && SIGN.k > 0.01;
     sky.visible = s; moon.far.visible = m; moon.near.visible = m; near.visible = n; };
   /* the Sun and the Earth (drawn 2,000 km out, at their true sizes), then the Moon over them, the spacecraft, the cabin */
   show(false, true, false, false); setPlanes(1e5, 3e6); renderer.render(scene, camera);
@@ -302,7 +304,7 @@ function frame(now) {
   /* the clock: warp stops at a held stretch, where it runs at real time or x10, and says so */
   if (S.running && !S.still && !S.ended) {
     S.t = Math.min(END, clock.advance(S, dt));
-    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); }
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); toast.say('End of chapter 3.  A: on to chapter 4', 1e6); saveProgress('lm.html', null, 0, true); }
   }
   w = L.where(S.t);
   moon.setSunOffset(L.sunOffset(S.t));
@@ -353,6 +355,8 @@ function frame(now) {
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (w.hidden ? '  · behind the Moon' : '') + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
+  badge.update(dt, camera, S.warp);
+  if (S.running && !S.ended) saveProgress('lunar.html', S.t, now);
   render();
   S.frames++;
   if (window.__lunar.afterFrame) { const f = window.__lunar.afterFrame; window.__lunar.afterFrame = null; f(); }
@@ -378,6 +382,7 @@ async function enterVR() {
   await renderer.xr.setSession(session);
   renderer.xr.setFoveation(settings.get('fov'));
   common.all();
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 3500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -385,6 +390,7 @@ async function enterVR() {
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
 $('vr')?.addEventListener('click', enterVR);
+offerContinue('lunar.html', $('start'));          /* after a crash or a break: on from where you were */
 $('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; document.body.classList.add('running'); });
 if (Q.has('shot')) document.body.classList.add('invr');
 

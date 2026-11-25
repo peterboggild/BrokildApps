@@ -11,20 +11,21 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=14';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=14';
-import { makeOutside } from './earth.js?v=14';
-import { makeCabin } from './cabin.js?v=14';
-import { makeLaunchSound } from './launch-sound.js?v=14';
-import { makeRadio, combineRadios } from './radio.js?v=14';
-import { makeClock } from './clock.js?v=14';
-import { makeChatter } from './chatter.js?v=14';
-import { handOnCrew } from './crew-life.js?v=14';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=14';
-import { createHand, makeControllers } from './hands.js?v=14';
-import { makeWrist, makeToast, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=14';
-import { settings, applyCommon, holdsFor } from './settings.js?v=14';
-import { makeFloaters } from './floaters.js?v=14';
+import { state as ascentState, SUN, RE } from './ascent.js?v=15';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=15';
+import { makeOutside } from './earth.js?v=15';
+import { makeCabin } from './cabin.js?v=15';
+import { makeLaunchSound } from './launch-sound.js?v=15';
+import { makeRadio, combineRadios } from './radio.js?v=15';
+import { makeClock } from './clock.js?v=15';
+import { makeChatter } from './chatter.js?v=15';
+import { handOnCrew } from './crew-life.js?v=15';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=15';
+import { createHand, makeControllers } from './hands.js?v=15';
+import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=15';
+import { saveProgress, offerContinue } from './progress.js?v=15';
+import { settings, applyCommon, holdsFor } from './settings.js?v=15';
+import { makeFloaters } from './floaters.js?v=15';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -85,12 +86,13 @@ const common = applyCommon(renderer, sound);
 const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
+const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 const EVENTS = [[GET.tli, 'TLI burn'], [TD.sep, 'transposition and docking'], [TD.extract, 'LM extraction'], [TD.ptc, 'passive thermal control'], [T_SOI, "the Moon's sphere of influence"]];
 function info() {
   return { chapter: 'Chapter 2 \u00b7 To the Moon', now: phase(S.t), next: S.ended ? null : nextOf(EVENTS, S.t), after: 'chapter 3, lunar orbit', get: S.t, warp: S.warp,
     rows: [['Above the Earth', fmtDist(w.alt)], ['To the Moon', fmtDist(w.dMoon)], ['Speed', fmtSpeed(w.speed)], ['Fast forward', settings.text('ff')]],
     alert: S.ended ? 'End of chapter 2.  A: on to chapter 3' : null,
-    keys: [['A', 'faster (hold: real time)'], ['B', 'slower'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
+    keys: [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = Math.floor(s % 60); return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
 const km = m => m > 1e6 ? (m / 1e6).toFixed(m > 1e8 ? 0 : 1) + 'k km' : (m / 1000).toFixed(0) + ' km';
@@ -132,7 +134,7 @@ function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; clock
 function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
 const STICK = { x: 0, y: 0, ry: 0 };
 const pad = { prev: {}, aDown: -1 };
-/* A (right): one step faster, held: real time at once; B (right): one step slower; X (left): the cheat window;
+/* B (right): one step faster; A (right): one step slower, held: real time at once; X (left): the cheat window;
  * Y (left): outside (both stay till pressed again); left stick press: the panel, then the settings; right stick
  * press: re-seat */
 function readControllers(now) {
@@ -143,8 +145,8 @@ function readControllers(now) {
     if (k === 'right') {
       if (a && !pad.prev.ra) { pad.aDown = now; if (S.ended) nextChapter('lunar.html'); }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
-      if (!a && pad.prev.ra && pad.aDown >= 0) { if (!S.ended) cycleWarp(); pad.aDown = -1; }
-      if (b && !pad.prev.rb && !S.ended) clock.slower(S);
+      if (!a && pad.prev.ra && pad.aDown >= 0) { if (!S.ended) clock.slower(S); pad.aDown = -1; }
+      if (b && !pad.prev.rb && !S.ended) cycleWarp();
       if (st && !pad.prev.rs) SEAT.pending = 1;
     } else if (k === 'left') {
       if (a && !pad.prev.la) cabin.setCheat(!cabin.cheat);       /* X: the cheat window, Y: outside (both stay) */
@@ -288,7 +290,7 @@ function render() {
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, f, n) => { cabin.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
+  const show = (c, f, n) => { cabin.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
   const nearest = Math.min(w.alt, w.dMoon - R_MOON), farthest = Math.max(w.alt + 2 * RE, w.dMoon + R_MOON);
   show(false, true, false); setPlanes(Math.max(20, Math.min(nearest * 0.2, OUT.on ? 2000 : 1e9)), Math.max(6e7, farthest * 1.5)); renderer.render(scene, camera);
   renderer.clearDepth();
@@ -310,7 +312,7 @@ function frame(now) {
   /* the clock: warp stops short of a held stretch and drops to real time there, and says so */
   if (S.running && !S.still && !S.ended) {
     S.t = Math.min(END, clock.advance(S, dt));
-    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); }
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); toast.say('End of chapter 2.  A: on to chapter 3', 1e6); saveProgress('lunar.html', null, 0, true); }
   }
   w = where(S.t);
   /* the roll of passive thermal control: three turns an hour, but never faster than 1.4 deg/s to look at */
@@ -369,6 +371,8 @@ function frame(now) {
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
+  badge.update(dt, camera, S.warp);
+  if (S.running && !S.ended) saveProgress('orbit.html', S.t, now);
   render();
   S.frames++;
   if (window.__orbit.afterFrame) { const f = window.__orbit.afterFrame; window.__orbit.afterFrame = null; f(); }
@@ -393,6 +397,7 @@ async function enterVR() {
   await renderer.xr.setSession(session);
   renderer.xr.setFoveation(settings.get('fov'));
   common.all();
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 3500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -400,6 +405,7 @@ async function enterVR() {
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
 $('vr')?.addEventListener('click', enterVR);
+offerContinue('orbit.html', $('start'));          /* after a crash or a break: on from where you were */
 $('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; document.body.classList.add('running'); });
 if (Q.has('shot')) document.body.classList.add('invr');
 
@@ -417,4 +423,4 @@ if (Q.has('shot')) document.body.classList.add('invr');
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
 window.__orbit = { S, OUT, END, renderer, camera, rig, head, cabin, outside, vehicle, hands, SEAT, TD, afterFrame: null, setTime, get radio() { return radio; }, where,
-  ctl, wrist, toast, clock, get chat() { return chat; }, floaters, settings, info };
+  ctl, wrist, toast, badge, clock, get chat() { return chat; }, floaters, settings, info };

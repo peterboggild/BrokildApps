@@ -1,6 +1,6 @@
 /* Fast forward, the same in every chapter (owner's wish: plain to see, and never in the way):
  *  - 'events' (the default): time runs fast until an event or a radio line, then real time there, with a word
- *    in front of you; A goes on fast again, past it. Through an event (a burn, the docking, Earthrise...) x10 at
+ *    in front of you; B goes on fast again, past it. Through an event (a burn, the docking, Earthrise...) x10 at
  *    most; the big steps are for the long quiet stretches.
  *  - 'major': the same, stopping only at the major events, not for the radio.
  *  - 'free': never stops, never capped.
@@ -8,9 +8,9 @@
  *
  *   const clock = makeClock({ holds: () => [...], lines: () => radio ? radio.lines : [], warps: [1, 10, ...], cap: 10, toast });
  *   S.t = clock.advance(S, dt);      every frame, while running
- *   clock.faster(S);                 A: one step faster (it stays at the fastest)
- *   clock.slower(S);                 B: one step slower (down to real time) */
-import { settings } from './settings.js?v=14';
+ *   clock.faster(S);                 B: one step faster (it stays at the fastest)
+ *   clock.slower(S);                 A: one step slower (down to real time; held: real time at once) */
+import { settings } from './settings.js?v=15';
 
 export function makeClock({ holds, lines, warps, cap = 10, toast }) {
   let skip = -Infinity;                          /* stops at or before this have been passed on purpose */
@@ -31,7 +31,7 @@ export function makeClock({ holds, lines, warps, cap = 10, toast }) {
         }
         if (stop) {
           nt = stop.at; S.warp = 1; skip = stop.at + 0.3;
-          if (stop.why) say('Real time: ' + stop.why + '.  A: fast again');
+          if (stop.why) say('Real time: ' + stop.why + '.  B: fast again');
         }
       }
       if (mode !== 'free' && S.warp > cap && inHold(nt)) { S.warp = cap; say('x' + cap + ' at most through ' + inHold(nt)[2]); }

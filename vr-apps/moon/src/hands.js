@@ -21,7 +21,7 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { settings } from './settings.js?v=14';
+import { settings } from './settings.js?v=15';
 
 const D = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -160,13 +160,20 @@ function loadModel(side, root, standIn, leather, st) {
         run(f.c, [null, [[f.c[1].x, f.s[0] * lerp(o[0], c[0], t) * D]], [[f.c[2].x, f.s[1] * lerp(o[1], c[1], t) * D]], [[f.c[3].x, f.s[2] * lerp(o[2], c[2], t) * D]]]); });
       /* the thumb opposes the fingers: swung round the rod to the other side, then bent down on to it (more when it rests on something, or holds the knife) */
       const dn = Math.max(st.th, st.full);
-      run(tc, [[[Z, ts.opp * (TH.opp + TH.oppDown * dn) * D], [tc[0].x, ts.f[0] * (TH.f0 + TH.f0Down * dn) * D]], [[tc[1].x, ts.f[1] * (TH.f1 + TH.f1Down * dn) * D]], [[tc[2].x, ts.f[2] * (TH.f2 + TH.f2Down * dn) * D]]]);
+      /* the thumb a little shorter than the model's (owner's headset test: too long): its bones drawn in towards the
+       * root and scaled */
+      const L = TH.len, tcL = tc.map((c, j) => j ? { ...c, p: tc[0].p.clone().lerp(c.p, L) } : c);
+      for (let j = 1; j < tc.length; j++) tc[j].b.scale.setScalar(L);
+      run(tcL, [[[Z, ts.opp * (TH.opp + TH.oppDown * dn) * D], [tc[0].x, ts.f[0] * (TH.f0 + TH.f0Down * dn) * D]], [[tc[1].x, ts.f[1] * (TH.f1 + TH.f1Down * dn) * D]], [[tc[2].x, ts.f[2] * (TH.f2 + TH.f2Down * dn) * D]]]);
     };
     standIn.visible = false; root.userData.tilt.add(model); root.userData.model = model; root.userData.modelPose();
   }, undefined, e => console.warn('hand model not loaded, keeping the simple hand', e));
 }
 /* the thumb's angles (degrees): how far it is swung round to face the fingers, and how much each joint is bent; the "Down" parts are added when it presses */
-export const TH = { opp: 46, oppDown: 6, f0: 16, f0Down: 6, f1: 30, f1Down: 10, f2: 30, f2Down: 14 };
+/* owner's headset test (25 November 2026): thumbs too long and pointing at each other: less opposition (46 -> 15, the
+ * thumb lies forward along the top of the controller beside the index finger) and 85 % of the model's length;
+ * tools/hands.html shows it round a stand-in controller (?opp= &len= to try values) */
+export const TH = { opp: 15, oppDown: 6, f0: 16, f0Down: 6, f1: 30, f1Down: 10, f2: 30, f2Down: 14, len: 0.85 };
 
 /* The controllers by hand. three.js numbers its controllers in the order they connect, which is not the order of
  * session.inputSources and changes when they come back (headset off and on, a controller asleep): taking one from

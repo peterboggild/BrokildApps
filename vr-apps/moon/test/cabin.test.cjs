@@ -126,9 +126,12 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
       if (o.clock.inHold(o.S.t)) inMax = Math.max(inMax, o.S.warp);
     }
     const events = { stop, reached: o.S.t, inMax };
-    /* B: one step slower */
-    o.setTime(30000); o.S.warp = 1000; __dev.controllers.right.updateButtonValue('b-button', 1); await sleep(300); __dev.controllers.right.updateButtonValue('b-button', 0); await sleep(300);
+    /* A (a tap): one step slower; B: one step faster; the small clock while fast; the place saved for Continue */
+    o.setTime(30000); o.S.warp = 1000; __dev.controllers.right.updateButtonValue('a-button', 1); await sleep(250); __dev.controllers.right.updateButtonValue('a-button', 0); await sleep(400);
     events.slower = o.S.warp;
+    __dev.controllers.right.updateButtonValue('b-button', 1); await sleep(250); __dev.controllers.right.updateButtonValue('b-button', 0); await sleep(400);
+    events.faster = o.S.warp; events.badge = o.badge.on;
+    await sleep(5600); events.saved = JSON.parse(localStorage.getItem('moon-progress') || 'null');
     o.settings.set('ff', 'free'); o.setTime(a0 - 250); o.S.warp = 1000; await sleep(2500);
     const free = { t: o.S.t, warp: o.S.warp };
     o.S.running = false; o.settings.set('ff', 'events');
@@ -136,7 +139,9 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   });
   ok('fast forward stops at the burn and says why', ff.events.stop && Math.abs(ff.events.stop.t - (11556 - 150)) < 1 && /TLI/.test(ff.events.stop.toast), JSON.stringify(ff.events.stop));
   ok('A goes on, x10 at most through the burn', ff.events.reached > 11556 && ff.events.inMax === 10, JSON.stringify(ff.events));
-  ok('B: one step slower', ff.events.slower === 100, 'x1000 -> x' + ff.events.slower);
+  ok('A: one step slower, B: one step faster', ff.events.slower === 100 && ff.events.faster === 1000, 'x1000 -> A x' + ff.events.slower + ' -> B x' + ff.events.faster);
+  ok('the small clock shows while time runs fast', ff.events.badge === true);
+  ok('the place is saved for Continue', ff.events.saved && ff.events.saved.page === 'orbit.html' && ff.events.saved.t > 30000, JSON.stringify(ff.events.saved));
   ok('free fast forward runs through the burn', ff.free.t > 11556 + 400 && ff.free.warp === 1000, JSON.stringify(ff.free));
 
   /* your hand on a crewman: it stops at his suit, turns red, he turns to you and says something */

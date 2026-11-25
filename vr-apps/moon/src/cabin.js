@@ -9,7 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { makeCrewLife } from './crew-life.js?v=14';
+import { makeCrewLife } from './crew-life.js?v=15';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
@@ -301,20 +301,37 @@ export function makeCrewman(opts = {}) {
     g.userData.neck = neckG;
     /* the face's moving parts: jaw (radians open), blink (0 open, 1 shut), lid (the lids following the eyes up
      * and down, scan units) */
-    const face = { uJaw: { value: 0 }, uBlink: { value: 0 }, uLid: { value: 0 } };
+    const face = { uJaw: { value: 0 }, uBlink: { value: 0 }, uLid: { value: 0 },
+      /* the face's own shape, so the two crewmates are not twins (owner's headset test): nose forward and longer,
+       * the lower face wider or narrower, the chin forward, the brow ridge forward (scan units) */
+      uShape: { value: opts.variant ? new THREE.Vector4(0.12, -0.08, 0.12, 0.06) : new THREE.Vector4(0, 0, 0, 0) } };
     g.userData.face = face;
     loadFace().then(f => {
       if (!f) return;
       const mat = new THREE.MeshStandardMaterial({ map: f.map, normalMap: f.normal, roughness: 0.6, metalness: 0,
-        color: opts.variant ? 0xe2c2ae : 0xfff2ea, ...NO_STENCIL });
+        color: opts.variant ? 0xd9b090 : 0xfff2ea, ...NO_STENCIL });                 /* the LMP warmer, more tanned */
       /* All in the scan's own units (its face looks along +z, the middle of the face at x = -0.085): the lips meet
        * at y = 0.441, with the inside of the mouth behind them; the eyes are shut, the lids meeting at y = 1.64. */
       mat.onBeforeCompile = sh => {
         Object.assign(sh.uniforms, face);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
 uniform float uJaw;
+uniform vec4 uShape;
 varying vec3 vLp;`).replace('#include <begin_vertex>', `#include <begin_vertex>
 vLp = position;
+/* the face's own shape (uShape): smooth bumps in the scan's frame, nose, lower face, chin, brow */
+{
+  float cx = transformed.x + 0.085;
+  float front = smoothstep(1.5, 2.2, transformed.z);
+  float nose = exp(-cx * cx / 0.09 - (transformed.y - 1.1) * (transformed.y - 1.1) / 0.2) * smoothstep(2.0, 2.45, transformed.z);
+  transformed.z += uShape.x * nose; transformed.y -= 0.35 * uShape.x * nose;
+  float lower = smoothstep(1.35, 0.5, transformed.y) * smoothstep(-1.1, -0.35, transformed.y);
+  transformed.x = -0.085 + cx * (1.0 + uShape.y * lower);
+  float chin = exp(-cx * cx / 0.3 - (transformed.y + 0.2) * (transformed.y + 0.2) / 0.12) * front;
+  transformed.z += uShape.z * chin; transformed.y -= 0.3 * uShape.z * chin;
+  float brow = exp(-cx * cx / 0.8 - (transformed.y - 2.0) * (transformed.y - 2.0) / 0.03) * front;
+  transformed.z += uShape.w * brow;
+}
 /* the jaw: turns open about the hinge in front of the ears. At the mouth the lips part cleanly (the lower one goes
  * with the jaw, the upper one stays); elsewhere the skin stretches smoothly, fading towards the ears and the neck. */
 {

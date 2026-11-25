@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Hands close-up</title>
+<!-- Development view of the gloved hands (not linked from the site): the right hand in WebXR grip space round a
+     simple stand-in controller (the handle along z, its top face with the stick at -z), three views side by side:
+     from above the top face, from the side, from the front. tools/shot-hands.cjs takes the picture.
+     URL: ?trig=0..1 &thumb=0|1 (resting on the stick) &opp= &f0= &f1= &f2= (thumb angles, degrees) &len= (thumb length factor) -->
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>html, body { margin: 0; background: #2a2c2e; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { createHand, TH } from '../src/hands.js?v=15';
+const q = new URLSearchParams(location.search);
+for (const k of ['opp', 'f0', 'f1', 'f2']) if (q.has(k)) TH[k] = +q.get(k);
+if (q.has('len')) TH.len = +q.get('len');
+const W = 1200, H = 400;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setScissorTest(true); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.5); dl.position.set(1, 2, -1); scene.add(dl);
+/* the stand-in controller: a handle, its top face with the stick, the trigger in front (-y) */
+const M = c => new THREE.MeshLambertMaterial({ color: c });
+const ctl = new THREE.Group(); scene.add(ctl);
+const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.11, 20), M(0x1c1d1f)); handle.rotation.x = Math.PI / 2; ctl.add(handle);
+const top = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 24), M(0x26272a)); top.rotation.x = Math.PI / 2; top.position.set(0, -0.005, -0.06); ctl.add(top);
+const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.012, 16), M(0x555555)); stick.rotation.x = Math.PI / 2; stick.position.set(0, -0.012, -0.071); ctl.add(stick);
+const trig = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.025), M(0x333333)); trig.position.set(0, -0.025, -0.04); ctl.add(trig);
+const hand = createHand(q.get('side') || 'right'); scene.add(hand);
+const views = [
+  { name: 'above the top face', pos: [0, 0, -0.35], up: [0, -1, 0] },
+  { name: 'from the side (thumb side)', pos: [-0.35, 0, 0], up: [0, 0, -1] },
+  { name: 'from the front (trigger side)', pos: [0, -0.35, 0], up: [0, 0, -1] }
+];
+const cam = new THREE.OrthographicCamera(-0.11, 0.11, 0.11, -0.11, 0.01, 2);
+let ready = false;
+function frame() {
+  hand.userData.pose(+(q.get('trig') || 0), 0.2, q.get('thumb') !== '0', false, 1);
+  views.forEach((v, i) => {
+    cam.position.fromArray(v.pos); cam.up.fromArray(v.up); cam.lookAt(0, 0, -0.02); cam.updateMatrixWorld();
+    renderer.setViewport(i * W / 3, 0, W / 3, H); renderer.setScissor(i * W / 3, 0, W / 3, H);
+    renderer.setClearColor(i % 2 ? 0x2f3236 : 0x2a2c2e); renderer.clear(); renderer.render(scene, cam);
+  });
+  window.__hands = { ready: !!hand.userData.model, hand };
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

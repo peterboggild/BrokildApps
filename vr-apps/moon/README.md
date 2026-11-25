@@ -263,14 +263,19 @@ forward, turning comfort (the fastest the spacecraft turns as you see it: 0.75, 
 120 Hz), foveation, the radio's volume and the engines', your own body, the hand angle. Resolution is not there: a
 WebXR session cannot change it while running (the start page).
 
-**Fast forward** (A one step faster, B one step slower, hold A for real time at once; `src/clock.js`, the same in every chapter):
+**Fast forward** (B one step faster, A one step slower, hold A for real time at once; `src/clock.js`, the same in every chapter). While time runs fast a small clock sits low in your view (it follows your head): its hand goes round faster the faster time runs, and the number beside it is the power of ten (1 for ×10 ... 4 for ×10,000):
 - *stops at events and voices* (the default): fast until an event or a radio line, then real time there with a word
-  in front of you saying why; A goes on fast again, past it. Through an event (a burn, the docking, Earthrise, the
+  in front of you saying why; B goes on fast again, past it. Through an event (a burn, the docking, Earthrise, the
   landing...) ×10 at most; the big steps (to ×10,000) are for the long quiet stretches.
 - *stops at major events*: the same, not stopping for the radio.
 - *never stops*: the flight in chapters 1-4 is worked out from the clock alone, so staging, docking and orbits are
   right wherever you land. Two things stay real time in every setting: chapter 4 waits until you are in the LM,
   and flying the descent yourself.
+
+**Continue** (`src/progress.js`): each chapter keeps where you are (page and mission time, every few seconds) in
+the browser, and at its end the start of the next chapter. After a crash or a break, the chapter's start list offers
+"Continue where you were" (chosen already), and the front page a Continue link. At a chapter's end the way on (A) is
+also said in front of you, not only on the panel.
 
 **Things floating** in the Command Module (`src/floaters.js`): the checklist card (with its cord in chapter 2) and
 a Fisher space pen. Close the grip near one and it is in your hand; let go and it floats on with the speed, direction

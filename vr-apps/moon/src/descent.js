@@ -15,19 +15,20 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=14';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=14';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=14';
-import { makeLMShadow } from './lm-shadow.js?v=14';
-import { makeLaunchSound } from './launch-sound.js?v=14';
-import { makeRadio, combineRadios } from './radio.js?v=14';
-import { makeClock } from './clock.js?v=14';
-import { makeChatter } from './chatter.js?v=14';
-import { handOnCrew } from './crew-life.js?v=14';
-import { makeVehicle } from './vehicle.js?v=14';
-import { createHand, makeControllers } from './hands.js?v=14';
-import { makeWrist, makeToast, nextOf, fmtSpeed } from './wrist.js?v=14';
-import { settings, applyCommon, holdsFor } from './settings.js?v=14';
+import { GETL } from './lunar-space.js?v=15';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=15';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=15';
+import { makeLMShadow } from './lm-shadow.js?v=15';
+import { makeLaunchSound } from './launch-sound.js?v=15';
+import { makeRadio, combineRadios } from './radio.js?v=15';
+import { makeClock } from './clock.js?v=15';
+import { makeChatter } from './chatter.js?v=15';
+import { handOnCrew } from './crew-life.js?v=15';
+import { makeVehicle } from './vehicle.js?v=15';
+import { createHand, makeControllers } from './hands.js?v=15';
+import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtSpeed } from './wrist.js?v=15';
+import { saveProgress, offerContinue } from './progress.js?v=15';
+import { settings, applyCommon, holdsFor } from './settings.js?v=15';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -113,6 +114,7 @@ const common = applyCommon(renderer, sound);
 const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
+const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!cur) return null;
   const up = D.upAt(cur.r), vu = cur.v[0] * up[0] + cur.v[1] * up[1] + cur.v[2] * up[2], vh = Math.sqrt(Math.max(0, cur.v[0] ** 2 + cur.v[1] ** 2 + cur.v[2] ** 2 - vu * vu));
@@ -124,7 +126,7 @@ function info() {
       ['Fuel', S.t > GETD.lg && S.landed < 0 ? Math.max(0, S.fuel).toFixed(0) + ' s of hover' : 'plenty'], ['Fast forward', settings.text('ff')]],
     alert: S.ended ? 'End of chapter 5.  A: walk outside' : S.mode === 'hand' ? 'By hand: rate ' + (-S.rod / FT).toFixed(0) + ' ft/s.  A: back to the computer' : offer ? 'A: take over by hand (P66)' : null,
     keys: S.mode === 'hand' ? [['R stick', 'tilt the LM'], ['L stick', 'flick: rate up/down'], ['A', 'computer'], ['L stick', 'press: panel, settings']]
-      : [['A', 'faster (hold: real time)'], ['B', 'slower'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
+      : [['A', 'slower (hold: real time)'], ['B', 'faster'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
 /* ---------------------------------------------------------------- input */
@@ -183,8 +185,8 @@ function readControllers(now) {
     if (k === 'right') {
       if (a && !pad.prev.ra) { if (S.ended) nextChapter('index.html'); else if (S.t > GETD.lg - 30 && S.landed < 0) toggleHand(); else pad.aDown = now; }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
-      if (!a && pad.prev.ra && pad.aDown >= 0) { cycleWarp(); pad.aDown = -1; }
-      if (b && !pad.prev.rb && !S.ended) clock.slower(S);
+      if (!a && pad.prev.ra && pad.aDown >= 0) { clock.slower(S); pad.aDown = -1; }
+      if (b && !pad.prev.rb && !S.ended) cycleWarp();
       if (st && !pad.prev.rs) SEAT.pending = 1;
     } else if (k === 'left') {
       if (b && !pad.prev.lb) OUT.want = !OUT.want;       /* Y: outside (stays till pressed again) */
@@ -329,7 +331,7 @@ function render() {
   renderer.info.reset();
   renderer.clear(true, true, true);
   const show = (c, s, mf, mn, n) => {
-    lmc.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01;
+    lmc.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; badge.mesh.visible = c && badge.on;
     sky.visible = s; moon.far.visible = mf; moon.near.visible = mn;
     ground.group.visible = n && low && padH < 2000; rocks.group.visible = n && low && padH < 1200;
     nearG.visible = n; vehicle.lm.visible = OUT.on;
@@ -393,7 +395,7 @@ function frame(now) {
   }
   if (S.took && S.fuel <= 0 && S.landed < 0 && !FADE.then) { FADE.target = 1; FADE.then = 'again'; }
   if (FADE.then === 'again' && FADE.k > 0.92) { FADE.then = null; restart(GETD.hg - 5); S.restarts++; FADE.target = 0; if (radio) radio.cue('again'); }
-  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); }
+  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); toast.say('End of chapter 5.  A: out onto the surface', 1e6); saveProgress('index.html', null, 0, true); }
   moon.setSunOffset(GETL ? (S.t - GETL.land) * 0.508 / 3600 : 0);
   _sun.copy(moon.shared.uSun.value);
   sky.userData.setSpin(W_EARTH * (S.t - GETL.land) + 2.1);
@@ -431,6 +433,8 @@ function frame(now) {
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + prog(S.t) + '  ' + Math.max(0, padH).toFixed(0) + ' m' + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
+  badge.update(dt, camera, S.warp);
+  if (S.running && S.mode === 'table' && S.landed < 0) saveProgress('descent.html', S.t, now);
   render();
   S.frames++;
   if (window.__descent.afterFrame) { const f = window.__descent.afterFrame; window.__descent.afterFrame = null; f(); }
@@ -454,6 +458,7 @@ async function enterVR() {
   if ($('hz')) settings.set('hz', +$('hz').value);
   renderer.xr.setFoveation(settings.get('fov'));
   common.all();
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 3500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -461,6 +466,7 @@ async function enterVR() {
   session.addEventListener('end', () => { document.body.classList.remove('invr'); S.running = false; renderer.setSize(innerWidth, innerHeight); });
 }
 $('vr')?.addEventListener('click', enterVR);
+offerContinue('descent.html', $('start'));          /* after a crash or a break: on from where you were */
 $('flat')?.addEventListener('click', async () => { readOptions(); await startSound(); S.running = true; document.body.classList.add('running'); });
 if (Q.has('shot')) document.body.classList.add('invr');
 
