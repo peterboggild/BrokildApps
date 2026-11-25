@@ -8,7 +8,10 @@
  */
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=3';
-import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=4';
+import { makeSky, makeRocks, makeRail } from './extras.js?v=4';
+import { makeLMModel } from './vehicle.js?v=13';
+import { PAD_DROP } from './descent-space.js?v=13';
+import { makeLMShadow } from './lm-shadow.js?v=13';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
@@ -59,7 +62,7 @@ const EXPOSURE = num('exposure', 3.4);
 const HEADING = -82 * Math.PI / 180;       /* ground track: travelling west, a little north (Apollo 17's approach) */
 const GM = 4.9028e12;
 
-let moon, rocks, lm, rail, sky, hud, prints, ground;
+let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
 const suit = makeSuitSound();
 const OPT = { teleport: true, fan: true };
 
@@ -341,6 +344,8 @@ function render() {
 
 let lastT = 0, acc = 0, accN = 0, slow = 0;
 function frame(t) {
+  if (lmSun) lmSun.position.copy(moon.shared.uSun.value).multiplyScalar(100).add(lmSun.target.position);     /* the LM lit by the Sun of the moment */
+  if (lmShadow && lmShadowSun !== S.sunOffset) { lmShadowSun = S.sunOffset; lmShadow.update(0, 0, 0, moon.shared.uSun.value); }   /* its shadow (only when the Sun moves) */
   const dt = Math.min(0.1, (t - lastT) / 1000 || 0.016); lastT = t;
   acc += dt; accN++;
   if (acc > 0.5) {
@@ -417,7 +422,12 @@ async function start() {
   moon.setSunOffset(S.sunOffset);
   moon.shared.uExposure.value = EXPOSURE;
   rocks = await makeRocks(moon, BASE);
-  lm = makeLMStandIn(moon);
+  /* the LM you landed in (chapter 5 sets it down here: pads on the ground at the site, facing along the approach) */
+  lm = new THREE.Group();
+  { const m = makeLMModel(renderer); m.position.y = moon.heightAt(0, 0) + PAD_DROP; m.rotation.y = Math.atan2(Math.sin(HEADING), -Math.cos(HEADING)); lm.add(m);
+    lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
+    const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi);
+    lmShadow = makeLMShadow(moon); lm.add(lmShadow.mesh); }
   sky = makeSky(moon);
   rail = makeRail(); rig.add(rail);
   hud = makeHud();

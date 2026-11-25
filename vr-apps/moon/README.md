@@ -15,7 +15,9 @@ before anything else is built:
 | Low pass, 15 km | The 59 m and 11 m data and the joins between levels at speed |
 | On the surface | The valley from eye height: the 2 m terrain model, generated small craters, rocks, soil, long shadows |
 
-The lander and the Earth are stand-ins (stage 5 and stage 2 build the real ones). There are no stars yet.
+The LM on the surface is the one you land in in chapter 5 (`makeLMModel` in `src/vehicle.js`, legs deployed, placed
+where the descent sets it down), with its long shadow from the low Sun (`src/lm-shadow.js`, shared with the descent);
+the hero LM is stage 5. The Earth overhead is the real one (Blue Marble, real clouds). There are no stars yet.
 
 On the surface (added after the first headset test):
 

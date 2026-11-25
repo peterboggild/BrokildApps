@@ -37,7 +37,7 @@ export function makeDescent(man, groundAt) {
   function padHeight(s) {
     const rc = len(sub(s.r, C)), x = s.r[0], z = s.r[2];
     const gy = Math.hypot(x, z) < 60000 ? groundAt(x, z) : null;
-    const gr = gy === null ? R : len(sub([x, gy, z], C));
+    const gr = gy === null ? R + man.site.height : len(sub([x, gy, z], C));        /* far out: the site's own level, no jump */
     return rc - gr - PAD_DROP;
   }
   const upAt = r => norm(sub(r, C));
@@ -64,8 +64,10 @@ export function makeDescent(man, groundAt) {
   }
   /* the orbit before PDI and the whole autopilot flight, once, as a table (every 0.2 s) */
   const pdiAngle = -(469e3 + 11300) / R;
-  const r0 = add(C, add(scale(U0, Math.cos(pdiAngle)), F0, Math.sin(pdiAngle)), R + 15000);
-  const vOrb = Math.sqrt(MU_M / (R + 15000)) * 1.004;
+  /* 15 km over the landing site's level (as Apollo measured it; the site lies 2.6 km below the mean radius) */
+  const rP = R + man.site.height + 15000;
+  const r0 = add(C, add(scale(U0, Math.cos(pdiAngle)), F0, Math.sin(pdiAngle)), rP);
+  const vOrb = Math.sqrt(MU_M / rP) * 1.004;
   const v0 = scale(add(scale(U0, -Math.sin(pdiAngle)), F0, Math.cos(pdiAngle)), vOrb);
   const DT = 0.2, T0 = GETD.pdi - 600, rows = [];
   let r = [...r0], v = [...v0], t = GETD.pdi;
