@@ -286,6 +286,49 @@ function info() {
     rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
     keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
 }
+
+/* ---------------------------------------------------------------- rendering */
+function setPlanes(n, f) {
+  const fix = c => {
+    const e = c.projectionMatrix.elements;
+    e[10] = -(f + n) / (f - n); e[14] = -2 * f * n / (f - n);
+    c.projectionMatrixInverse.copy(c.projectionMatrix).invert();
+  };
+  if (renderer.xr.isPresenting) { const xc = renderer.xr.getCamera(); fix(xc); xc.cameras.forEach(fix); }
+  else { camera.near = n; camera.far = f; camera.updateProjectionMatrix(); }
+}
+const _cam = new THREE.Vector3();
+function render() {
+  const xr = renderer.xr.isPresenting;
+  scene.updateMatrixWorld(true);
+  if (xr) renderer.xr.updateCamera(camera);
+  _cam.setFromMatrixPosition(camera.matrixWorld);
+  rocks.update(_cam);
+  moon.setDetail(_cam, S.view === 'surface');
+  renderer.info.reset();
+  renderer.clear(true, true, false);
+  const close = S.view === 'surface';
+  const show = (farOn, nearOn, cabinOn) => {
+    moon.far.visible = farOn; sky.visible = farOn && !S.dark;
+    moon.near.visible = nearOn; rocks.group.visible = nearOn && close; lm.visible = nearOn;
+    prints.group.visible = nearOn && close; ground.group.visible = nearOn && close;
+    arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && cabinOn && close;
+    rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
+  };
+  if (close) {
+    /* standing on the Moon: distant terrain first, then everything within a few kilometres over a fresh depth buffer */
+    show(true, false, false); setPlanes(100, FAR); renderer.render(scene, camera);
+    renderer.clearDepth();
+    show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera);
+  } else {
+    const alt = VIEWS[S.view].alt;
+    show(true, true, false); setPlanes(Math.max(50, alt * 0.25), FAR); renderer.render(scene, camera);
+    renderer.clearDepth();
+    show(false, false, true); setPlanes(0.05, 100); renderer.render(scene, camera);
+  }
+  S.calls = renderer.info.render.calls; S.tris = renderer.info.render.triangles;
+}
+let lastT = 0, acc = 0, accN = 0, slow = 0;
 function frame(t) {
   if (lmSun) lmSun.position.copy(moon.shared.uSun.value).multiplyScalar(100).add(lmSun.target.position);     /* the LM lit by the Sun of the moment */
   if (lmShadow && lmShadowSun !== S.sunOffset) { lmShadowSun = S.sunOffset; lmShadow.update(0, 0, 0, moon.shared.uSun.value); }   /* its shadow (only when the Sun moves) */
