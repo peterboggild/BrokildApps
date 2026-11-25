@@ -10,7 +10,7 @@
  * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
  * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
 import * as THREE from 'three';
-import { settings, DEFS } from './settings.js?v=14';
+import { settings, DEFS } from './settings.js?v=15';
 
 export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
   return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -121,4 +121,41 @@ export function makeToast() {
     }
   };
   return T;
+}
+
+/* Fast forward, in the corner of your eye: a small clock low in the view (it follows your head) while time runs
+ * faster, its hand going round faster the faster it runs, and the power of ten beside it (1 for x10 ... 4 for
+ * x10,000; other speeds as x4, x16). Add badge.mesh to the head; badge.update(dt, camera, warp) every frame; show it
+ * only in the cabin pass. */
+export function makeWarpBadge() {
+  const g = new THREE.Group(); g.visible = false;
+  const M = (o = {}) => new THREE.MeshBasicMaterial({ color: 0xf0e8d0, transparent: true, opacity: 0.8, depthTest: false, depthWrite: false, ...o });
+  const parts = [];
+  const add = (geo, mat, x = 0, y = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, 0); m.renderOrder = 1002; g.add(m); parts.push(m); return m; };
+  add(new THREE.RingGeometry(0.0105, 0.0122, 40), M());
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2, t = add(new THREE.PlaneGeometry(0.0009, k % 3 ? 0.0016 : 0.0028), M()); t.position.set(Math.sin(a) * 0.0092, Math.cos(a) * 0.0092, 0); t.rotation.z = -a; }
+  const hand = new THREE.Group(); g.add(hand);
+  const hg = new THREE.PlaneGeometry(0.0012, 0.0085); hg.translate(0, 0.0038, 0);
+  const hm = new THREE.Mesh(hg, M({ color: 0xffd27a, opacity: 0.95 })); hm.renderOrder = 1003; hand.add(hm); parts.push(hm);
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64; const x = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const label = add(new THREE.PlaneGeometry(0.03, 0.015), M({ map: tex, color: 0xffffff }), 0.026, 0);
+  let shown = -1, ang = 0;
+  const B = {
+    mesh: g, want: false, get on() { return B.want; },
+    update(dt, camera, warp) {
+      B.want = warp > 1;
+      if (!B.want) return;
+      const e = Math.log10(warp);
+      ang -= dt * Math.PI * 2 * 0.25 * Math.pow(2, e - 1);           /* x10: a turn in 4 s ... x10,000: two turns a second */
+      hand.rotation.z = ang;
+      if (warp !== shown) {
+        shown = warp; x.clearRect(0, 0, 128, 64); x.fillStyle = '#f0e8d0'; x.font = 'bold 50px system-ui, Segoe UI, Arial, sans-serif'; x.textBaseline = 'middle';
+        const pow = Math.abs(e - Math.round(e)) < 1e-6;
+        x.fillText(pow ? String(Math.round(e)) : 'x' + warp, 4, 34); tex.needsUpdate = true;
+      }
+      /* low in the view, a little right of the middle, 0.6 m out */
+      g.position.set(0.05, -0.2, -0.6).applyQuaternion(camera.quaternion).add(camera.position); g.quaternion.copy(camera.quaternion);
+    }
+  };
+  return B;
 }

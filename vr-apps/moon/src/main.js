@@ -9,15 +9,16 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=14';
-import { PAD_DROP } from './descent-space.js?v=14';
-import { makeLMShadow } from './lm-shadow.js?v=14';
+import { makeLMModel } from './vehicle.js?v=15';
+import { PAD_DROP } from './descent-space.js?v=15';
+import { makeLMShadow } from './lm-shadow.js?v=15';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers } from './hands.js?v=14';
-import { makeWrist } from './wrist.js?v=14';
-import { settings, applyCommon } from './settings.js?v=14';
+import { makeControllers } from './hands.js?v=15';
+import { makeWrist } from './wrist.js?v=15';
+import { settings, applyCommon } from './settings.js?v=15';
+import { continueLink } from './progress.js?v=15';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -69,6 +70,7 @@ let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = nu
 const suit = makeSuitSound();
 const OPT = { teleport: true, fan: true };
 const common = applyCommon(renderer, null);
+continueLink(document.querySelector('a[href="launch.html"]'));      /* on from where you were in the chapters */
 settings.onChange(k => { if (k === 'fov') S.foveation = settings.get('fov'); });   /* the frame-rate guard goes on from there */
 
 /* A point above the Moon at `theta` degrees along the track from the site, in the site frame, with its axes. */

@@ -626,9 +626,21 @@ His notes, and what was done (PR "moon-crew-life"; tested in the flat preview an
 - **The hands tore into random shapes** at the start of chapter 3: the skinned hand was skinned in world coordinates
   in 32-bit floats, 66,000 km out; now relative to the hand (`src/hands.js`).
 
+**His second run (same day)** and what came of it (PR "moon-round2"):
+- B faster, A slower (hold A for real time); a small clock low in the view while fast (the hand faster with the
+  speed, 1-4 for the power of ten).
+- "It crashed" at the switch to the Moon's pull: that is chapter 2's end, where the clock stops and the way on was only
+  on the panel (which he had not found: it is the left stick press; the flat menu button belongs to the browser).
+  Now the end is said in front of you, a hint where the panel is comes on entering VR, and Continue
+  (`src/progress.js`) picks up where you were after a real crash.
+- Hand angle "nearly perfect" at 17. Thumbs were too long and pointed at each other: 85 % long, opposition 46 -> 15
+  (they lie forward along the top of the controller); `tools/hands.html` to try values.
+- The two crewmates were twins: the LMP now has his own profile (uShape in the face shader: longer nose, narrower
+  lower face, stronger chin and brow), warmer skin, brown eyes.
+
 **To check in the headset**, besides §12.8: the faces close up and from the side (eyes, lids, the jaw), whether eye
 contact feels right or too much; the hand angle (set it to match, tell me the number); touching a crewman; taking
-and throwing the pen; the panel (left stick press) and the settings with the stick; A faster and B slower; fast forward through chapter 2; the panels'
+and throwing the pen; the panel (left stick press) and the settings with the stick; B faster and A slower, the small clock; fast forward through chapter 2; the panels'
 new look; the docking from outside; chapter 3's start with your hands in view.
 
 ## 13. Testing
