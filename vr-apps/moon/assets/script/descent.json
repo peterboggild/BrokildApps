@@ -1,0 +1,246 @@
+{
+  "about": "Radio and intercom for chapter 5: the powered descent to Taurus-Littrow. Time lines run to high gate and a little after (the autopilot is exact there); below that the Lunar Module Pilot's calls are cued by altitude (ft), by fuel and by events, so they stay right when you fly by hand. t = GET (seconds from liftoff). PDI 110:09:53, high gate 110:18:23, contact 110:21:58 on the autopilot. Original lines in the style of Apollo procedure; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "LMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "d01",
+      "t": 396313,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Standing by for ignition. Everything looks good.",
+      "dur": 4.79
+    },
+    {
+      "id": "d02",
+      "t": 396563,
+      "who": "LMP",
+      "text": "Thirty seconds.",
+      "dur": 1.19
+    },
+    {
+      "id": "d03",
+      "t": 396593,
+      "who": "LMP",
+      "text": "Ignition. Ten percent. Throttle up. We are on our way down.",
+      "dur": 3.72
+    },
+    {
+      "id": "d04",
+      "t": 396640,
+      "who": "LMP",
+      "text": "Pressures look good. Windows up, and there is the Earth.",
+      "dur": 3.08
+    },
+    {
+      "id": "d05",
+      "t": 396723,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. You are go to continue powered descent.",
+      "dur": 4.12
+    },
+    {
+      "id": "d06",
+      "t": 396823,
+      "who": "LMP",
+      "text": "Radar is locked on. Altitude and velocity lights are out.",
+      "dur": 3.1
+    },
+    {
+      "id": "d07",
+      "t": 396893,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Accept the radar data. It looks good.",
+      "dur": 4.31
+    },
+    {
+      "id": "d08",
+      "t": 396978,
+      "who": "LMP",
+      "text": "Throttle down. Right on time.",
+      "dur": 1.9
+    },
+    {
+      "id": "d09",
+      "t": 397043,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. You are go for landing.",
+      "dur": 3.16
+    },
+    {
+      "id": "d10",
+      "t": 397104,
+      "who": "LMP",
+      "text": "Pitchover. There it is. The whole valley, right out the window.",
+      "dur": 3.59
+    },
+    {
+      "id": "d11",
+      "t": 397118,
+      "who": "LMP",
+      "text": "The North Massif, and Camelot. We are right on target.",
+      "dur": 3.19
+    },
+    {
+      "id": "d12",
+      "t": 397165,
+      "who": "LMP",
+      "text": "Four thousand feet, down forty.",
+      "dur": 2.03
+    },
+    {
+      "id": "h500",
+      "t": null,
+      "who": "LMP",
+      "text": "Five hundred feet. Down twelve.",
+      "dur": 2.11,
+      "cue": "h500",
+      "delay": 0
+    },
+    {
+      "id": "take",
+      "t": null,
+      "who": "LMP",
+      "text": "P sixty-six is yours whenever you want it.",
+      "dur": 2.26,
+      "cue": "take",
+      "delay": 3.5
+    },
+    {
+      "id": "h300",
+      "t": null,
+      "who": "LMP",
+      "text": "Three hundred feet, down five.",
+      "dur": 1.99,
+      "cue": "h300",
+      "delay": 0
+    },
+    {
+      "id": "h200",
+      "t": null,
+      "who": "LMP",
+      "text": "Two hundred feet. Down four.",
+      "dur": 1.88,
+      "cue": "h200",
+      "delay": 0
+    },
+    {
+      "id": "h100",
+      "t": null,
+      "who": "LMP",
+      "text": "One hundred feet, down three. A little dust now.",
+      "dur": 2.98,
+      "cue": "h100",
+      "delay": 0
+    },
+    {
+      "id": "h50",
+      "t": null,
+      "who": "LMP",
+      "text": "Fifty feet, down two and a half. Lots of dust.",
+      "dur": 3.04,
+      "cue": "h50",
+      "delay": 0
+    },
+    {
+      "id": "h30",
+      "t": null,
+      "who": "LMP",
+      "text": "Thirty feet.",
+      "dur": 0.89,
+      "cue": "h30",
+      "delay": 0
+    },
+    {
+      "id": "h10",
+      "t": null,
+      "who": "LMP",
+      "text": "Ten feet.",
+      "dur": 0.78,
+      "cue": "h10",
+      "delay": 0
+    },
+    {
+      "id": "contact",
+      "t": null,
+      "who": "LMP",
+      "text": "Contact light!",
+      "dur": 1.03,
+      "cue": "contact",
+      "delay": 0.1
+    },
+    {
+      "id": "stop",
+      "t": null,
+      "who": "LMP",
+      "text": "Engine stop. Engine arm, off.",
+      "dur": 2.25,
+      "cue": "contact",
+      "delay": 1.6
+    },
+    {
+      "id": "down",
+      "t": null,
+      "who": "LMP",
+      "text": "Houston, Challenger. We are on the ground, in the valley of Taurus-Littrow.",
+      "dur": 4.26,
+      "cue": "contact",
+      "delay": 6
+    },
+    {
+      "id": "copy",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "We copy you down, Challenger. You have a lot of happy people here.",
+      "dur": 4.31,
+      "cue": "contact",
+      "delay": 13
+    },
+    {
+      "id": "fuel60",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Sixty seconds.",
+      "dur": 1.46,
+      "cue": "fuel60",
+      "delay": 0
+    },
+    {
+      "id": "fuel30",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Thirty seconds.",
+      "dur": 1.32,
+      "cue": "fuel30",
+      "delay": 0
+    },
+    {
+      "id": "manual",
+      "t": null,
+      "who": "LMP",
+      "text": "You have it. P sixty-six.",
+      "dur": 1.93,
+      "cue": "manual",
+      "delay": 0.3
+    },
+    {
+      "id": "auto",
+      "t": null,
+      "who": "LMP",
+      "text": "Back to the computer.",
+      "dur": 1.22,
+      "cue": "auto",
+      "delay": 0.3
+    },
+    {
+      "id": "again",
+      "t": null,
+      "who": "LMP",
+      "text": "Too hard. Let's run that again from high gate.",
+      "dur": 2.42,
+      "cue": "again",
+      "delay": 0.5
+    }
+  ]
+}

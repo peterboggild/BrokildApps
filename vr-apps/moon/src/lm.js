@@ -107,7 +107,7 @@ const hud = (() => {
     g.fillStyle = '#d8d8d8'; g.font = '26px monospace';
     g.fillText('GET ' + fmt(S.t) + (S.warp > 1 ? '  x' + S.warp : '') + (S.held ? '  HOLD' : ''), 20, 108);
     g.fillText('above the Moon ' + (w.alt / 1000).toFixed(0) + ' km' + (w.hidden ? '  LOS' : ''), 20, 146);
-    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 4.  A: the surface', 20, 184); }
+    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 4.  A: chapter 5', 20, 184); }
     else g.fillText(phase(S.t), 20, 184);
     g.fillStyle = '#8a8a8a'; g.font = '19px monospace';
     g.fillText(S.mode === 'lm' ? 'A/X time  hold B outside' : 'grip: pull yourself  A: float through', 12, 222);
@@ -124,7 +124,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyF' && S.mode !== 'lm') { S.auto = !S.auto; if (S.mode === 'cm') beginCrawl(); }
   if (e.code === 'KeyO') OUT.want = !OUT.want;
-  if (e.code === 'KeyN' && S.ended) nextChapter('index.html');
+  if (e.code === 'KeyN' && S.ended) nextChapter('descent.html');
   const jump = { Digit1: START, Digit2: UNDOCK - 300, Digit3: UNDOCK + 320, Digit4: END - 400 }[e.code];
   if (jump !== undefined) { setTime(jump); if (jump > START) enterLM(true); }
 });
@@ -147,7 +147,7 @@ function readControllers() {
     pad.grip[k] = !!gp.buttons[1]?.pressed;
     if (pad.grip[k] && S.mode === 'cm') beginCrawl();                     /* taking hold: you leave the couch */
     if (a && !pad.prev[k + 'a']) {
-      if (S.ended) nextChapter('index.html');
+      if (S.ended) nextChapter('descent.html');
       else if (S.mode !== 'lm') { S.auto = !S.auto; if (S.mode === 'cm') beginCrawl(); }
       else cycleWarp();
     }
@@ -432,7 +432,7 @@ function frame(now) {
   cabin.update(now / 1000); lmc.update(now / 1000);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, S.mode === 'lm' && !OUT.on ? 1.62 : 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 4. The descent is still to come; A (N on this screen) takes you to the surface now.' : S.held ? 'Go through to the LM first: grip and pull yourself along, or A (F on this screen) to float through.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 4. A (N on this screen) goes on to chapter 5, the descent.' : S.held ? 'Go through to the LM first: grip and pull yourself along, or A (F on this screen) to float through.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now, w);
   render();
