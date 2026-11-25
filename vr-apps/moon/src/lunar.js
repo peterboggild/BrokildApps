@@ -15,8 +15,8 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
 import { state as ascentState } from './ascent.js?v=13';
-import { loadMoon } from './moon.js?v=3';
-import { makeSky } from './extras.js?v=4';
+import { loadMoon } from './moon.js?v=4';
+import { makeSky } from './extras.js?v=5';
 import { makeLunarFlight, GETL } from './lunar-space.js?v=13';
 import { makeCabin } from './cabin.js?v=13';
 import { makeLaunchSound } from './launch-sound.js?v=13';

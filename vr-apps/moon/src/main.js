@@ -7,8 +7,8 @@
  *      &sun=deg (Sun later/earlier, 0.51 deg per hour)  &scale=0.8..1.4 (VR resolution)  &still (no motion)
  */
 import * as THREE from 'three';
-import { loadMoon } from './moon.js?v=3';
-import { makeSky, makeRocks, makeRail } from './extras.js?v=4';
+import { loadMoon } from './moon.js?v=4';
+import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
 import { makeLMModel } from './vehicle.js?v=13';
 import { PAD_DROP } from './descent-space.js?v=13';
 import { makeLMShadow } from './lm-shadow.js?v=13';

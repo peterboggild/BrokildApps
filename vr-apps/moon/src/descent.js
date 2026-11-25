@@ -12,8 +12,8 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=) */
 import * as THREE from 'three';
-import { loadMoon } from './moon.js?v=3';
-import { makeSky, makeRocks } from './extras.js?v=4';
+import { loadMoon } from './moon.js?v=4';
+import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
 import { GETL } from './lunar-space.js?v=13';
 import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=13';

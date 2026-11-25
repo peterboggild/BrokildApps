@@ -29,6 +29,7 @@ void main() {
 export const LUNAR_GLSL = /* glsl */`
 uniform vec3 uSun;
 uniform float uExposure;
+uniform vec3 uEarth;
 vec3 lunar(vec3 alb, vec3 N, vec3 V, vec3 up, float lit) {
   float mu0 = max(dot(N, uSun), 0.0);
   float mu = max(dot(N, V), 0.03);
@@ -38,7 +39,8 @@ vec3 lunar(vec3 alb, vec3 N, vec3 V, vec3 up, float lit) {
   float phase = (0.30 + 0.70 * exp(-1.6 * g)) * (1.0 + 0.8 / (1.0 + tan(min(g, 3.0) * 0.5) / 0.055));
   float sunUp = max(dot(uSun, up), 0.0);
   vec3 bounce = alb * dot(alb, vec3(0.33)) * 0.55 * sunUp * (0.55 + 0.45 * dot(N, up));
-  vec3 earthshine = alb * vec3(0.0016, 0.0019, 0.0024);
+  /* the Earth's light: from where it hangs (none on the far side); as before on level ground at the site */
+  vec3 earthshine = alb * vec3(0.0016, 0.0019, 0.0024) * max(dot(N, uEarth), 0.0) * 1.24;
   return alb * (refl * phase * lit) + bounce + earthshine;
 }
 vec3 display(vec3 c) {
@@ -277,7 +279,9 @@ export async function loadMoon(renderer, base, onProgress = () => {}) {
     uHEnc: { value: new THREE.Vector2(man.hEncode[0], man.hEncode[1]) },
     uMicro: { value: microTexture() },
     uDebug: { value: new URLSearchParams(location.search).get('debug') === 'shadow' ? 1 : 0 },
-    uPatch: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) }
+    uPatch: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) },
+    /* the Earth's direction: over the Moon's 0N 0E point (extras.js draws it there) */
+    uEarth: { value: new THREE.Vector3(-Math.sin(lon), Math.cos(lat) * Math.cos(lon), Math.sin(lat) * Math.cos(lon)).normalize() }
   };
   const geo = makeGeo(man);
 
