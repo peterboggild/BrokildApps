@@ -698,6 +698,14 @@ height or posture (chapters 4-6; on the ground your own height returns). **Agree
 code (PLSS, chest unit, LEVA helmet with the gold visor, the NASA patch and flag: the owner wants them, for
 history's sake), then the Lunar Module Pilot coming down and loping about, then the flag and the rover.
 
+**The cabin over the LM, second round (same day):** inward-only walls were not the cause. The Quest does not keep the
+depth buffer from one render call to the next (a PC does), so the cabin's pass, relying on the LM's depth from the
+pass before, lay over the LM "like a lift cage". Now the cabin's pass draws the LM's outside into the depth buffer
+only (colorWrite off) in the same call, after a clearDepth: nothing depends on an earlier pass. **Every pass on this
+app starts with a fresh depth buffer; check multi-pass effects with a clearDepth before each pass on the PC.** The
+hull's parts show no face towards the cabin inside them (`boxNo` in `src/lm-model.js`). The LM's side panels: the
+second box that hid them is gone.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

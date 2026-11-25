@@ -9,19 +9,19 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=21';
-import { PAD_DROP } from './descent-space.js?v=21';
-import { makeLMShadow } from './lm-shadow.js?v=21';
+import { makeLMModel } from './vehicle.js?v=22';
+import { PAD_DROP } from './descent-space.js?v=22';
+import { makeLMShadow } from './lm-shadow.js?v=22';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=21';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=21';
-import { makeLMCabin } from './lm-cabin.js?v=21';
-import { makeEgress } from './egress.js?v=21';
-import { settleLM } from './lm-model.js?v=21';
-import { settings, applyCommon } from './settings.js?v=21';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=21';
+import { makeControllers, createHand } from './hands.js?v=22';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=22';
+import { makeLMCabin } from './lm-cabin.js?v=22';
+import { makeEgress } from './egress.js?v=22';
+import { settleLM } from './lm-model.js?v=22';
+import { settings, applyCommon } from './settings.js?v=22';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=22';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -74,6 +74,7 @@ const GM = 4.9028e12;
 let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
 /* out of the LM (egress.js, ?egress): the model, its cabin, your hands, a message in front of you, a black veil */
 let lmModel = null, lmHemi = null, lmc = null, egress = null, toast = null, card = null;
+const hullMats = new Set();                 /* the LM's outside materials (drawn to depth only in the cabin's pass) */
 const hands = { left: createHand('left'), right: createHand('right') }, EH = { left: { grip: false, pos: null }, right: { grip: false, pos: null } };
 const fadeScene = new THREE.Scene();
 const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
@@ -350,12 +351,23 @@ function render() {
     renderer.clearDepth();
     if (!inCabin) { show(false, true, true); setPlanes(0.05, 40e3); renderer.render(scene, camera); }
     else {
-      show(false, true, false); setPlanes(0.05, 40e3); renderer.render(scene, camera);
-      lmc.setOutside(lmModel.worldToLocal(_eye.copy(_cam)).z > 1.27);          /* past the hatch: outside */
-      show(false, false, false); lm.visible = true; lmModel.visible = false; lmSun.visible = false; lmHemi.visible = false; lmShadow.mesh.visible = false; lmc.group.visible = true;
+      /* The cabin and the LM's outside cannot share one lit pass (the cabin's lights would flood the outside), and the
+       * headset does not keep the depth buffer from one pass to the next (owner's headset test: the cabin lay over the
+       * LM like a lift cage). So: the world with the LM's outside; then, on a fresh depth buffer, the cabin in one pass
+       * together with the LM's outside drawn into the depth buffer only (no colour): the hull hides the cabin
+       * wherever it is in front of it, and the cabin shows through the windows and the hatch's opening. Inside the
+       * cabin its own walls do the hiding. */
+      const outside = lmModel.worldToLocal(_eye.copy(_cam)).z > 1.27;          /* past the hatch */
+      lmc.setOutside(outside);
+      setPlanes(0.05, 40e3);
+      show(false, true, false); renderer.render(scene, camera);
+      renderer.clearDepth();
+      show(false, false, false); lm.visible = true; lmc.group.visible = true; lmSun.visible = lmHemi.visible = false; lmShadow.mesh.visible = false;
+      lmModel.visible = outside; if (outside) for (const m of hullMats) m.colorWrite = false;
       renderer.render(scene, camera);
-      lmModel.visible = true; lmSun.visible = true; lmHemi.visible = true; lmShadow.mesh.visible = true;
-      show(false, false, true); lm.visible = false; renderer.render(scene, camera);
+      for (const m of hullMats) m.colorWrite = true;
+      lmModel.visible = true; lmSun.visible = lmHemi.visible = true; lmShadow.mesh.visible = true;
+      renderer.clearDepth(); show(false, false, true); lm.visible = false; renderer.render(scene, camera);          /* your hands, the panel, messages */
     }
     if (egress.fade > 0.003) { veil.material.opacity = egress.fade; camera.matrixWorld.decompose(veil.position, veil.quaternion, veil.scale); veil.scale.set(1, 1, 1); veil.translateZ(-0.1); veil.updateMatrixWorld(true); setPlanes(0.02, 10); renderer.render(fadeScene, camera); }
   } else {
@@ -454,7 +466,7 @@ async function start() {
   lm = new THREE.Group();
   { const m = makeLMModel(renderer), yaw = Math.atan2(Math.sin(HEADING), -Math.cos(HEADING)), st = settleLM((x, z) => moon.heightAt(x, z), 0, 0, yaw);
     m.rotation.order = 'YXZ'; m.rotation.set(st.pitch, yaw, st.roll); m.position.y = st.y; lm.add(m);          /* all four pads on the ground, a little in the dust */
-    lmModel = m;
+    lmModel = m; m.traverse(o => { if (o.isMesh) hullMats.add(o.material); });
     lmc = makeLMCabin({ inwardOnly: true }); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
     const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;

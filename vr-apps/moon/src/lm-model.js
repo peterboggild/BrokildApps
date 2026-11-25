@@ -83,6 +83,13 @@ class Parts {
     this.addM(geo, mat, _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz)));
   }
   box(mat, w, h, d, x, y, z, rx = 0, ry = 0, rz = 0) { this.add(new THREE.BoxGeometry(w, h, d), mat, x, y, z, rx, ry, rz); }
+  /* a box without one face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z): the hull's parts must show no face towards the
+   * cabin inside them, or it would be drawn over the cabin when you look in through the hatch */
+  boxNo(face, mat, w, h, d, x, y, z) {
+    const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+    for (const k of ['position', 'normal', 'uv']) { const a = g.attributes[k], n = a.itemSize, arr = Array.from(a.array); arr.splice(face * 6 * n, 6 * n); g.setAttribute(k, new THREE.BufferAttribute(new Float32Array(arr), n)); }
+    this.add(g, mat, x, y, z);
+  }
   /* a rod from a to b; r2: the radius at b (a taper) */
   rod(mat, a, b, r, seg = 8, r2 = r) {
     _d.subVectors(b, a); const len = _d.length();
@@ -215,7 +222,7 @@ export function makeLM(env) {
     const hole = new THREE.Path(); hole.moveTo(-HATCH.half, HATCH.y0); hole.lineTo(-HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y1); hole.lineTo(HATCH.half, HATCH.y0); hole.closePath();
     sh.holes.push(hole);
     body.add(new THREE.ShapeGeometry(sh), alu, 0, 0, FRONT + 0.02);          /* clear of the cabin's own front wall inside */
-    for (const s of [-1, 1]) body.box(alu, 0.07, 0.66, len, s * 1.0, AS_Y + 0.33, 0.1 + len / 2); }     /* thin: the cabin is inside */
+    for (const s of [-1, 1]) body.boxNo(s > 0 ? 1 : 0, alu, 0.07, 0.66, len, s * 1.0, AS_Y + 0.33, 0.1 + len / 2); }     /* thin: the cabin is inside */
   /* the front: the hatch's housing (a frame round the opening), dark thermal panels either side of it, the brow */
   for (const s of [-1, 1]) body.box(alu, 0.13, 0.9, 0.09, s * (HATCH.half + 0.085), AS_Y + 0.45, FRONT + 0.067);
   body.box(alu, 1.12, 0.1, 0.09, 0, HATCH.y1 + 0.07, FRONT + 0.067); body.box(alu, 1.12, 0.06, 0.09, 0, AS_Y + 0.03, FRONT + 0.067);
@@ -230,20 +237,20 @@ export function makeLM(env) {
     for (let i = 0; i < 3; i++) { const p = pts[i], q = pts[(i + 1) % 3]; body.rod(dark, V(p[0], p[1], FRONT + 0.04), V(q[0], q[1], FRONT + 0.04), 0.022, 6); }
   }
   /* the midsection, the aft equipment bay with its rack and two gas tanks */
-  body.box(blackFoil, 2.0, 1.94, 0.87, 0, AS_Y + 0.97, -0.33);
+  body.boxNo(4, blackFoil, 2.0, 1.94, 0.87, 0, AS_Y + 0.97, -0.33);          /* open towards the cabin */
   body.box(alu, 1.2, 0.04, 0.8, 0, 4.35, -0.33);
-  body.box(blackFoil, 1.9, 1.3, 0.75, 0, 3.4, -1.13);
+  body.boxNo(4, blackFoil, 1.9, 1.3, 0.75, 0, 3.4, -1.13);
   body.box(gold, 1.7, 1.1, 0.03, 0, 3.4, -1.52);
   for (let i = 0; i < 4; i++) body.box(amber, 0.34, 0.95, 0.02, -0.63 + i * 0.42, 3.4, -1.545);
   for (const s of [-1, 1]) body.add(new THREE.SphereGeometry(0.2, 12, 8), alu, s * 0.6, 4.18, -1.2);
   /* the propellant tanks in their shrouds: the Commander's side further out */
   for (const [x, r] of [[1.42, 0.64], [-1.26, 0.6]]) {
     body.add(new THREE.SphereGeometry(r, 10, 7), alu, x, 3.22, -0.3, 0, 0.3, 0, 1, 1.08, 1);
-    body.box(blackFoil, Math.abs(x) - 0.5, 0.9, 0.9, x / 2 + Math.sign(x) * 0.25, 3.2, -0.3);
+    body.boxNo(x > 0 ? 1 : 0, blackFoil, Math.abs(x) - 0.9, 0.9, 0.9, Math.sign(x) * (1.0 + (Math.abs(x) - 0.9) / 2), 3.2, -0.3);          /* outside the cabin's wall */
   }
   /* four thruster quads on their booms, four nozzles each; a plume deflector under each, braced to the deck */
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const q = V(sx * 1.32, 3.98, -0.12 + sz * 1.3), root = V(sx * 0.8, 3.9, -0.12 + sz * 0.75);
+    const q = V(sx * 1.32, 3.98, -0.12 + sz * 1.3), root = V(sx * 1.05, 3.9, -0.12 + sz * 0.75);
     body.rod(alu, root, q, 0.05); body.rod(alu, V(root.x, 3.4, root.z), q, 0.03, 6);
     body.box(dark, 0.22, 0.22, 0.22, q.x, q.y, q.z);
     for (const [dx, dy, dz, rx, rz] of [[0, 1, 0, 0, 0], [0, -1, 0, Math.PI, 0], [sx, 0, 0, 0, -sx * Math.PI / 2], [0, 0, sz, sz * Math.PI / 2, 0]])
@@ -253,7 +260,7 @@ export function makeLM(env) {
     body.rod(alu, dfl, V(sx * 1.3, DS_TOP, -0.12 + sz * 1.15), 0.018, 6); body.rod(alu, dfl, V(sx * 1.75, DS_TOP, -0.12 + sz * 1.0), 0.018, 6);
   }
   /* the docking tunnel and drogue (the top stays at 4.75) */
-  body.add(new THREE.CylinderGeometry(0.42, 0.45, 0.45, 24), alu, 0, 4.525, 0);
+  body.add(new THREE.CylinderGeometry(0.42, 0.45, 0.45, 24, 1, true), alu, 0, 4.525, 0);          /* open: the cabin's hatch is under it */
   body.add(new THREE.ConeGeometry(0.42, 0.18, 24, 1, true), darkD, 0, LM.TOP - 0.05, 0, Math.PI, 0, 0);
   body.add(new THREE.TorusGeometry(0.42, 0.018, 6, 24), alu, 0, LM.TOP, 0, Math.PI / 2);
   /* the rendezvous radar over the front; the S-band dish on its boom; two VHF aerials; the docking target; the small
