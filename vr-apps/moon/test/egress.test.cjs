@@ -7,7 +7,8 @@
  * opens by itself; a grip sets you out, turned to face the cabin; pulling with a gripping hand moves you along the
  * way out (and only along it); A goes on by itself, through the hatch, over the porch, down the ladder, the drop to
  * the pad, onto the ground; the walk is then yours, standing on the terrain beyond the footpad with two prints;
- * both eyes drawn inside and outside; the Lunar Module Pilot then follows you out and down and moves about; no errors. */
+ * both eyes drawn inside and outside; the Lunar Module Pilot then follows you out and down and moves about; the radio
+ * answers; from the ground you climb back up into the cabin; no errors. */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright-core');
@@ -118,6 +119,35 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     return { lm: +Math.hypot(a[0] - c.x, a[1] - c.z).toFixed(2), man: +Math.hypot(b[0] - L.pos.x, b[1] - L.pos.z).toFixed(2) };
   });
   ok('the LM and the other astronaut are solid', hit.lm > 2.4 && hit.man > 0.7, JSON.stringify(hit));
+  /* the radio: X held and let go, and someone answers */
+  await p.waitForFunction(() => __moon.radio.ready, null, { timeout: 120000 });
+  await p.evaluate(() => { __dev.controllers.left.updateButtonValue('x-button', 1); });
+  await p.waitForFunction(() => __moon.radio.transmitting, null, { timeout: 60000 });
+  await frames(6);
+  await p.evaluate(() => { __dev.controllers.left.updateButtonValue('x-button', 0); });
+  await p.waitForFunction(() => __moon.radio.acks >= 1, null, { timeout: 180000 });
+  ok('the radio: your transmission is answered', true, await p.evaluate(() => __moon.radio.last.who + ': ' + __moon.radio.last.text));
+  /* back up: by the footpad a grip puts you on the pad at the ladder; A climbs, into the cabin */
+  await p.evaluate(() => { const o = __moon, v = o.lm.localToWorld(new o.rig.position.constructor(0, 0, 5.5)); o.lmp.S.rate = 0; o.lmp.S.pos.x += 30; o.S.pos.set(v.x, 0, v.z); });
+  await frames(4);
+  const near = await p.evaluate(() => __moon.atLadder());
+  await p.evaluate(() => { __dev.controllers.right.updateButtonValue('squeeze', 1); });
+  await p.waitForFunction(() => __moon.egress.E.stage === 'pad' && __moon.egress.fade < 0.2, null, { timeout: 300000 });
+  await p.evaluate(() => { __dev.controllers.right.updateButtonValue('squeeze', 0); });
+  ok('by the footpad a grip takes you onto the pad at the ladder', near && await p.evaluate(() => __moon.egress.active));
+  await frames(3);
+  await p.evaluate(async () => { __dev.controllers.right.updateButtonValue('a-button', 1); await new Promise(r => setTimeout(r, 400)); __dev.controllers.right.updateButtonValue('a-button', 0); });
+  const up = {};
+  for (let k = 0; k < 2400; k++) {
+    let st = await p.evaluate(() => ({ stage: __moon.egress.E.stage, auto: __moon.egress.E.auto }));
+    up[st.stage] = true;
+    if (st.stage === 'cabin') break;
+    if (st.stage === 'pad' && !st.auto) await p.evaluate(async () => { __dev.controllers.right.updateButtonValue('a-button', 1); await new Promise(r => setTimeout(r, 400)); __dev.controllers.right.updateButtonValue('a-button', 0); });
+    await p.waitForTimeout(250);
+  }
+  await frames(4);
+  const e9 = await eye();
+  ok('A climbs: the jump for the last rung, the ladder, the porch, and you stand in the cabin again', up.hop && up.path && up.in && up.cabin && e9[2] < 1.2 && e9[1] > 3.6 && e9[1] < 4.3, Object.keys(up).join(' ') + ' ' + JSON.stringify(e9));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');
