@@ -15,8 +15,8 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=19';
-import { LMC } from './lm-cabin.js?v=19';
+import { LM } from './lm-model.js?v=20';
+import { LMC } from './lm-cabin.js?v=20';
 
 const G_MOON = 1.62;
 
@@ -74,6 +74,13 @@ export function makeEgress(o) {
       /* the Lunar Module Pilot stands back, clear of the hatch as it swings in */
       o.lmc.lmp.position.x = -0.66; o.lmc.lmp.position.z = 0.5;
       E.theta = ry() + Math.PI; capture();
+    },
+    /* already down: the hatch stands open behind you, the walk is yours (chapter 6 started on the ground) */
+    skip() {
+      o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
+      E.active = false; E.stage = 'done'; E.fade = 0; E.fadeTo = 0; E.door = 1;
+      o.lmc.setForwardHatch(1); o.model.userData.hatch.visible = false; o.lmc.setBody(false);
+      o.lmc.lmp.position.x = -0.66; o.lmc.lmp.position.z = 0.5;
     },
     /* recapture where you stand (entering VR: the headset's own origin is anywhere) */
     recentre() { E.pending = 1; },

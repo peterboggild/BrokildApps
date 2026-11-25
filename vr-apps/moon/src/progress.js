@@ -7,7 +7,7 @@ const KEY = 'moon-progress';
 let last = 0;
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h + ':' + String(m).padStart(2, '0'); };
 export const CHAPTERS = { 'launch.html': 'chapter 1, the launch', 'orbit.html': 'chapter 2, to the Moon', 'lunar.html': 'chapter 3, lunar orbit',
-  'lm.html': 'chapter 4, into the LM', 'descent.html': 'chapter 5, the descent', 'index.html': 'the surface' };
+  'lm.html': 'chapter 4, into the LM', 'descent.html': 'chapter 5, the descent', 'surface.html': 'chapter 6, on the Moon' };
 
 export function loadProgress() {
   try { const p = JSON.parse(localStorage.getItem(KEY) || 'null'); return p && CHAPTERS[p.page] ? p : null; } catch (e) { return null; }
@@ -30,9 +30,9 @@ export function offerContinue(page, select) {
 /* the front page: a Continue link above the chapters */
 export function continueLink(before) {
   const p = loadProgress();
-  if (!p || !before || p.page === 'index.html') return;
+  if (!p || !before) return;
   const a = document.createElement('a');
-  a.href = p.page; a.textContent = 'Continue: ' + CHAPTERS[p.page] + (typeof p.t === 'number' ? ', GET ' + fmt(p.t) : ', from its start');
+  a.href = p.page; a.textContent = 'Continue: ' + CHAPTERS[p.page] + (p.page === 'surface.html' ? '' : typeof p.t === 'number' ? ', GET ' + fmt(p.t) : ', from its start');
   a.style.cssText = before.style.cssText; a.style.background = '#1f2a18'; a.style.borderColor = '#5f7c36';
   before.parentNode.insertBefore(a, before);
 }

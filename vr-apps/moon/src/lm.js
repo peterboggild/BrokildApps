@@ -15,22 +15,22 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?lm (start standing in the LM)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=19';
+import { state as ascentState } from './ascent.js?v=20';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=19';
-import { makeCabin } from './cabin.js?v=19';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=19';
-import { makeLaunchSound } from './launch-sound.js?v=19';
-import { makeRadio, combineRadios } from './radio.js?v=19';
-import { makeClock } from './clock.js?v=19';
-import { makeChatter } from './chatter.js?v=19';
-import { handOnCrew } from './crew-life.js?v=19';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=19';
-import { createHand, makeControllers } from './hands.js?v=19';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=19';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=19';
-import { settings, applyCommon, holdsFor } from './settings.js?v=19';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=20';
+import { makeCabin } from './cabin.js?v=20';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=20';
+import { makeLaunchSound } from './launch-sound.js?v=20';
+import { makeRadio, combineRadios } from './radio.js?v=20';
+import { makeClock } from './clock.js?v=20';
+import { makeChatter } from './chatter.js?v=20';
+import { handOnCrew } from './crew-life.js?v=20';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=20';
+import { createHand, makeControllers } from './hands.js?v=20';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=20';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=20';
+import { settings, applyCommon, holdsFor } from './settings.js?v=20';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

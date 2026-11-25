@@ -9,25 +9,27 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=19';
-import { PAD_DROP } from './descent-space.js?v=19';
-import { makeLMShadow } from './lm-shadow.js?v=19';
+import { makeLMModel } from './vehicle.js?v=20';
+import { PAD_DROP } from './descent-space.js?v=20';
+import { makeLMShadow } from './lm-shadow.js?v=20';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=19';
-import { makeWrist, makeToast } from './wrist.js?v=19';
-import { makeLMCabin } from './lm-cabin.js?v=19';
-import { makeEgress } from './egress.js?v=19';
-import { settleLM } from './lm-model.js?v=19';
-import { settings, applyCommon } from './settings.js?v=19';
-import { continueLink, autoEnter } from './progress.js?v=19';
+import { makeControllers, createHand } from './hands.js?v=20';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=20';
+import { makeLMCabin } from './lm-cabin.js?v=20';
+import { makeEgress } from './egress.js?v=20';
+import { settleLM } from './lm-model.js?v=20';
+import { settings, applyCommon } from './settings.js?v=20';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=20';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
 const $ = id => document.getElementById(id);
 const BASE = new URL('../assets/moon/', import.meta.url).href;
 const FAR = 3.0e6;
+/* surface.html is chapter 6, On the Moon: this page with the surface only, starting in the landed LM (egress.js) */
+const CH6 = document.body.dataset.chapter === '6';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -71,7 +73,7 @@ const GM = 4.9028e12;
 
 let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
 /* out of the LM (egress.js, ?egress): the model, its cabin, your hands, a message in front of you, a black veil */
-let lmModel = null, lmHemi = null, lmc = null, egress = null, toast = null;
+let lmModel = null, lmHemi = null, lmc = null, egress = null, toast = null, card = null;
 const hands = { left: createHand('left'), right: createHand('right') }, EH = { left: { grip: false, pos: null }, right: { grip: false, pos: null } };
 const fadeScene = new THREE.Scene();
 const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
@@ -116,7 +118,7 @@ function setView(name, theta) {
 const keys = {};
 addEventListener('keydown', e => {
   keys[e.code] = true;
-  if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface');
+  if (!CH6) { if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface'); }
   if (e.code === 'KeyP') S.still = !S.still;
   if (e.code === 'KeyF' && egress && egress.active) egress.go();
   if (e.code === 'BracketRight') { S.sunOffset += 1; moon.setSunOffset(S.sunOffset); }
@@ -146,7 +148,7 @@ function readControllers(dt) {
     const k = src.handedness;
     /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
     const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a'] && k === 'right') { if (egress.active) egress.go(); else next = true; }
+    if (a && !pad.prev[k + 'a'] && k === 'right') { if (egress.active) egress.go(); else if (!CH6) next = true; }
     EH[k].grip = (gp.buttons[1]?.value || 0) > 0.5; EH[k].pos = ctl.grips[k].visible ? ctl.grips[k].position : null;
     if (hands[k]) { if (hands[k].parent !== ctl.grips[k]) ctl.grips[k].add(hands[k]); hands[k].userData.pose(gp.buttons[0]?.value || 0, gp.buttons[1]?.value || 0, [3, 4, 5].some(n => gp.buttons[n]?.touched), false, dt); }
     if (st && !pad.prev[k + 's'] && k === 'left') hud.press();
@@ -298,10 +300,13 @@ function trackSteps() {
 
 /* ---------------------------------------------------------------- the wrist panel (X): status and settings */
 function info() {
-  if (egress.active) return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: 'Leaving the Lunar Module', next: null, after: 'the walk on the Moon', get: 0, warp: 1,
+  if (egress.active) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Leaving the Lunar Module', next: null, after: 'the walk on the Moon', get: 0, warp: 1,
     rows: [['Where', { cabin: 'in the cabin', turn: 'at the hatch', path: 'on the way down', drop: 'the last drop', pad: 'on the footpad' }[egress.E.stage] || '']],
     keys: [['grip', 'pull yourself along'], ['A', 'go by itself / stop'], ['L stick', 'press: panel, settings']], fps: S.fps };
-  return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'the moonwalk is still to come' : 'A: the next view', get: 0, warp: 1,
+  if (CH6) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Walking in the valley of Taurus-Littrow', next: null, after: 'the rover and the flag are still to come', get: 0, warp: 1,
+    rows: [['From the LM', Math.hypot(S.pos.x, S.pos.z).toFixed(0) + ' m']],
+    keys: [['L stick', 'walk'], ['R stick', 'turn 30 deg'], ['trigger', 'aim a jump, let go'], ['L stick', 'press: panel, settings']], fps: S.fps };
+  return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'chapter 6 is the way here from the landing' : 'A: the next view', get: 0, warp: 1,
     rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
     keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
 }
@@ -333,7 +338,7 @@ function render() {
     prints.group.visible = nearOn && close; ground.group.visible = nearOn && close;
     arcLine.visible = TP.aiming && cabinOn && close; marker.visible = TP.aiming && TP.valid && cabinOn && close;
     rail.visible = cabinOn && S.view !== 'surface'; if (hud) hud.mesh.visible = hud.on && cabinOn;
-    toast.mesh.visible = cabinOn && toast.k > 0.01; hands.left.visible = hands.right.visible = cabinOn;
+    toast.mesh.visible = cabinOn && toast.k > 0.01; hands.left.visible = hands.right.visible = cabinOn; card.mesh.visible = cabinOn && card.k > 0.01;
     lmc.group.visible = false;
   };
   /* the LM's cabin, seen from inside and through the open hatch: its own pass with its own lights (they would
@@ -378,7 +383,8 @@ function frame(t) {
   const xr = renderer.xr.isPresenting;
   if (ctl) ctl.update();
   if (xr) readControllers(dt);
-  toast.update(dt, camera);
+  toast.update(dt, camera); card.update(dt, camera);
+  if (CH6) saveProgress('surface.html', egress.active ? 0 : 1, t);
   if (S.view === 'surface' && egress.active) {
     egress.update(dt, xr ? [EH.left, EH.right] : []);
     lmc.update(t / 1000, { viewer: camera });
@@ -430,7 +436,8 @@ async function enterVR() {
   S.heading = 0; S.yaw = 0; S.pitch = 0;
   /* the panel rides on the left controller */
   if (!ctl) { ctl = makeControllers(renderer, camera.parent); ctl.grips.left.add(hud.mesh); }
-  if (egress.active) { egress.recentre(); toast.say('Chapter 6: Out onto the Moon', 5); }
+  if (egress.active) egress.recentre();
+  if (CH6) card.show({ title: 'Chapter 6', sub: 'On the Moon' }, 6);
   session.addEventListener('selectstart', () => suit.init());
   document.body.classList.add('invr');
   session.addEventListener('end', () => { document.body.classList.remove('invr'); renderer.setSize(innerWidth, innerHeight); });
@@ -455,6 +462,7 @@ async function start() {
   rail = makeRail(); rig.add(rail);
   hud = makeWrist(['hz', 'fov', 'hand']);
   toast = makeToast(); head.add(toast.mesh);
+  card = makeCard(); head.add(card.mesh);
   ground = makeGround(moon, BASE);
   prints = makePrints(moon);
   prints.trail(-5.2, 0.3, 5.6, 13.2);              /* (the ladder is on the front leg, which faces west) */                   /* your own way here from the ladder */
@@ -463,9 +471,14 @@ async function start() {
     eye: () => (renderer.xr.isPresenting ? _eye.copy(camera.position) : _eye.set(0, 1.65, 0)),
     yaw: () => (renderer.xr.isPresenting ? _eu.setFromQuaternion(camera.quaternion, 'YXZ').y : S.yaw * Math.PI / 180),
     done: (x, z, heading) => { S.pos.set(x, 0, z); S.heading = heading; STEP.last = null; } });
-  if (Q.has('egress')) S.view = 'surface';
+  if (Q.has('egress') || CH6) S.view = 'surface';
+  /* chapter 6: where you were (the walk, if you had climbed down), else the cabin */
+  if (CH6 && $('start')) { const p = loadProgress(); if (p && p.page === 'surface.html' && p.t === 1) $('start').value = 'walk'; }
   setView(S.view, Q.has('theta') ? num('theta', 0) : undefined);
-  if (Q.has('egress')) egress.begin();
+  const onGround = () => { egress.skip(); S.pos.set(-7.2, 0, -1.0); S.heading = -98 * Math.PI / 180; };          /* a few steps west of the ladder, facing the LM */
+  if (Q.has('egress') || (CH6 && !Q.has('walk') && (!$('start') || $('start').value === 'egress'))) egress.begin(); else if (CH6) onGround();
+  if (CH6) $('start')?.addEventListener('change', () => { if ($('start').value === 'egress') egress.begin(); else onGround(); });
+  $('flat')?.addEventListener('click', () => { wake(); document.body.classList.add('running'); });
   if (Q.has('x')) { S.pos.set(num('x', 6), 0, num('z', 14)); if (ground.ok && !ground.detailed(S.pos.x, S.pos.z)) await ground.request(S.pos.x, S.pos.z); }
   S.heading = num('heading', S.view === 'surface' ? 25 : 0) * Math.PI / 180;
   if (Q.has('trail')) prints.trail(S.pos.x + 0.3, S.pos.z - 1.2, S.pos.x + 1.5, S.pos.z - 9);      /* test aid: prints ahead (north) */
