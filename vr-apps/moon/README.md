@@ -3,7 +3,8 @@
 A realistic Apollo-style flight to the Taurus-Littrow valley for the Meta Quest 3 browser. Design, decisions and
 stages: `MOON-DESIGN.md` in the repository root. This file describes what is built.
 
-**State: stages 0 to 2.** The Moon test (below), the briefing, chapter 1 (the launch) and chapter 2 (to the Moon).
+**State: stages 0 to 2, and stage 3 part 1.** The Moon test (below), the briefing, chapter 1 (the launch), chapter 2
+(to the Moon) and chapter 3 (lunar orbit).
 The Moon test: three views of one baked Moon, to judge realism and frame rate in the headset
 before anything else is built:
 
@@ -150,6 +151,36 @@ Not in it yet: the cuff checklist, midcourse corrections, the Moon's pull, city 
 Test aids: `orbit.html?t=` (GET, s), `?still`, `?shot`, `?out&od=&oa=&oe=` (outside view: distance, azimuth,
 elevation), `?yaw=&pitch=`; `tools/shot-orbit.cjs`; `test/orbit.test.cjs` (emulated Quest 3). Hooks on
 `window.__orbit`.
+
+## Chapter 3: lunar orbit (`lunar.html`)
+
+From where chapter 2 ends (GET 71:52, 66,000 km out) to the first low pass of the descent orbit (GET 94:20).
+
+- **The flight** (`src/lunar-space.js`), in stage 0's site frame (x east, y up, z south at the landing site), used
+  as an inertial frame for the chapter: the Moon's turning (0.55° an hour) is left out, so every orbit passes over
+  Taurus-Littrow; the Sun turns back from where stage 0 baked it at the landing (0.508° an hour, `setSunOffset`), so
+  the light here leads into the landing's. The orbit plane follows stage 0's ground track. The approach is a
+  hyperbola timed to Apollo 17's LOI (ignition GET 88:54:22); LOI (6 min 33 s) and DOI (22 s, GET 93:08) are
+  integrated step by step, their thrust scaled for 315 by 97 km and for a low point of 15 km eight degrees before
+  the site. Between burns, two-body Kepler. Both burns happen behind the Moon; the radio goes silent there
+  (computed: loss of signal 88:49:46, back at 89:25:16 with Earthrise).
+- **The Moon** is stage 0's (`src/moon.js`) as it is; **the Earth** in its sky (`src/extras.js`) is now the real one
+  (Blue Marble and the clouds of chapters 1 and 2, turning), also on the Moon page.
+- **Your window**: on the approach the Moon is in the side window beside you; in orbit the Moon is below and that
+  window looks ahead along the track, turned 21° towards the Earth's side and down to the horizon, so the Earth
+  rises in it. For the burns the spacecraft turns engine first.
+- **Comfort**: the attitude never turns faster than 1.5° a second as you see it. At high warp the spacecraft holds
+  still while the Moon turns below, and catches up when time slows. (Chapter 2 now does the same, except during
+  docking.)
+- **Time**: ×10 to ×10,000; round the burns, Earthrise and the low pass ×10 at most.
+- **Radio**: 41 lines (`tools/script/lunar.json`), timed to the computed events.
+- **The end**: A (or N) leaves VR and opens the Moon page, until the crawl into the LM and the landing are built.
+  Chapter 2 now ends with A taking you to chapter 3.
+
+Not in it yet: the crawl into the LM and undocking (next), earthshine on the Moon's night side, stars.
+
+Test aids: `lunar.html?t=`, `?still`, `?shot`, `?out&od=&oa=&oe=`, `?yaw=&pitch=` (the window beside you: yaw 62);
+`tools/shot-lunar.cjs`; `test/lunar.test.cjs` (emulated Quest 3). Hooks on `window.__lunar`.
 
 ## How the Moon is drawn
 

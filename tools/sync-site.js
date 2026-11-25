@@ -95,6 +95,10 @@ const EXTRA = {
     alt: "Journey to the Moon: To the Moon — Earth orbit, the burn towards the Moon, docking with the Lunar Module and the coast, from inside an Apollo Command Module",
     type: "website",
   },
+  "vr-apps/moon/lunar.html": {
+    alt: "Journey to the Moon: Lunar Orbit — the burn into orbit behind the Moon, Earthrise, and a low pass over the Apollo 17 landing site, from inside the Command Module",
+    type: "website",
+  },
   "vr-apps/moon/index.html": {
     alt: "Journey to the Moon — the Moon from NASA's orbiter data, seen from orbit and from the Apollo 17 landing site",
     type: "website",

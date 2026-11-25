@@ -536,6 +536,17 @@ cover were wound inside out (from the front you saw through the CM). Weak points
 docking reads from the couch (the rendezvous windows look forward along the nose, so one must lean up to them),
 and the coast's long stretches at high warp.
 
+### 12.5 Stage 3, part 1 as built (25 November 2026)
+
+Chapter 3 (`vr-apps/moon/lunar.html`), lunar space to the first low pass; the README describes it. Built on Opus,
+not Fable: the Moon views reuse stage 0's renderer unchanged, so the part Fable was reserved for already existed.
+Departures from §10: stage 0's site frame serves as the inertial frame (the Moon's rotation, 0.55° an hour, left
+out); no libration. Comfort rule added for all chapters: the attitude as seen never turns faster than 1.5° a second.
+Weak points the owner should judge: how much of the near side lies in night at this time of the lunar day (set by
+stage 0's landing Sun, so the approach shows a crescent and the first passes over the site are near the
+terminator), the Earth's size and brightness, and whether the side window is enough or the hatch window should face
+the Moon. Part 2: the crawl through the tunnel, the LM cabin and undocking.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

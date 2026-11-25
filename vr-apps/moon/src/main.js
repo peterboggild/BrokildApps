@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=3';
-import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=3';
+import { makeSky, makeRocks, makeLMStandIn, makeRail } from './extras.js?v=4';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';

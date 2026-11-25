@@ -7,7 +7,7 @@
  * spacecraft. Heights below follow the pad (pad.js) with the stage lengths a little compressed to fit the eye height.
  * The Commander's eye point is EYE_OFF in this frame. */
 import * as THREE from 'three';
-import { EYE_H, SUN, EVENTS } from './ascent.js?v=12';
+import { EYE_H, SUN, EVENTS } from './ascent.js?v=13';
 
 export const STACK = {
   base: 8.5, sicTop: 50.5, skirtTop: 54.5, siiTop: 75, sivbAft: 80.5, sivbTop: 91.2, iuTop: 92.1, slaTop: 100.6,
@@ -234,6 +234,9 @@ export function makeVehicle(renderer) {
       const n = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 10, 1, true), engineMetal); n.position.set(dx + 0.05, dy, dz); n.rotation.set(rx, 0, rz); q.add(n);
     }
   }
+  /* the aft bulkhead round the engine (hidden in the adapter until transposition) */
+  const smAft = new THREE.Mesh(new THREE.CircleGeometry(S.RSM, 48), Std({ color: 0x77797c, metalness: 0.5, roughness: 0.55, envMap: env, envMapIntensity: 0.4 }));
+  smAft.rotation.x = Math.PI / 2; smAft.position.y = Y(S.slaTop) + 0.02; csm.add(smAft);
   const sps = bell(csm, 0, 0, S.slaTop, 0.45, 1.15, 2.8);              /* inside the adapter until transposition */
   const spsMat = flameMaterial(0xfff4e0, 0xff9a50); spsMat.uniforms.uFall.value = 1.8;
   const spsFlame = flame(1.1, 2.6, 18, spsMat); spsFlame.position.y = Y(S.slaTop) - 2.8; csm.add(spsFlame); spsFlame.visible = false;
