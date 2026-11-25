@@ -105,6 +105,19 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const e3 = await eyes2();
   ok('with him outside: both eyes drawn', e3.every(v => v > 4 && v < 250), e3.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-lmp.png') });
+  /* his visor's mirror is being drawn; you cannot walk into the LM or into him */
+  const r0 = await p.evaluate(() => __moon.refl); await frames(6);
+  ok('his visor mirrors the scene (the cube map is drawn)', r0 >= 6 && await p.evaluate(() => __moon.refl) > r0, String(r0));
+  const hit = await p.evaluate(async () => {
+    const o = __moon, frame = () => new Promise(r => { o.afterFrame = r; }), L = o.lmp.S, c = o.lm.position;
+    const head = () => { const v = o.camera.position.clone().setFromMatrixPosition(o.camera.matrixWorld); return [v.x, v.z]; };
+    L.rate = 0;                                                   /* he stands still meanwhile */
+    o.S.pos.set(c.x + 0.4, 0, c.z + 0.3); await frame(); await frame(); await frame(); const a = head();
+    o.S.pos.set(L.pos.x + 0.1, 0, L.pos.z); await frame(); await frame(); await frame(); const b = head();
+    L.rate = 3;
+    return { lm: +Math.hypot(a[0] - c.x, a[1] - c.z).toFixed(2), man: +Math.hypot(b[0] - L.pos.x, b[1] - L.pos.z).toFixed(2) };
+  });
+  ok('the LM and the other astronaut are solid', hit.lm > 2.4 && hit.man > 0.7, JSON.stringify(hit));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');

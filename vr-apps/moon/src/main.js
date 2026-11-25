@@ -9,21 +9,21 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=24';
-import { PAD_DROP } from './descent-space.js?v=24';
-import { makeLMShadow } from './lm-shadow.js?v=24';
+import { makeLMModel } from './vehicle.js?v=25';
+import { PAD_DROP } from './descent-space.js?v=25';
+import { makeLMShadow } from './lm-shadow.js?v=25';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=24';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=24';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=24';
-import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=24';
-import { makeLMP, makeFigureShadow } from './lmp.js?v=24';
-import { makeEgress } from './egress.js?v=24';
-import { settleLM } from './lm-model.js?v=24';
-import { settings, applyCommon } from './settings.js?v=24';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=24';
+import { makeControllers, createHand } from './hands.js?v=25';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=25';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=25';
+import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=25';
+import { makeLMP, makeFigureShadow } from './lmp.js?v=25';
+import { makeEgress } from './egress.js?v=25';
+import { settleLM } from './lm-model.js?v=25';
+import { settings, applyCommon } from './settings.js?v=25';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=25';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -75,6 +75,85 @@ const GM = 4.9028e12;
 
 let moon, rocks, lm, rail, sky, hud, prints, ground, lmSun = null, lmShadow = null, lmShadowSun = -9;
 /* out of the LM (egress.js, ?egress): the model, its cabin, your hands, a message in front of you, a black veil */
+/* The other astronaut's visor mirrors the valley, the LM and you: a cube map drawn from his helmet, one face every
+ * other frame (a full turn in a sixth of a second), in the same two passes as the view itself (far, then near).
+ * In it you are a whole suit (meGhost: helmet and arms, which follow your hands); it is the suit your shadow is
+ * drawn from too. */
+const cubeRT = new THREE.WebGLCubeRenderTarget(256), cubeCam = new THREE.CubeCamera(0.15, 40e3, cubeRT);
+let reflFace = 0, reflTick = 0, reflEvery = 2, reflCount = 0;
+function reflect(show) {
+  const face = reflFace; reflFace = (reflFace + 1) % 6; reflCount++;
+  if (cubeCam.coordinateSystem !== renderer.coordinateSystem) { cubeCam.coordinateSystem = renderer.coordinateSystem; cubeCam.updateCoordinateSystem(); }
+  lmp.fig.userData.helmet.localToWorld(cubeCam.position.set(0, 0.785, 0)); cubeCam.updateMatrixWorld(true);
+  const cam = cubeCam.children[face], prev = renderer.getRenderTarget(), xrOn = renderer.xr.enabled;
+  renderer.xr.enabled = false; renderer.setRenderTarget(cubeRT, face); renderer.clear();
+  show(true, false, false); cam.near = 100; cam.far = FAR; cam.updateProjectionMatrix(); renderer.render(scene, cam);
+  renderer.clearDepth();
+  show(false, true, false); rocks.group.visible = false; prints.group.visible = false; lmp.fig.visible = false; me.visible = false; meGhost.visible = true;
+  cam.near = 0.15; cam.far = 40e3; cam.updateProjectionMatrix(); renderer.render(scene, cam);
+  meGhost.visible = false;
+  renderer.xr.enabled = xrOn; renderer.setRenderTarget(prev);
+}
+/* What you cannot pass through: the LM's outside as seen from above (its own frame, metres: the descent stage, the
+ * four legs with their struts and pads; the ladder is on the front leg) and the other astronaut. Your body is a
+ * circle under your head; where it would enter, it is pushed out the shortest way, so you slide along. */
+const BODY = 0.3;
+const LM_SOLID = (() => {
+  const circ = [[0, 0, 2.25]], segs = [];
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2, sa = Math.sin(a), ca = Math.cos(a), P = (rho, tau) => [sa * rho + ca * tau, ca * rho - sa * tau];
+    segs.push([P(2.1, 0), P(4.3, 0), 0.14]); circ.push([...P(4.3, 0), 0.5]);
+    for (const t of [-1, 1]) segs.push([P(2.6, t * 1.02), P(3.76, 0), 0.08]);
+  }
+  return { circ, segs };
+})();
+const _cl = new THREE.Vector3();
+function pushOut(p, cx, cz, R) { const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d >= R) return; if (d < 1e-4) { p.x = cx + R; return; } p.x = cx + dx / d * R; p.z = cz + dz / d * R; }
+/* a point on the ground (world x, z) moved out of whatever it is in; the result in _cl */
+function clearOf(x, z) {
+  /* (on the ground's plane, turned by the LM's heading only: its slight tilt has no business here) */
+  const dx = x - lmModel.position.x, dz = z - lmModel.position.z, c = Math.cos(lmModel.rotation.y), sn = Math.sin(lmModel.rotation.y);
+  _cl.set(x, 0, z);
+  if (Math.hypot(dx, dz) < 6) {
+    _cl.set(dx * c - dz * sn, 0, dx * sn + dz * c);
+    for (let n = 0; n < 2; n++) {
+      for (const [cx, cz, r] of LM_SOLID.circ) pushOut(_cl, cx, cz, r + BODY);
+      for (const [[ax, az], [bx, bz], w] of LM_SOLID.segs) {
+        const ux = bx - ax, uz = bz - az, t = Math.max(0, Math.min(1, ((_cl.x - ax) * ux + (_cl.z - az) * uz) / (ux * ux + uz * uz)));
+        pushOut(_cl, ax + ux * t, az + uz * t, w + BODY);
+      }
+    }
+    _cl.set(lmModel.position.x + _cl.x * c + _cl.z * sn, 0, lmModel.position.z - _cl.x * sn + _cl.z * c);
+  }
+  if (lmp && lmp.on && ['pad', 'off', 'roam'].includes(lmp.S.phase)) pushOut(_cl, lmp.S.pos.x, lmp.S.pos.z, 0.45 + BODY);
+  return _cl;
+}
+/* keep your head's column clear (your head is where you are, wherever in your room you stand) */
+function collide() {
+  const c = Math.cos(S.heading), sn = Math.sin(S.heading), ox = camera.position.x * c + camera.position.z * sn, oz = -camera.position.x * sn + camera.position.z * c;
+  const hx = S.pos.x + ox, hz = S.pos.z + oz; clearOf(hx, hz);
+  S.pos.x += _cl.x - hx; S.pos.z += _cl.z - hz;
+}
+/* the whole suit's arms to where your hands are (two bones: the elbow bends down, out and back) */
+const _iT = new THREE.Vector3(), _id = new THREE.Vector3(), _ie = new THREE.Vector3(), _iu = new THREE.Vector3(), _if = new THREE.Vector3(), _ix = new THREE.Vector3(), _iy = new THREE.Vector3(), _iz = new THREE.Vector3(), _im = new THREE.Matrix4();
+function ghostArms() {
+  const J = meGhost.userData.joints, waist = meGhost.userData.waist, A = 0.29, B = 0.36;
+  meGhost.updateMatrixWorld(true);
+  for (const [h, arm, elbow, sd] of [['left', J.armL, J.elbowL, -1], ['right', J.armR, J.elbowR, 1]]) {
+    const p = renderer.xr.isPresenting ? EH[h].pos : null;
+    if (!p) { arm.rotation.set(0.35, 0, sd * 0.3); elbow.rotation.set(0.6, 0, 0); continue; }
+    _iT.copy(p); rig.localToWorld(_iT); waist.worldToLocal(_iT);
+    _id.subVectors(_iT, arm.position); const L = Math.max(0.12, Math.min(A + B - 0.01, _id.length())); _id.normalize();
+    const al = Math.acos(Math.max(-1, Math.min(1, (A * A + L * L - B * B) / (2 * A * L))));
+    _ie.set(sd * 0.35, -1, 0.45); _ie.addScaledVector(_id, -_ie.dot(_id)).normalize();
+    _iu.copy(_id).multiplyScalar(Math.cos(al)).addScaledVector(_ie, Math.sin(al));                 /* the upper arm */
+    _if.copy(_id).multiplyScalar(L).addScaledVector(_iu, -A).normalize();                           /* the forearm */
+    const c = Math.max(-1, Math.min(1, _if.dot(_iu)));
+    _iy.copy(_iu).negate(); _iz.copy(_if).addScaledVector(_iu, -c); if (_iz.lengthSq() < 1e-6) _iz.set(0, 0, -1); _iz.normalize().negate();
+    _ix.crossVectors(_iy, _iz);
+    arm.quaternion.setFromRotationMatrix(_im.makeBasis(_ix, _iy, _iz)); elbow.rotation.set(Math.acos(c), 0, 0);
+  }
+}
 const helm = makeHelmetView(); helm.group.visible = false; let helmYaw = null;
 let me = null, handFill = null, lmp = null, meShadow = null, meGhost = null, meBase = null;
 let lmModel = null, lmHemi = null, lmc = null, egress = null, toast = null, card = null;
@@ -268,6 +347,7 @@ function stepBlink(dt) {
 /* stand at (x, z): the rig moves so that your head, not the middle of your play area, ends up over the spot */
 function teleportTo(x, z) {
   const head = headGround(new THREE.Vector3());
+  clearOf(x, z); x = _cl.x; z = _cl.z;                       /* not into the LM, nor onto the other astronaut */
   S.pos.x += x - head.x; S.pos.z += z - head.z;
   const lim = walkLimit();
   S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
@@ -353,6 +433,7 @@ function render() {
    * flood the LM's outside), over the same depth, before the things in your hands */
   const inCabin = close && (egress.active || (egress.E.stage === 'done' && _cam.distanceTo(lmModel.position) < 9));
   placeMe(close);
+  if (close && lmp && lmp.on && (CH6 || Q.has('egress')) && ++reflTick % reflEvery === 0 && (reflCount < 6 || _cam.distanceTo(lmp.fig.position) < 14)) reflect(show);
   /* your helmet: at your eyes, turned with your body (a little behind your look: you look about inside it) */
   if (close && helm.k > 0) {
     camera.getWorldDirection(_fw); const want = Math.hypot(_fw.x, _fw.z) > 0.2 ? Math.atan2(-_fw.x, -_fw.z) : helmYaw ?? 0;
@@ -416,6 +497,7 @@ function placeMe(close) {
   const eh = _cam.y - rig.position.y;
   me.scale.setScalar(Math.max(0.6, Math.min(1.2, (eh - 0.14) / 1.59)));
   me.position.set(_cam.x + Math.sin(meYaw) * 0.07, rig.position.y, _cam.z + Math.cos(meYaw) * 0.07); me.rotation.y = meYaw; me.updateMatrixWorld(true);
+  meGhost.position.copy(me.position); meGhost.rotation.y = meYaw; meGhost.scale.copy(me.scale); ghostArms();
   /* in the LM's shadow your suit is lit by the ground's glow only */
   const sunlit = (lmShadow.lit(_fw.copy(me.position).setY(me.position.y + 0.5)) + lmShadow.lit(_fw.setY(me.position.y + 1.4))) / 2;
   meLit += (sunlit - meLit) * 0.15; const f = 0.36 + 0.64 * meLit; for (const [m, c] of meBase) m.color.copy(c).multiplyScalar(f);
@@ -426,9 +508,9 @@ let meLit = 1, ghostYaw = 9, ghostS = 0, ghostT = 0;
 function shadowMe(dt) {
   if (!me || meYaw === null || egress.active || S.view !== 'surface') return;
   ghostT += dt;
-  if (ghostT > 0.2 && (Math.abs(meYaw - ghostYaw) > 0.08 || Math.abs(me.scale.x - ghostS) > 0.03)) {
+  /* (in the headset every fifth of a second: your arms move) */
+  if (ghostT > 0.2 && (renderer.xr.isPresenting || Math.abs(meYaw - ghostYaw) > 0.08 || Math.abs(me.scale.x - ghostS) > 0.03)) {
     ghostT = 0; ghostYaw = meYaw; ghostS = me.scale.x;
-    meGhost.position.copy(me.position); meGhost.rotation.y = meYaw; meGhost.scale.setScalar(ghostS);
     meShadow.bake(renderer, meGhost, moon.shared.uSun.value);
   }
   meShadow.drape(me.position.x, me.position.y, me.position.z);
@@ -444,6 +526,7 @@ function frame(t) {
     /* frame-rate guard: stronger foveation when the headset falls behind (resolution cannot change mid-session) */
     if (renderer.xr.isPresenting) {
       slow = S.fps < 66 ? slow + 1 : 0;
+      if (slow >= 4) reflEvery = 6;                             /* the visor's mirror gives way first */
       if (slow >= 4 && S.foveation < 1) { S.foveation = Math.min(1, S.foveation + 0.25); renderer.xr.setFoveation(S.foveation); slow = 0; }
     }
     if ($('stat')) $('stat').textContent = `${S.fps.toFixed(0)} fps · ${S.calls} draw calls · ${(S.tris / 1000).toFixed(0)}k triangles`;
@@ -465,6 +548,7 @@ function frame(t) {
       if (keys.KeyW) { S.pos.x += fx * sp; S.pos.z += fz * sp; } if (keys.KeyS) { S.pos.x -= fx * sp; S.pos.z -= fz * sp; }
       if (keys.KeyA) { S.pos.x += fz * sp; S.pos.z -= fx * sp; } if (keys.KeyD) { S.pos.x -= fz * sp; S.pos.z += fx * sp; }
     }
+    collide();
     const lim = walkLimit();
     S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
     rig.position.set(S.pos.x, moon.heightAt(S.pos.x, S.pos.z), S.pos.z);
@@ -529,11 +613,11 @@ async function start() {
     me = makeEVASuit({ player: true, commander: true, env }); me.visible = false; scene.add(me);
     handFill = new THREE.HemisphereLight(0xf4f1ea, 0x8a877f, 2.4); handFill.visible = false; scene.add(handFill);
     meBase = new Map(); me.traverse(o => { if (o.isMesh && !meBase.has(o.material)) meBase.set(o.material, o.material.color.clone()); });
-    meGhost = makeEVASuit({ commander: true }); meShadow = makeFigureShadow(moon); meShadow.mesh.visible = false; scene.add(meShadow.mesh);
+    meGhost = makeEVASuit({ commander: true, env }); meGhost.visible = false; scene.add(meGhost); meShadow = makeFigureShadow(moon); meShadow.mesh.visible = false; scene.add(meShadow.mesh);
     lmc = makeLMCabin({ inwardOnly: true, eva: true, env });
     lmShadow = makeLMShadow(moon);
     /* the Lunar Module Pilot, who follows you down and moves about in front of the LM (lmp.js) */
-    lmp = makeLMP({ moon, model: m, env, renderer, sun, cabinLmp: lmc.lmp, shade: p => lmShadow.lit(p), get prints() { return prints; }, get toast() { return toast; } });
+    lmp = makeLMP({ moon, model: m, env, renderer, sun, mirror: cubeRT.texture, cabinLmp: lmc.lmp, shade: p => lmShadow.lit(p), get prints() { return prints; }, get toast() { return toast; } });
     scene.add(lmp.fig, lmp.extras); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
     const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;
@@ -585,7 +669,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },
