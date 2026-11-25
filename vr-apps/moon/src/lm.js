@@ -15,22 +15,22 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?lm (start standing in the LM)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=15';
+import { state as ascentState } from './ascent.js?v=16';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=15';
-import { makeCabin } from './cabin.js?v=15';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=15';
-import { makeLaunchSound } from './launch-sound.js?v=15';
-import { makeRadio, combineRadios } from './radio.js?v=15';
-import { makeClock } from './clock.js?v=15';
-import { makeChatter } from './chatter.js?v=15';
-import { handOnCrew } from './crew-life.js?v=15';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=15';
-import { createHand, makeControllers } from './hands.js?v=15';
-import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=15';
-import { saveProgress, offerContinue } from './progress.js?v=15';
-import { settings, applyCommon, holdsFor } from './settings.js?v=15';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=16';
+import { makeCabin } from './cabin.js?v=16';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=16';
+import { makeLaunchSound } from './launch-sound.js?v=16';
+import { makeRadio, combineRadios } from './radio.js?v=16';
+import { makeClock } from './clock.js?v=16';
+import { makeChatter } from './chatter.js?v=16';
+import { handOnCrew } from './crew-life.js?v=16';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=16';
+import { createHand, makeControllers } from './hands.js?v=16';
+import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=16';
+import { saveProgress, offerContinue } from './progress.js?v=16';
+import { settings, applyCommon, holdsFor } from './settings.js?v=16';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -523,6 +523,7 @@ if (Q.has('shot')) document.body.classList.add('invr');
   }
   if (Q.has('out')) { OUT.want = OUT.on = true; if (Q.has('od')) OUT.dist = num('od', 26); if (Q.has('oa')) OUT.az = num('oa', 0); if (Q.has('oe')) OUT.el = num('oe', 0); }
   if (Q.has('lm') || S.t > START + 1) enterLM(true);
+  if (Q.has('fhatch')) lmc.setForwardHatch(num('fhatch', 1));          /* test aid: the forward hatch open */
   if (Q.has('float')) { S.mode = 'crawl'; cabin.setBody(false); body.set(AX, AY, num('float', -2)); }       /* test aid: floating on the tunnel's axis at cabin z */
   const bar = $('bar');
   moon = await loadMoon(renderer, BASE, f => { if (bar) bar.style.width = (f * 100).toFixed(0) + '%'; });

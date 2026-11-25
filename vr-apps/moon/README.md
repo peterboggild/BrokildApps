@@ -302,6 +302,28 @@ at them (`tools/shot-crew.cjs` takes its pictures).
   only in a quiet moment and where it fits (the pad, weightless, the Earth or the Moon in the windows, the LM). Not
   authentic, by the owner's wish. Fast forward never stops for it.
 
+## The Lunar Module (`src/lm-model.js`)
+
+Stage 5's detailed model, built in code (the owner's choice over a supplied model), in every chapter from the
+docking on. The same frame as the cabin inside (`src/lm-cabin.js`): y up from the engine bell, +z forward.
+- **Descent stage**: the octagon in crinkled gold, amber and black foil (a generated normal map of flat facets),
+  the engine bell, the landing radar, the flag and UNITED STATES (no NASA insignia, as on the real LMs).
+- **Legs** on the four axes: outrigger truss, primary strut (foil-wrapped cylinder and piston), two secondary
+  struts, the footpad on its ball joint; every rod ends on a shared joint. Contact probes under three pads (gone
+  once landed: `setLanded`). Stowed or deployed: `setLegs`.
+- **The front leg**: the ladder (nine rungs) and, over its outrigger, the porch from the hatch's sill with a
+  handrail each side. `userData.ladder` and `.porch` say where they are, for the climb down (to come).
+- **Ascent stage**: the faceted cabin drum with the two triangular windows and the square forward hatch (its own
+  mesh, `userData.hatch`), midsection, aft equipment bay, the two tank shrouds (the Commander's further out), four
+  thruster quads with plume deflectors, docking tunnel and drogue, rendezvous radar, S-band dish, VHF aerials,
+  docking target, docking window.
+- One mesh per material: about 19 draw calls, 10,000 triangles.
+- **Inside**, the forward hatch is now a real opening in the front wall under the instrument panels, with a door
+  hinged on the Lunar Module Pilot's side that swings inwards (`setForwardHatch(k)`); the DSKY moved up between
+  the two flight panels, clear of it.
+- `tools/lm.html` shows the model alone (`tools/shot-lm-model.cjs` takes pictures; `lm.html?lm&fhatch=1` shows
+  the hatch open from inside).
+
 ## The stars
 
 `src/stars.js`: the Yale Bright Star Catalogue (5th revised edition) to magnitude 6.5, 8,404 stars, baked by

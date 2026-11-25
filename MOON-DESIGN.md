@@ -643,6 +643,20 @@ contact feels right or too much; the hand angle (set it to match, tell me the nu
 and throwing the pen; the panel (left stick press) and the settings with the stick; B faster and A slower, the small clock; fast forward through chapter 2; the panels'
 new look; the docking from outside; chapter 3's start with your hands in view.
 
+### 12.10 Stage 5, part 1: the Lunar Module itself (25 November 2026, Fable)
+
+The owner chose the LM built in code over waiting for a model, "starting with the hatch". Built: `src/lm-model.js`
+(see the README): legs on the axes with every rod joined, the ladder and the porch on the front leg, foil, the flag
+and UNITED STATES, the ascent stage's parts; the forward hatch as a real opening inside with its door. It replaced
+the stand-in everywhere (same frame, same top at 4.75 m, same pad soles). On the surface the ladder faces west,
+away from the Sun, as on Apollo 17.
+**Next (part 2, the egress):** after the landing: the hatch opens, backwards out on hands and knees onto the porch,
+down the ladder (grip the rungs, as in the tunnel; or A by itself), the drop to the footpad, the first step; then
+the free walk. The cabin must then be drawn from outside too (you look back into it from the porch). **Part 3:** the
+rover parked by the LM, the flag. Not built: the MESA, the rover stowed on the descent stage, the real quad doors.
+**To check in the headset:** the LM from the surface (scale, the foil in the low Sun, the ladder and porch), from
+outside in chapters 3-5 (Y), the docking in chapter 2 with the new model.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

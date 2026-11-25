@@ -12,20 +12,20 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=15';
-import { makeOutside } from './earth.js?v=15';
-import { makeCabin } from './cabin.js?v=15';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=15';
-import { makeRadio, combineRadios } from './radio.js?v=15';
-import { makeClock } from './clock.js?v=15';
-import { makeChatter } from './chatter.js?v=15';
-import { handOnCrew } from './crew-life.js?v=15';
-import { makePad, ARM, WR } from './pad.js?v=15';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=15';
-import { createHand, makeControllers } from './hands.js?v=15';
-import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=15';
-import { saveProgress, offerContinue } from './progress.js?v=15';
-import { settings, applyCommon, holdsFor } from './settings.js?v=15';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=16';
+import { makeOutside } from './earth.js?v=16';
+import { makeCabin } from './cabin.js?v=16';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=16';
+import { makeRadio, combineRadios } from './radio.js?v=16';
+import { makeClock } from './clock.js?v=16';
+import { makeChatter } from './chatter.js?v=16';
+import { handOnCrew } from './crew-life.js?v=16';
+import { makePad, ARM, WR } from './pad.js?v=16';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=16';
+import { createHand, makeControllers } from './hands.js?v=16';
+import { makeWrist, makeToast, makeWarpBadge, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=16';
+import { saveProgress, offerContinue } from './progress.js?v=16';
+import { settings, applyCommon, holdsFor } from './settings.js?v=16';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

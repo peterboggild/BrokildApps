@@ -9,16 +9,16 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=15';
-import { PAD_DROP } from './descent-space.js?v=15';
-import { makeLMShadow } from './lm-shadow.js?v=15';
+import { makeLMModel } from './vehicle.js?v=16';
+import { PAD_DROP } from './descent-space.js?v=16';
+import { makeLMShadow } from './lm-shadow.js?v=16';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers } from './hands.js?v=15';
-import { makeWrist } from './wrist.js?v=15';
-import { settings, applyCommon } from './settings.js?v=15';
-import { continueLink } from './progress.js?v=15';
+import { makeControllers } from './hands.js?v=16';
+import { makeWrist } from './wrist.js?v=16';
+import { settings, applyCommon } from './settings.js?v=16';
+import { continueLink } from './progress.js?v=16';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -416,7 +416,7 @@ async function start() {
   hud = makeWrist(['hz', 'fov']);
   ground = makeGround(moon, BASE);
   prints = makePrints(moon);
-  prints.trail(0.4, 5.3, 6, 13.2);                   /* your own way here from the ladder */
+  prints.trail(-5.2, 0.3, 5.6, 13.2);              /* (the ladder is on the front leg, which faces west) */                   /* your own way here from the ladder */
   scene.add(moon.far, moon.near, ground.group, rocks.group, lm, sky, prints.group, arcLine, marker);
   setView(S.view, Q.has('theta') ? num('theta', 0) : undefined);
   if (Q.has('x')) { S.pos.set(num('x', 6), 0, num('z', 14)); if (ground.ok && !ground.detailed(S.pos.x, S.pos.z)) await ground.request(S.pos.x, S.pos.z); }

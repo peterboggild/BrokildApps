@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>LM close-up</title>
+<!-- Development view of the Lunar Module model (not linked from the site): on a grey plain under the landing's low
+     Sun. tools/shot-lm-model.cjs takes pictures. Drag to turn, wheel to zoom.
+     URL: ?az=deg &el=deg &d=metres (camera round the LM) &at=x,y,z (look at) &fov= &folded (legs stowed) &sun=az,el -->
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>html, body { margin: 0; height: 100%; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { makeLMModel } from '../src/vehicle.js?v=16';
+const q = new URLSearchParams(location.search), num = (k, d) => q.has(k) ? +q.get(k) : d;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(num('fov', 40), innerWidth / innerHeight, 0.05, 500);
+const lm = makeLMModel(renderer); if (q.has('folded')) { lm.userData.setLegs(false); } lm.position.y = 0.86; scene.add(lm);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshLambertMaterial({ color: 0x8a8782 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const [saz, sel] = (q.get('sun') || '120,13.3').split(',').map(Number);
+const sun = new THREE.DirectionalLight(0xfff6e8, 3.2);
+sun.position.set(Math.sin(saz * Math.PI / 180) * Math.cos(sel * Math.PI / 180), Math.sin(sel * Math.PI / 180), Math.cos(saz * Math.PI / 180) * Math.cos(sel * Math.PI / 180)).multiplyScalar(50);
+scene.add(sun, new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55));
+const V = { az: num('az', 35), el: num('el', 8), d: num('d', 13), at: (q.get('at') || '0,2.6,0').split(',').map(Number) };
+function place() {
+  const a = V.az * Math.PI / 180, e = V.el * Math.PI / 180;
+  camera.position.set(V.at[0] + Math.sin(a) * Math.cos(e) * V.d, V.at[1] + Math.sin(e) * V.d, V.at[2] + Math.cos(a) * Math.cos(e) * V.d);
+  camera.lookAt(V.at[0], V.at[1], V.at[2]);
+}
+let drag = null;
+addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => { if (!drag) return; V.az -= (e.clientX - drag[0]) * 0.3; V.el = Math.max(-5, Math.min(89, V.el + (e.clientY - drag[1]) * 0.3)); drag = [e.clientX, e.clientY]; });
+addEventListener('wheel', e => { V.d *= Math.exp(e.deltaY * 0.001); });
+let frames = 0;
+renderer.setAnimationLoop(() => { place(); renderer.render(scene, camera); frames++; window.__lm3 = { lm, frames, info: renderer.info.render }; });
+</script>
+</body>
+</html>
