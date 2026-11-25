@@ -21,7 +21,7 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { settings } from './settings.js?v=22';
+import { settings } from './settings.js?v=23';
 
 const D = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -35,14 +35,14 @@ const REST_LOOSE = [60, 84, 26], REST_TIGHT = [73, 98, 33];        // the other 
  * degrees low). No documented offset exists for the Quest 3 in WebXR, so it is a setting ('hand', default 17), to
  * be matched to your own hand in the headset. */
 
-export function createHand(side) {
+export function createHand(side, opts = {}) {
   const root = new THREE.Group(), tilt = new THREE.Group(), h = new THREE.Group(); root.add(tilt); tilt.add(h);
   tilt.rotation.x = settings.get('hand') * D; root.userData.tilt = tilt;
   settings.onChange(k => { if (k === 'hand') tilt.rotation.x = settings.get('hand') * D; });
   if (side === 'left') h.scale.x = -1;
-  const GLOVE = 0x6a7a90;
+  const GLOVE = opts.color ?? 0x6a7a90;
   const leather = new THREE.MeshStandardMaterial({ color: GLOVE, roughness: 0.7, metalness: 0.02 });
-  const cuffM = new THREE.MeshStandardMaterial({ color: 0x2c4fa8, roughness: 0.6, metalness: 0.1 });   /* the wrist ring */
+  const cuffM = new THREE.MeshStandardMaterial({ color: opts.cuff ?? 0x2c4fa8, roughness: 0.6, metalness: 0.1 });   /* the wrist ring */
   const seam = new THREE.MeshStandardMaterial({ color: 0x120e0c, roughness: 0.8 });
 
   /* the palm: a rounded slab in the Y-Z plane, 1.6 cm clear of the rod's axis */

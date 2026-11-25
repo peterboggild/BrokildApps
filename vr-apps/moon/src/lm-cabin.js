@@ -8,9 +8,10 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=22';
-import { makeCrewLife } from './crew-life.js?v=22';
-import { LM } from './lm-model.js?v=22';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=23';
+import { makeEVASuit } from './eva-suit.js?v=23';
+import { makeCrewLife } from './crew-life.js?v=23';
+import { LM } from './lm-model.js?v=23';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -158,11 +159,34 @@ export function makeLMCabin(opts = {}) {
 
   /* ---------------- the Lunar Module Pilot, standing at the right station */
   /* your own suit, standing at the Commander's station (as in the Command Module: no head, no forearms) */
-  const body = makeCrewman({ player: true, standing: true });
-  body.position.set(LMC.CDR.x, FLOOR + 1.6 - 0.09, LMC.CDR.z - 0.07); body.rotation.y = Math.PI; g.add(body);
-  const lmp = makeCrewman({ variant: 1, standing: true });
-  lmp.position.set(LMC.LMP.x, FLOOR + 1.6, LMC.LMP.z); lmp.rotation.y = Math.PI; g.add(lmp);
-  const life = makeCrewLife([{ man: lmp, who: 'LMP' }]);
+  let body, lmp, life;
+  if (opts.eva) {
+    /* dressed for the surface (chapter 6): the suits of eva-suit.js. Yours without helmet and arms; his a little
+     * stooped under the low ceiling, the pack's aerial folded down */
+    body = makeEVASuit({ player: true, commander: true, env: opts.env });
+    body.position.set(LMC.CDR.x, FLOOR - 0.13, LMC.CDR.z - 0.07); body.rotation.y = Math.PI; body.userData.aerial.visible = false; g.add(body);
+    lmp = makeEVASuit({ env: opts.env });
+    lmp.position.set(LMC.LMP.x, FLOOR, LMC.LMP.z); lmp.rotation.y = Math.PI - 0.45; lmp.scale.setScalar(0.92); lmp.userData.aerial.visible = false; g.add(lmp);
+    /* (the cabin's floodlights are tuned for its matt greys: the white cloth would burn out in them) */
+    for (const s of [body, lmp]) { const seen = new Set(); s.traverse(o => { if (o.isMesh && !seen.has(o.material) && o.material !== s.userData.visor) { seen.add(o.material); o.material.color.multiplyScalar(0.6); } }); }
+    /* his life in the stiff suit: the whole torso turns, slowly, now and then towards you; the arms work a little */
+    const J = lmp.userData.joints, _v = new THREE.Vector3(); let yaw = 0, last = null;
+    life = { update(t, ctx = {}) {
+      const dt = last === null ? 0 : Math.min(0.1, t - last); last = t;
+      let want = 0.22 * Math.sin(t * 0.21) + 0.08 * Math.sin(t * 0.53);
+      if (ctx.viewer && Math.sin(t * 0.13) > 0.2) { lmp.worldToLocal(ctx.viewer.getWorldPosition(_v)); want = Math.max(-0.7, Math.min(0.7, Math.atan2(-_v.x, -_v.z))); }
+      yaw += (want - yaw) * Math.min(1, dt * 0.9);
+      J.waist.rotation.y = yaw; J.waist.rotation.x = -0.1 + 0.015 * Math.sin(t * 0.7);
+      J.elbowL.rotation.x = 0.75 + 0.12 * Math.sin(t * 0.37); J.elbowR.rotation.x = 0.7 + 0.1 * Math.sin(t * 0.29 + 1);
+      J.armL.rotation.x = 0.4 + 0.06 * Math.sin(t * 0.23 + 2); J.armR.rotation.x = 0.38 + 0.05 * Math.sin(t * 0.31);
+    }, touch() {}, react() {} };
+  } else {
+    body = makeCrewman({ player: true, standing: true });
+    body.position.set(LMC.CDR.x, FLOOR + 1.6 - 0.09, LMC.CDR.z - 0.07); body.rotation.y = Math.PI; g.add(body);
+    lmp = makeCrewman({ variant: 1, standing: true });
+    lmp.position.set(LMC.LMP.x, FLOOR + 1.6, LMC.LMP.z); lmp.rotation.y = Math.PI; g.add(lmp);
+    life = makeCrewLife([{ man: lmp, who: 'LMP' }]);
+  }
 
   /* ---------------- light: floodlights over each station; the Sun through the windows */
   const amb = new THREE.HemisphereLight(0xf4f1ea, 0x8a877f, 2.6);
