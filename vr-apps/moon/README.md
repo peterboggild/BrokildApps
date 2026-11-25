@@ -17,7 +17,7 @@ before anything else is built:
 
 The LM on the surface is the one you land in in chapter 5 (`makeLMModel` in `src/vehicle.js`, legs deployed, placed
 where the descent sets it down), with its long shadow from the low Sun (`src/lm-shadow.js`, shared with the descent);
-the hero LM is stage 5. The Earth overhead is the real one (Blue Marble, real clouds). There are no stars yet.
+the hero LM is stage 5. The Earth overhead is the real one (Blue Marble, real clouds), and the stars are real (below).
 
 On the surface (added after the first headset test):
 
@@ -245,6 +245,16 @@ Not in it yet: redesignating the landing point (LPD), the engine's own sound and
 Test aids: `descent.html?t=`, `?still`, `?shot`, `?out&od=&oa=&oe=`; keys T (take over), arrows (tilt), [ ] (rate);
 `tools/shot-descent.cjs`; `test/descent.test.cjs` (emulated Quest 3: the guided flight, the pitch-over, a gentle and
 a hard landing by hand, the autopilot's landing). Hooks on `window.__descent`.
+
+## The stars
+
+`src/stars.js`: the Yale Bright Star Catalogue (5th revised edition) to magnitude 6.5, 8,404 stars, baked by
+`tools/stars.py` into `assets/stars.bin` (168 KB) from NASA HEASARC's copy (public domain), downloaded to
+`%LOCALAPPDATA%\moon-data\stars`. Drawn at infinity, so no page's depth planes clip them, and placed by two
+directions every page has: the Sun's (where it stood among the stars on 11 December 1972) and a pole (the Earth's
+axis on the launch's pages, the Moon's on the others). A setting on every start page, remembered: **faint** (the
+default, the owner's choice), **realistic** (only in the shadow of the Earth or the Moon: none in daylight), **full**,
+**off**; `?stars=` in the URL. Hidden by the blue sky below 100 km on the launch.
 
 ## How the Moon is drawn
 

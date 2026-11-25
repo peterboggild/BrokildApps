@@ -413,6 +413,7 @@ function frame(now) {
   vHemi.intensity = 0.15 + 0.6 * Math.max(0, _a.fromArray(w.up).dot(_sun) + 0.2);
   cabinWorld.decompose(_x, _q, _s); cabin.setDaylight(lit, _y.copy(_sun).applyQuaternion(_iq.copy(_q).invert()));
   lmc.setDaylight(lit, _y.copy(_sun).applyQuaternion(_iq.copy(lmAtt).invert()));
+  sky.userData.stars.setDark(1 - lit);
   /* undocking: the latches let go */
   if (prevT < UNDOCK && S.t >= UNDOCK && S.warp <= 10) sound.thump(0.6, 0.35, 650);
   if (prevT < SEP && S.t >= SEP && S.warp <= 10) sound.thump(0.2, 0.6, 300);

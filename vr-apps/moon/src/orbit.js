@@ -328,6 +328,7 @@ function frame(now) {
   vehicle.lights.children.forEach(l => { if (l.isDirectionalLight) l.intensity = 2.6 * lit; });
   _y.copy(SUNV).applyQuaternion(_q.copy(rig.quaternion).invert());
   cabin.setDaylight(lit, _y);
+  outside.stars.setDark(1 - lit);
   /* the cabin shakes a little while an engine runs; bangs at separation, capture, latching, the springs */
   const engine = td.j2 || 0;
   cabin.group.position.set((Math.random() - 0.5) * 0.0008 * engine, (Math.random() - 0.5) * 0.0008 * engine, 0);

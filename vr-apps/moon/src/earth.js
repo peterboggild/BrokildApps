@@ -5,6 +5,7 @@
  * (positions computed in float64 in ascent.js). Directions are in the pad frame. */
 import * as THREE from 'three';
 import { RE, EYE_H, SUN, PAD_TO_ECEF } from './ascent.js?v=13';
+import { makeStars, CELESTIAL_POLE } from './stars.js?v=13';
 
 const NO_STENCIL = {};
 export const OUTSIDE_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
@@ -312,6 +313,7 @@ export function makeOutside(renderer) {
     earth.position.set(-p[0], -RE - p[1], -p[2]);
     pad.position.set(-p[0], -p[1], -p[2]);
     pad.visible = st.alt < 12000;
+    stars.setFade(Math.min(1, Math.max(0, (st.alt - 50000) / 50000)));      /* the blue sky hides them below 100 km */
     _up.fromArray(st.up);
     shared.uUp.value.copy(_up);
     /* the eye (or the film) stops down as the bright cloud decks and the black sky take over from the blue sky */
@@ -367,5 +369,8 @@ export function makeOutside(renderer) {
     moonU.uToEarth.value.copy(toEarth); moonU.uNorth.value.copy(north);
   }
 
-  return { far, near, shared, update, ready, dome, earth, tower, pad, setSpin, setMoon, moonMesh };
+  /* the stars: the pad frame is fixed to the Earth, its axis POLE; the Sun's direction SUN (ascent.js) */
+  const stars = makeStars(CELESTIAL_POLE); stars.orient(new THREE.Vector3().fromArray(SUN), POLE); far.add(stars.points);
+
+  return { far, near, shared, update, ready, dome, earth, tower, pad, setSpin, setMoon, moonMesh, stars };
 }

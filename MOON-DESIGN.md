@@ -447,6 +447,7 @@ adds it finds otherwise; each item is listed with its URL in `vr-apps/moon/READM
 | Florida from altitude | Landsat (USGS) |
 | Spacecraft references | NASA 3D Resources models; Apollo Operations Handbooks; LM and CSM drawings and photographs (Apollo Lunar Surface Journal, Apollo Flight Journal) |
 | Mission timeline | Apollo 17 Mission Report; Apollo Flight Journal; SP-4029 Apollo by the Numbers |
+| Stars | Yale Bright Star Catalogue, 5th revised edition, from NASA HEASARC (heasarc.gsfc.nasa.gov, `heasarc_bsc5p`), added with the stars setting (25 November 2026) |
 | Audio (optional, owner's choice) | NASA mission audio (public domain), only if the owner decides to use it |
 
 ---

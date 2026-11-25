@@ -2,6 +2,7 @@
  * The LM here is a placeholder (stage 5 replaces it). */
 import * as THREE from 'three';
 import { LUNAR_GLSL } from './moon.js?v=3';
+import { makeStars, ECLIPTIC_POLE } from './stars.js?v=13';
 
 const SKY_D = 2.0e6;                 /* sky bodies are drawn at this distance, inside the far plane */
 
@@ -73,6 +74,9 @@ export function makeSky(moon) {
   earth.frustumCulled = false; earth.renderOrder = 49;
   g.add(earth);
   g.userData.setSpin = a => { earthU.uSpin.value = a; };
+  /* the stars, oriented by the Sun of the moment and the Moon's axis (within 1.5 degrees of the ecliptic's) */
+  const stars = makeStars(ECLIPTIC_POLE); g.add(stars.points); g.userData.stars = stars;
+  stars.points.onBeforeRender = () => stars.orient(sun.value, moon.shared.uPole.value);
   g.userData.earth = earth;
   return g;
 }
