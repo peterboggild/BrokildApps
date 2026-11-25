@@ -11,14 +11,14 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=12';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=12';
-import { makeOutside } from './earth.js?v=12';
-import { makeCabin } from './cabin.js?v=12';
-import { makeLaunchSound } from './launch-sound.js?v=12';
-import { makeRadio } from './radio.js?v=12';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=12';
-import { createHand } from './hands.js?v=12';
+import { state as ascentState, SUN, RE } from './ascent.js?v=13';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=13';
+import { makeOutside } from './earth.js?v=13';
+import { makeCabin } from './cabin.js?v=13';
+import { makeLaunchSound } from './launch-sound.js?v=13';
+import { makeRadio } from './radio.js?v=13';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=13';
+import { createHand } from './hands.js?v=13';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -48,7 +48,7 @@ rig.add(head); head.add(camera); scene.add(rig);
 addEventListener('resize', () => { if (renderer.xr.isPresenting) return; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
 const S = { t: num('t', 760), running: false, warp: 1, still: Q.has('still'), yaw: num('yaw', 0), pitch: num('pitch', 0),
-  fps: 0, calls: 0, tris: 0, frames: 0, ready: false, roll: 0, ended: false };
+  fps: 0, calls: 0, tris: 0, frames: 0, ready: false, roll: 0, ended: false, snap: true };
 
 const outside = makeOutside(renderer);
 const cabin = makeCabin();
@@ -57,7 +57,8 @@ cabin.setHelmets(false); cabin.setCovers(false);
 scene.add(outside.far, outside.near);
 const vehicle = makeVehicle(renderer);
 outside.near.add(vehicle.group, vehicle.lights);
-const attPad = new THREE.Quaternion(), attRel = new THREE.Quaternion(), att = new THREE.Quaternion();
+const attPad = new THREE.Quaternion(), attRel = new THREE.Quaternion(), att = new THREE.Quaternion(), attWant = new THREE.Quaternion();
+const RATE = 1.5 * Math.PI / 180;                 /* the fastest the attitude turns as you see it, outside docking, rad/s */
 const OUT = { want: false, on: false, az: -1.25, el: 0.2, dist: 22 };
 const OPT = { body: true };
 const sound = makeLaunchSound();
@@ -92,7 +93,7 @@ const hud = (() => {
     g.fillStyle = '#d8d8d8'; g.font = '26px monospace';
     g.fillText('GET ' + fmt(S.t) + (S.warp > 1 ? '  x' + S.warp : ''), 20, 108);
     g.fillText('Earth ' + km(w.alt) + '  Moon ' + km(w.dMoon), 20, 146);
-    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 2.  A: the surface', 20, 184); }
+    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 2.  A: chapter 3', 20, 184); }
     else g.fillText((w.speed / 1000).toFixed(2) + ' km/s   ' + phase(S.t), 20, 184);
     g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 222);
     g.fillText('stick press: L panel, R re-seat', 12, 246);
@@ -119,7 +120,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyC') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO') OUT.want = !OUT.want;
-  if (e.code === 'KeyN' && S.ended) nextChapter('index.html');
+  if (e.code === 'KeyN' && S.ended) nextChapter('lunar.html');
   const jump = { Digit1: 760, Digit2: GET.tli - 160, Digit3: TD.sep - 70, Digit4: TD.extract - 70, Digit5: 24 * 3600, Digit6: T_SOI - 600 }[e.code];
   if (jump !== undefined) setTime(jump);
 });
@@ -130,7 +131,7 @@ renderer.domElement.addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
 const held = t => HOLD.some(([a, b]) => t > a && t < b);
 function cycleWarp() { if (held(S.t)) { S.warp = 1; return; } S.warp = WARPS[(WARPS.indexOf(S.warp) + 1) % WARPS.length]; }
-function setTime(t) { S.t = t; S.warp = 1; S.ended = false; }
+function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; }
 /* the chapter's end: A (or N on the screen) goes on; a page change must leave VR first */
 function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
 const STICK = { x: 0, y: 0, ry: 0 };
@@ -140,7 +141,7 @@ function readControllers() {
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a']) { if (S.ended) nextChapter('index.html'); else cycleWarp(); }
+    if (a && !pad.prev[k + 'a']) { if (S.ended) nextChapter('lunar.html'); else cycleWarp(); }
     if (k === 'left' && b && !pad.prev[k + 'b']) cabin.setCheat(!cabin.cheat);
     if (k === 'right') OUT.want = !!b;
     if (st && !pad.prev[k + 's']) { if (k === 'left') hud.on = !hud.on; else SEAT.pending = 1; }
@@ -306,7 +307,10 @@ function frame(now) {
   w = where(S.t);
   /* the roll of passive thermal control: three turns an hour, but never faster than 1.4 deg/s to look at */
   if (S.t > TD.ptc) S.roll += Math.min(2 * Math.PI * 3 / 3600 * dt * S.warp, 0.025 * dt);
-  attitudeAt(S.t, w, att);
+  /* comfort: the attitude as you see it never turns faster than RATE (in low orbit at high warp it would spin the
+   * Earth past the windows); docking is exact, as its geometry depends on it */
+  attitudeAt(S.t, w, attWant);
+  if (S.snap || (S.t > TD.sep - 5 && S.t < TD.view)) { att.copy(attWant); S.snap = false; } else att.rotateTowards(attWant, RATE * dt);
   attRel.copy(att).multiply(_q.copy(attPad).invert());
   vehicle.group.quaternion.copy(attRel);
   if (OUT.on) placeOutside(w); else { rig.quaternion.copy(att); rig.position.copy(EYE_OFF).applyQuaternion(attRel); }
@@ -351,7 +355,7 @@ function frame(now) {
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 2. Lunar orbit and the landing are still to come; A (N on this screen) takes you to the surface now.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 2. A (N on this screen) goes on to chapter 3, lunar orbit.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   hud.draw(now, w);
   render();
@@ -365,7 +369,7 @@ async function startSound() {
   if (ctx && !radio) radio = await makeRadio(ctx, sound.out, new URL('../assets/script/orbit.json', import.meta.url).href);
 }
 function readOptions() {
-  if ($('start')) S.t = +$('start').value;
+  if ($('start')) setTime(+$('start').value);
   if ($('opt-body')) OPT.body = $('opt-body').checked;
 }
 async function enterVR() {

@@ -1,5 +1,5 @@
-/* Things around the terrain in the stage 0 test: the Sun, a stand-in Earth, rocks, a stand-in LM, a handrail.
- * The Earth and the LM here are placeholders (stage 2 and stage 5 replace them). */
+/* Things around the terrain: the Sun, the Earth (real imagery, also chapter 3's), rocks, a stand-in LM, a handrail.
+ * The LM here is a placeholder (stage 5 replaces it). */
 import * as THREE from 'three';
 import { LUNAR_GLSL } from './moon.js?v=3';
 
@@ -36,36 +36,44 @@ export function makeSky(moon) {
   sunMesh.frustumCulled = false; sunMesh.renderOrder = 50;
   g.add(sunMesh);
 
-  /* The Earth: direction of the Moon's 0N 0E point, true angular size (1.9 deg). PLACEHOLDER surface. */
+  /* The Earth: over the Moon's 0N 0E point, true angular size (1.9 deg). Blue Marble (December) and the real
+   * clouds of one December day (assets/earth/, as chapters 1 and 2); its axis along the Moon's, its turning set
+   * from outside (g.userData.setSpin, radians). */
   const lat = man.site.lat * Math.PI / 180, lon = man.site.lon * Math.PI / 180;
   const eDir = new THREE.Vector3(-Math.sin(lon), Math.cos(lat) * Math.cos(lon), Math.sin(lat) * Math.cos(lon)).normalize();
+  const loader = new THREE.TextureLoader(), ebase = new URL('../assets/earth/', import.meta.url).href;
+  const etex = (n, srgb) => { const t = loader.load(ebase + n); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
+  const earthU = { uSun: sun, uDay: { value: etex('earth.jpg', true) }, uCloud: { value: etex('clouds.jpg', false) },
+    uPole: moon.shared.uPole, uRef: { value: eDir.clone().negate() }, uSpin: { value: 0 } };
   const earthMat = new THREE.ShaderMaterial({
-    uniforms: { uSun: sun, uNoise: moon.shared.uMicro },
+    uniforms: earthU,
     vertexShader: /* glsl */`
       varying vec3 vN; varying vec3 vL; varying vec3 vP;
       void main() { vN = normalize(mat3(modelMatrix) * normal); vL = position;
         vec4 p = modelMatrix * vec4(position, 1.0); vP = p.xyz; p.xyz += cameraPosition;
         gl_Position = projectionMatrix * viewMatrix * p; }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uSun; uniform sampler2D uNoise; varying vec3 vN; varying vec3 vL; varying vec3 vP;
+      uniform vec3 uSun; uniform sampler2D uDay; uniform sampler2D uCloud; uniform vec3 uPole; uniform vec3 uRef; uniform float uSpin;
+      varying vec3 vN; varying vec3 vL; varying vec3 vP;
       void main() {
-        vec3 n = normalize(vN);
-        vec3 q = normalize(vL);
-        vec2 uv = vec2(atan(q.z, q.x) * 0.159, q.y * 0.5);
-        float c = texture2D(uNoise, uv * vec2(1.0, 0.6)).x + 0.6 * texture2D(uNoise, uv * 2.3 + 0.2).y;
-        float cloud = smoothstep(0.78, 0.98, c);
-        vec3 col = mix(vec3(0.05, 0.16, 0.42), vec3(0.95), cloud);
+        vec3 n = normalize(vN), q = normalize(vL);
+        vec3 ez = normalize(uPole), ex = normalize(uRef - ez * dot(uRef, ez)), ey = cross(ez, ex);
+        float la = asin(clamp(dot(q, ez), -1.0, 1.0)), lo = atan(dot(q, ey), dot(q, ex)) + uSpin;
+        vec2 uv = vec2(lo / 6.2831853 + 0.5, la / 3.14159265 + 0.5);
+        vec3 col = mix(texture2D(uDay, uv).rgb, vec3(0.92), smoothstep(0.12, 0.75, texture2D(uCloud, uv).r));
         float d = dot(n, uSun);
-        float day = smoothstep(-0.06, 0.25, d);
+        float lit = max(d, 0.0) * 0.85 + 0.15 * smoothstep(-0.05, 0.2, d);
         float rim = pow(1.0 - max(dot(n, normalize(-vP)), 0.0), 3.0);
-        col = col * day * 1.25 + vec3(0.25, 0.45, 0.9) * rim * day * 0.6;
+        col = col * lit * 1.35 + vec3(0.22, 0.42, 0.95) * rim * smoothstep(-0.1, 0.3, d) * 0.7;
         gl_FragColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
       }`
   });
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(SKY_D * 6371 / 384400, 48, 32), earthMat);
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(SKY_D * 6371 / 384400, 64, 40), earthMat);
   earth.position.copy(eDir).multiplyScalar(SKY_D);
   earth.frustumCulled = false; earth.renderOrder = 49;
   g.add(earth);
+  g.userData.setSpin = a => { earthU.uSpin.value = a; };
+  g.userData.earth = earth;
   return g;
 }
 

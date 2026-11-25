@@ -1,0 +1,297 @@
+{
+  "about": "Radio and intercom for chapter 3: the approach, lunar orbit insertion behind the Moon, Earthrise, the first orbits, descent orbit insertion and the first low pass. t = GET (seconds from liftoff), timed to lunar-space.js (loss of signal 88:49:46, LOI 88:54:22, AOS 89:25:16, DOI 93:08:22, AOS 93:45:46, low point 94:05:19). Original lines in the style of Apollo procedure; not quotes.",
+  "channels": {
+    "LMP": "intercom",
+    "CAPCOM": "houston",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "m01",
+      "t": 258760,
+      "who": "CMP",
+      "text": "There she is, out the left window. She grows every time I look.",
+      "dur": 3.75
+    },
+    {
+      "id": "m02",
+      "t": 262000,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Your trajectory is right on. Midcourse correction four is not required.",
+      "dur": 6.06
+    },
+    {
+      "id": "m03",
+      "t": 270000,
+      "who": "LMP",
+      "text": "I could watch this all day. The terminator, and the craters along it. Every hour there is more of it.",
+      "dur": 4.86
+    },
+    {
+      "id": "m04",
+      "t": 288000,
+      "who": "CAPCOM",
+      "text": "Good morning, Apollo. This is lunar orbit day. We have your burn data whenever you are ready to copy.",
+      "dur": 6.22
+    },
+    {
+      "id": "m05",
+      "t": 288014,
+      "who": "CMP",
+      "text": "Ready to copy, Houston. Go ahead.",
+      "dur": 2.54
+    },
+    {
+      "id": "m06",
+      "t": 305000,
+      "who": "LMP",
+      "text": "It fills the whole window now. That is not a picture any more. It is a place.",
+      "dur": 4.12
+    },
+    {
+      "id": "m07",
+      "t": 312000,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. You are go for lunar orbit insertion.",
+      "dur": 3.94
+    },
+    {
+      "id": "m08",
+      "t": 312012,
+      "who": "CMP",
+      "text": "Roger, go for LOI. Thank you, Houston.",
+      "dur": 2.99
+    },
+    {
+      "id": "m09",
+      "t": 319655,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Two minutes to loss of signal. All your systems look good. We'll see you on the other side.",
+      "dur": 6.93
+    },
+    {
+      "id": "m10",
+      "t": 319672,
+      "who": "CMP",
+      "text": "See you on the other side, Houston.",
+      "dur": 2.23
+    },
+    {
+      "id": "m11",
+      "t": 319700,
+      "who": "CMP",
+      "text": "Turning round for the burn. Engine first.",
+      "dur": 2.49
+    },
+    {
+      "id": "m12",
+      "t": 319830,
+      "who": "LMP",
+      "text": "And that's it. No more Houston. Just the three of us, and the far side.",
+      "dur": 3.96
+    },
+    {
+      "id": "m13",
+      "t": 320002,
+      "who": "CMP",
+      "text": "One minute. Engine armed.",
+      "dur": 1.68
+    },
+    {
+      "id": "m14",
+      "t": 320060,
+      "who": "CMP",
+      "text": "Ignition.",
+      "dur": 0.84
+    },
+    {
+      "id": "m15",
+      "t": 320075,
+      "who": "LMP",
+      "text": "Thrust is good. You can feel it push you into the couch.",
+      "dur": 2.94
+    },
+    {
+      "id": "m16",
+      "t": 320242,
+      "who": "CMP",
+      "text": "Three minutes. Chamber pressure is steady.",
+      "dur": 2.49
+    },
+    {
+      "id": "m17",
+      "t": 320455,
+      "who": "CMP",
+      "text": "Shutdown.",
+      "dur": 0.88
+    },
+    {
+      "id": "m18",
+      "t": 320470,
+      "who": "LMP",
+      "text": "Three fifteen by ninety seven kilometres. We are in lunar orbit.",
+      "dur": 3.63
+    },
+    {
+      "id": "m19",
+      "t": 320495,
+      "who": "CMP",
+      "text": "Welcome to the Moon, gentlemen.",
+      "dur": 2.04
+    },
+    {
+      "id": "m20",
+      "t": 321924,
+      "who": "LMP",
+      "text": "Earthrise! Out your window. There she comes, over the edge.",
+      "dur": 3.77
+    },
+    {
+      "id": "m21",
+      "t": 321944,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Standing by for your burn report.",
+      "dur": 3.74
+    },
+    {
+      "id": "m22",
+      "t": 321956,
+      "who": "CMP",
+      "text": "Houston, Apollo. The burn went right on time. Three fifteen by ninety seven. And the view, Houston. You would not believe the view.",
+      "dur": 7.65
+    },
+    {
+      "id": "m23",
+      "t": 321985,
+      "who": "CAPCOM",
+      "text": "We copy, Apollo. Good burn. Welcome to lunar orbit.",
+      "dur": 4.07
+    },
+    {
+      "id": "m24",
+      "t": 322060,
+      "who": "CMP",
+      "text": "The whole Earth, coming up over a horizon that isn't ours.",
+      "dur": 3.16
+    },
+    {
+      "id": "m25",
+      "t": 323850,
+      "who": "LMP",
+      "text": "Coming up on Taurus-Littrow. Look for the valley between the two big massifs.",
+      "dur": 4.1
+    },
+    {
+      "id": "m26",
+      "t": 323985,
+      "who": "LMP",
+      "text": "There. The North Massif, the South Massif, and the valley floor between them. That is where we are going.",
+      "dur": 5.51
+    },
+    {
+      "id": "m27",
+      "t": 326900,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Two minutes to loss of signal. See you on the other side.",
+      "dur": 5.04
+    },
+    {
+      "id": "m28",
+      "t": 329700,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. We have looked at your numbers. You are go for descent orbit insertion.",
+      "dur": 5.65
+    },
+    {
+      "id": "m29",
+      "t": 329714,
+      "who": "CMP",
+      "text": "Roger, go for DOI.",
+      "dur": 1.54
+    },
+    {
+      "id": "m30",
+      "t": 334600,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. Two minutes to loss of signal. Go for DOI. See you on the other side.",
+      "dur": 5.93
+    },
+    {
+      "id": "m31",
+      "t": 335242,
+      "who": "CMP",
+      "text": "One minute to DOI.",
+      "dur": 1.13
+    },
+    {
+      "id": "m32",
+      "t": 335300,
+      "who": "CMP",
+      "text": "Ignition.",
+      "dur": 0.84
+    },
+    {
+      "id": "m33",
+      "t": 335324,
+      "who": "CMP",
+      "text": "Shutdown. Twenty two seconds, right on the money.",
+      "dur": 3.19
+    },
+    {
+      "id": "m34",
+      "t": 335345,
+      "who": "LMP",
+      "text": "Fifteen kilometres at the low point. Ninety seven at the high.",
+      "dur": 3.3
+    },
+    {
+      "id": "m35",
+      "t": 337560,
+      "who": "CMP",
+      "text": "Houston, Apollo. DOI was good. We are in the descent orbit.",
+      "dur": 3.92
+    },
+    {
+      "id": "m36",
+      "t": 337576,
+      "who": "CAPCOM",
+      "text": "Roger, Apollo. We confirm. It looks good from here.",
+      "dur": 3.99
+    },
+    {
+      "id": "m37",
+      "t": 338600,
+      "who": "LMP",
+      "text": "We are coming down low. Look how fast it goes by now.",
+      "dur": 2.93
+    },
+    {
+      "id": "m38",
+      "t": 338720,
+      "who": "CMP",
+      "text": "Fifteen kilometres. Every crater has its own shadow.",
+      "dur": 3.13
+    },
+    {
+      "id": "m39",
+      "t": 338870,
+      "who": "LMP",
+      "text": "There is the valley. Tomorrow we will be standing down there.",
+      "dur": 2.97
+    },
+    {
+      "id": "m40",
+      "t": 339100,
+      "who": "CAPCOM",
+      "text": "Apollo, Houston. That is a beautiful orbit. Time for some rest. Big day tomorrow.",
+      "dur": 5.81
+    },
+    {
+      "id": "m41",
+      "t": 339118,
+      "who": "CMP",
+      "text": "Copy, Houston. Good night.",
+      "dur": 2.16
+    }
+  ]
+}

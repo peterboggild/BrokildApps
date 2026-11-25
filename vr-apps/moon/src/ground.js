@@ -6,7 +6,7 @@
  * nothing in the part both squares cover. */
 import * as THREE from 'three';
 import { gridHeight } from './geo.js?v=3';
-import { rockGeometries, groundRockMaterial } from './extras.js?v=3';
+import { rockGeometries, groundRockMaterial } from './extras.js?v=4';
 
 const RECENTRE = 22;        /* ask for a new square when the walker is this far from the centre, metres */
 const SNAP = 8;             /* centres on a grid, so standing still never asks twice */

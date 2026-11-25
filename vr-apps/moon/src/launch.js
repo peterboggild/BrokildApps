@@ -12,14 +12,14 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=12';
-import { makeOutside } from './earth.js?v=12';
-import { makeCabin } from './cabin.js?v=12';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=12';
-import { makeRadio } from './radio.js?v=12';
-import { makePad, ARM, WR } from './pad.js?v=12';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=12';
-import { createHand } from './hands.js?v=12';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=13';
+import { makeOutside } from './earth.js?v=13';
+import { makeCabin } from './cabin.js?v=13';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=13';
+import { makeRadio } from './radio.js?v=13';
+import { makePad, ARM, WR } from './pad.js?v=13';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=13';
+import { createHand } from './hands.js?v=13';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
