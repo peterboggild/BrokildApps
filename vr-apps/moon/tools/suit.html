@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>EVA suit close-up</title>
+<!-- Development view of the surface suit (not linked from the site): on a grey plain under the landing's low Sun.
+     tools/shot-suit.cjs takes pictures. Drag to turn, wheel to zoom.
+     URL: ?az=deg &el=deg &d=metres &at=x,y,z &fov= &lmp (no red stripes) &player (your own: no helmet, no arms) &sun=az,el -->
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>html, body { margin: 0; height: 100%; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { makeEVASuit, suitEnvironment } from '../src/eva-suit.js?v=23';
+const q = new URLSearchParams(location.search), num = (k, d) => q.has(k) ? +q.get(k) : d;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(num('fov', 35), innerWidth / innerHeight, 0.05, 200);
+const [saz, sel] = (q.get('sun') || '60,13.3').split(',').map(Number);
+const sd = new THREE.Vector3(Math.sin(saz * Math.PI / 180) * Math.cos(sel * Math.PI / 180), Math.sin(sel * Math.PI / 180), Math.cos(saz * Math.PI / 180) * Math.cos(sel * Math.PI / 180));
+const env = suitEnvironment(renderer, Math.atan2(sd.x, -sd.z), sel * Math.PI / 180);
+const suit = makeEVASuit({ commander: !q.has('lmp'), player: q.has('player'), env }); scene.add(suit);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: 0x8a8782 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const sun = new THREE.DirectionalLight(0xfff6e8, 3.0); sun.position.copy(sd).multiplyScalar(30);
+scene.add(sun, new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.6));
+const V = { az: num('az', 200), el: num('el', 5), d: num('d', 4.2), at: (q.get('at') || '0,1.0,0').split(',').map(Number) };
+let drag = null;
+addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; }); addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => { if (!drag) return; V.az -= (e.clientX - drag[0]) * 0.3; V.el = Math.max(-5, Math.min(89, V.el + (e.clientY - drag[1]) * 0.3)); drag = [e.clientX, e.clientY]; });
+addEventListener('wheel', e => { V.d *= Math.exp(e.deltaY * 0.001); });
+let frames = 0;
+renderer.setAnimationLoop(() => {
+  const a = V.az * Math.PI / 180, e = V.el * Math.PI / 180;
+  camera.position.set(V.at[0] + Math.sin(a) * Math.cos(e) * V.d, V.at[1] + Math.sin(e) * V.d, V.at[2] + Math.cos(a) * Math.cos(e) * V.d); camera.lookAt(V.at[0], V.at[1], V.at[2]);
+  renderer.render(scene, camera); frames++; window.__suit = { suit, frames, info: renderer.info.render };
+});
+</script>
+</body>
+</html>

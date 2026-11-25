@@ -15,8 +15,8 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=22';
-import { LMC } from './lm-cabin.js?v=22';
+import { LM } from './lm-model.js?v=23';
+import { LMC } from './lm-cabin.js?v=23';
 
 const G_MOON = 1.62;
 
@@ -35,9 +35,13 @@ export function makeEgress(o) {
   function buildPath() {
     const H = E.H, crawl = (y, z) => V(0, y - H, z), ladder = o.model.userData.ladder, P = LM.PORCH;
     nodes = [crawl(3.02, 0.8), crawl(2.96, LM.FRONT + 0.05), crawl(2.98, 2.2), crawl(3.0, P.z1 - 0.17)];
-    for (let k = 2; k < ladder.length; k++) nodes.push(V(0, ladder[k].y, ladder[k].z + 0.22));
+    /* The ladder leans with the leg (it comes 0.47 m nearer the LM for each metre up), and you stand upright in your
+     * room where the astronauts leaned onto it. So your eyes' column goes where the rungs at chest height are an
+     * arm's bend away: a little inside the rung your feet are on (owner's headset test: the ladder was two or three
+     * feet beyond the hands). */
+    for (let k = 2; k < ladder.length; k++) nodes.push(V(0, ladder[k].y, ladder[k].z - 0.18));
     iDrop = nodes.length - 1;                                    /* the last rung: from here you let go */
-    nodes.push(V(0, LM.FOOT_Y, LM.FOOT_R));                      /* on the footpad */
+    nodes.push(V(0, LM.FOOT_Y, LM.FOOT_R - 0.12));               /* on the footpad */
     /* the ground a step out from the pad, at the terrain's own height there */
     const g = toSite(V(0, 0, LM.FOOT_R + 1.0)), gy = o.moon.heightAt(g.x, g.z);
     nodes.push(V(0, gy - o.model.position.y, LM.FOOT_R + 1.0));
@@ -75,7 +79,7 @@ export function makeEgress(o) {
       E.active = true; E.stage = 'cabin'; E.t = 0; E.s = 0; E.auto = false; E.door = 0; E.said = {}; E.pending = 1; E.fade = 1; E.fadeTo = 0;
       o.lmc.setForwardHatch(0); o.model.userData.hatch.visible = true; o.lmc.setBody(true);
       /* the Lunar Module Pilot stands back, clear of the hatch as it swings in */
-      o.lmc.lmp.position.x = -0.66; o.lmc.lmp.position.z = 0.5;
+      o.lmc.lmp.position.x = -0.5; o.lmc.lmp.position.z = 0.36;
       E.theta = ry() + Math.PI; capture();
     },
     /* already down: the hatch stands open behind you, the walk is yours (chapter 6 started on the ground) */
@@ -83,7 +87,7 @@ export function makeEgress(o) {
       o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
       E.active = false; E.stage = 'done'; E.fade = 0; E.fadeTo = 0; E.door = 1;
       o.lmc.setForwardHatch(1); o.model.userData.hatch.visible = false; o.lmc.setBody(false);
-      o.lmc.lmp.position.x = -0.66; o.lmc.lmp.position.z = 0.5;
+      o.lmc.lmp.position.x = -0.5; o.lmc.lmp.position.z = 0.36;
     },
     /* recapture where you stand (entering VR: the headset's own origin is anywhere) */
     recentre() { E.pending = 1; },

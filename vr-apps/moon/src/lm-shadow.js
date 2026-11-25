@@ -18,13 +18,48 @@ export function makeLMShadow(moon) {
     for (const u of [-4.3, 4.3, 0]) { x.beginPath(); x.ellipse(X(u), Y(0.1), 12, 5, 0, 0, Math.PI * 2); x.fill(); }
     return new THREE.CanvasTexture(c);
   })();
-  const NX = 8, NY = 24;
-  const geo = new THREE.PlaneGeometry(1, 1, NX, NY);
+  let NX = 8, NY = 24, baked = null;
+  let geo = new THREE.PlaneGeometry(1, 1, NX, NY);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.9, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
   mesh.frustumCulled = false; mesh.renderOrder = 20;
   const sh = new THREE.Vector3(), sx = new THREE.Vector3();
+  /* The real silhouette (chapter 6, the LM standing): the model itself as the Sun sees it, drawn once into a texture
+   * and laid out along the ground; a finer drape, a little higher, so the ground's small bumps do not poke through
+   * it (owner's headset test: holes in the shadow). Image geometry: across is horizontal, square to the Sun; up in
+   * the image is w = y cos(el) + (distance down-Sun) sin(el), and a point's shadow falls w / sin(el) down-Sun. */
+  const W0 = -1.6, W1 = 8.6, HALF = 5.4;
+  function bake(renderer, model, sun) {
+    const rt = baked ? baked.rt : new THREE.WebGLRenderTarget(1024, 1024, { samples: 4 });
+    const sh = new THREE.Vector3(-sun.x, 0, -sun.z).normalize(), el = Math.asin(sun.y);
+    const upP = new THREE.Vector3(sh.x * Math.sin(el), Math.cos(el), sh.z * Math.sin(el));
+    model.updateMatrixWorld(true);
+    const R = new THREE.Vector3().setFromMatrixPosition(model.matrixWorld); R.y = moon.heightAt(R.x, R.z);
+    const cam = new THREE.OrthographicCamera(-HALF, HALF, W1, W0, 1, 200);
+    cam.up.copy(upP); cam.position.copy(R).addScaledVector(sun, 80); cam.lookAt(R); cam.updateMatrixWorld(true);
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    /* the model alone, in white on black */
+    const sc = new THREE.Scene(); sc.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const parent = model.parent, at = parent ? parent.children.indexOf(model) : -1;
+    const prev = renderer.getRenderTarget(), xr = renderer.xr.enabled, cc = new THREE.Color(), ca = renderer.getClearAlpha(); renderer.getClearColor(cc);
+    sc.add(model);
+    renderer.xr.enabled = false; renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 1); renderer.clear();
+    renderer.render(sc, cam);
+    renderer.setRenderTarget(prev); renderer.setClearColor(cc, ca); renderer.xr.enabled = xr;
+    if (parent) { parent.add(model); parent.children.splice(at, 0, parent.children.pop()); }
+    sc.overrideMaterial.dispose();
+    if (!baked) { NX = 20; NY = 88; geo.dispose(); geo = new THREE.PlaneGeometry(1, 1, NX, NY); mesh.geometry = geo; mesh.material.alphaMap = rt.texture; mesh.material.needsUpdate = true; }
+    baked = { rt, R, right, sh, sinEl: Math.sin(el) };
+    const pos = geo.attributes.position;
+    for (let j = 0; j <= NY; j++) for (let i = 0; i <= NX; i++) {
+      const u = (i / NX - 0.5) * 2 * HALF, v = (W1 - j / NY * (W1 - W0)) / baked.sinEl;
+      const x = R.x + right.x * u + sh.x * v, z = R.z + right.z * u + sh.z * v;
+      pos.setXYZ(j * (NX + 1) + i, x, moon.heightAt(x, z) + 0.07, z);
+    }
+    pos.needsUpdate = true; geo.computeBoundingSphere();
+  }
   function update(gx, gz, h, sun, opacity = 0.9) {
+    if (baked) return;
     const tanEl = Math.max(0.05, sun.y / Math.hypot(sun.x, sun.z));
     sh.set(-sun.x, 0, -sun.z).normalize(); sx.set(-sh.z, 0, sh.x);
     const base = Math.max(0, h) / tanEl, len = 7.0 / tanEl, half = 4.9;
@@ -37,5 +72,5 @@ export function makeLMShadow(moon) {
     pos.needsUpdate = true; geo.computeBoundingSphere();
     mesh.material.opacity = opacity;
   }
-  return { mesh, update };
+  return { mesh, update, bake };
 }

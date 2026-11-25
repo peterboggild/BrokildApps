@@ -706,6 +706,25 @@ app starts with a fresh depth buffer; check multi-pass effects with a clearDepth
 hull's parts show no face towards the cabin inside them (`boxNo` in `src/lm-model.js`). The LM's side panels: the
 second box that hid them is gone.
 
+### 12.11 The surface suits, and the owner's first walk round the LM (25 November 2026, Fable)
+
+- **The suits** (`src/eva-suit.js`): the A7LB with the PLSS, in code, jointed. The owner's corrections on the way,
+  from the viewer and a training photograph: the arms bent the wrong way (a sign error), the helmet was too small
+  (the LEVA is nearly as wide as the chest), and the whole suit was too slim ("a small spacecraft in its own
+  right"). The NASA insignia and the flag are worn, by the owner's decision. In chapter 6 the Lunar Module Pilot
+  wears one in the cabin, and you wear the Commander's, in the cabin and on the ground.
+- **From the owner's headset run of chapter 6**, fixed in the same change:
+  1. The hull was hidden by the cabin from three sides: the test for "outside" only knew the front. It is now
+     "anywhere but in the cabin's box".
+  2. The hands were black near the LM: their pass had no light at all (the lights hang on the LM's group, which
+     that pass hid).
+  3. Holes in the LM's shadow: the ground's bumps poked through a coarse drape, and the silhouette was a drawing.
+     It is now the model as the Sun sees it, baked once, on a fine drape.
+  4. The crewman is not seen through the windows from outside: the glass is dark and mirrors, as on the real LM in
+     sunlight. Left so; he is seen through the open hatch.
+  5. The ladder was two or three feet beyond the hands: it leans, and you do not. Your eyes' column is moved in.
+- **Next**: the Lunar Module Pilot down the ladder and moving about (the lope), the flag, the rover.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

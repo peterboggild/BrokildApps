@@ -329,6 +329,24 @@ docking on. The same frame as the cabin inside (`src/lm-cabin.js`): y up from th
 - `tools/lm.html` shows the model alone (`tools/shot-lm-model.cjs` takes pictures; `lm.html?lm&fhatch=1` shows
   the hatch open from inside).
 
+## The surface suit (`src/eva-suit.js`)
+
+The Apollo A7LB with its backpack, built in code as a jointed figure (pelvis, waist, arms and elbows, legs and
+knees; `userData.joints`, `userData.pose()`): the Portable Life Support System with the Oxygen Purge System and its
+aerial on top, the Remote Control Unit on the chest, the hoses round from the pack, the big helmet shell with the
+gold visor (it mirrors a small generated sky: black, the sunlit ground, the Sun, the Earth; `suitEnvironment`), the
+overshoes with blue soles, grey gloves with blue fingertips, bellows at shoulder, elbow and knee, the Commander's red
+stripes, dust on the lower legs. The NASA insignia on the right breast and the flag on the left shoulder, as worn:
+the owner's decision, for history's sake (the rest of the app carries no NASA insignia). Bulky on purpose: it is a
+small spacecraft. About 43 draw calls and 25 000 triangles a figure.
+- `makeEVASuit({ commander, player, env })`. `player`: your own suit, without helmet and arms (your hands are the
+  controllers, in the suit's grey gloves with the blue and red wrist rings).
+- Chapter 6: the Lunar Module Pilot stands in the cabin in his (a slow life of its own: the stiff torso turns,
+  now and then to you); you wear the Commander's, in the cabin and on the ground (it stands under your eyes, turns
+  with you and is scaled to your height).
+- Viewer: `tools/suit.html` (`?az &el &d &at &lmp &player &sun`), pictures with `tools/shot-suit.cjs`.
+- Next: the Lunar Module Pilot comes down the ladder and moves about; the flag; the rover.
+
 ## Chapter 6: on the Moon (`surface.html`, `src/egress.js`)
 
 Its own chapter page (the Moon page's code, `src/main.js`, with `data-chapter="6"` on the body: the surface only, no
@@ -342,9 +360,16 @@ knees, facing the cabin, along the porch, feet first down the ladder, the drop f
   **A** (F on the screen) and it goes by itself, A again stops. Setting out, the view blinks and you are turned to
   face the cabin whichever way you stood: no turning round in your room. Your own height is kept: on the ladder
   and the ground your feet are where they would be; crawling, your eyes are where a crawling man's would be.
+- **The ladder** leans with the leg, and you stand upright in your room where the astronauts leaned onto it: your
+  eyes' column is therefore set where the rungs at chest height are an arm's bend away (a little inside the rung
+  your feet are on).
 - **Drawing**: the cabin (`lm-cabin.js`) stands inside the model; it is drawn in its own pass with its own lights
-  (they would flood the LM's outside) over the same depth buffer, so you see the porch and the valley from inside
-  and the cabin through the open hatch from outside. The model's front face has the hatch's opening cut in it.
+  (they would flood the LM's outside). The headset keeps no depth from one pass to the next, so that pass draws the
+  LM's outside too, into the depth buffer only, whenever your eyes are anywhere but inside the cabin's own box (in
+  front, at the sides, behind): the hull hides the cabin, which shows through the open hatch. Your hands come in a
+  last pass, lit by the Sun outside and by a fill light inside.
+- **The LM's shadow** (`lm-shadow.js`, `bake`): the model itself as the Sun sees it, drawn once into a texture and
+  draped over the ground on a fine grid (chapter 5 keeps the drawn silhouette, which follows the LM down).
 - Words come as messages in front of you; there are no voices for this part yet.
 - Test: `test/egress.test.cjs`.
 

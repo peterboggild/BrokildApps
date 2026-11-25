@@ -10,7 +10,7 @@
  * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
  * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
 import * as THREE from 'three';
-import { settings, DEFS } from './settings.js?v=22';
+import { settings, DEFS } from './settings.js?v=23';
 
 export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
   return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };

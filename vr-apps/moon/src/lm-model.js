@@ -33,7 +33,7 @@ export const LM = {
 
 /* crinkled foil: a height field of random flat facets (each cell of a jittered grid its own tilted plane), as a
  * tiling normal map */
-function crinkle(n = 256, cells = 14, strength = 2.2, seed = 11) {
+export function crinkle(n = 256, cells = 14, strength = 2.2, seed = 11) {
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
   const h = new Float32Array(n * n);
   const layer = (cells, weight) => {
@@ -62,14 +62,14 @@ function crinkle(n = 256, cells = 14, strength = 2.2, seed = 11) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = 4; t.needsUpdate = true;
   return t;
 }
-function decal(w, h, draw) {
+export function decal(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
 /* geometry gathered per material, each piece with its place baked in, merged at the end */
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _Y = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
-class Parts {
+export class Parts {
   constructor() { this.map = new Map(); }
   addM(geo, mat, matrix) {
     const g = geo.index ? geo.toNonIndexed() : geo.clone();
