@@ -683,6 +683,11 @@ is no air). No exhaust plume, on purpose (nearly invisible in vacuum). The crew 
 Chapter 4's start: a message after 10 s in the couch (and a card from the second time), the stick sets you off, and
 the way to the tunnel rises over the instrument panel. Briefing: B or trigger forward, A back, Y leaves.
 
+**Chapter 6 is a chapter of its own** (`surface.html`, 25 November 2026): the owner could not reach the climb-out on the
+Moon page (its buttons were under the browser window's edge in the headset) and asked for a real chapter. Title
+card, a start list (cabin or ground), its place kept for Continue, in the chain test and the site's tables. The Moon
+page (`index.html`) stays as the hub and the three test views.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

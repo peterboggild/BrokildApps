@@ -107,6 +107,10 @@ const EXTRA = {
     alt: "Journey to the Moon: The Descent — the powered descent to the Apollo 17 landing site from the Commander's station of the Lunar Module",
     type: "website",
   },
+  "vr-apps/moon/surface.html": {
+    alt: "Journey to the Moon: On the Moon — out of the Lunar Module's hatch, down the ladder and the first step in the Taurus-Littrow valley",
+    type: "website",
+  },
   "vr-apps/moon/index.html": {
     alt: "Journey to the Moon — the Moon from NASA's orbiter data, seen from orbit and from the Apollo 17 landing site",
     type: "website",

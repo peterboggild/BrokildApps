@@ -15,21 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=19';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=19';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=19';
-import { settleLM } from './lm-model.js?v=19';
-import { makeLMShadow } from './lm-shadow.js?v=19';
-import { makeLaunchSound } from './launch-sound.js?v=19';
-import { makeRadio, combineRadios } from './radio.js?v=19';
-import { makeClock } from './clock.js?v=19';
-import { makeChatter } from './chatter.js?v=19';
-import { handOnCrew } from './crew-life.js?v=19';
-import { makeVehicle } from './vehicle.js?v=19';
-import { createHand, makeControllers } from './hands.js?v=19';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=19';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=19';
-import { settings, applyCommon, holdsFor } from './settings.js?v=19';
+import { GETL } from './lunar-space.js?v=20';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=20';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=20';
+import { settleLM } from './lm-model.js?v=20';
+import { makeLMShadow } from './lm-shadow.js?v=20';
+import { makeLaunchSound } from './launch-sound.js?v=20';
+import { makeRadio, combineRadios } from './radio.js?v=20';
+import { makeClock } from './clock.js?v=20';
+import { makeChatter } from './chatter.js?v=20';
+import { handOnCrew } from './crew-life.js?v=20';
+import { makeVehicle } from './vehicle.js?v=20';
+import { createHand, makeControllers } from './hands.js?v=20';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=20';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=20';
+import { settings, applyCommon, holdsFor } from './settings.js?v=20';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -166,7 +166,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP') wrist.press();
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyT') toggleHand();
-  if (e.code === 'KeyN' && S.ended) nextChapter('index.html?egress');
+  if (e.code === 'KeyN' && S.ended) nextChapter('surface.html');
   if (e.code === 'BracketLeft' && S.mode === 'hand') S.rod -= FT;
   if (e.code === 'BracketRight' && S.mode === 'hand') S.rod = Math.min(0.5, S.rod + FT);
   const jump = { Digit1: START, Digit2: GETD.pdi - 20, Digit3: GETD.hg - 30, Digit4: GETD.lg - 30 }[e.code];
@@ -213,7 +213,7 @@ function readControllers(now) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
     if (k === 'right') {
-      if (a && !pad.prev.ra) { if (S.ended) nextChapter('index.html?egress'); else if (S.t > GETD.lg - 30 && S.landed < 0) toggleHand(); else pad.aDown = now; }
+      if (a && !pad.prev.ra) { if (S.ended) nextChapter('surface.html'); else if (S.t > GETD.lg - 30 && S.landed < 0) toggleHand(); else pad.aDown = now; }
       if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
       if (!a && pad.prev.ra && pad.aDown >= 0) { clock.slower(S); pad.aDown = -1; }
       if (b && !pad.prev.rb && S.ended) takeBreak();
@@ -443,7 +443,7 @@ function frame(now) {
   }
   if (S.took && S.fuel <= 0 && S.landed < 0 && !FADE.then) { FADE.target = 1; FADE.then = 'again'; }
   if (FADE.then === 'again' && FADE.k > 0.92) { FADE.then = null; restart(GETD.hg - 5); S.restarts++; FADE.target = 0; if (radio) radio.cue('again'); }
-  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 5', sub: 'The descent', a: 'Continue: out onto the Moon', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
+  if (S.landed >= 0 && S.t > S.landed + 40 && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 5', sub: 'The descent', a: 'Continue: chapter 6, On the Moon', b: 'Take a break' }); saveProgress('surface.html', null, 0, true); }
   moon.setSunOffset(GETL ? (S.t - GETL.land) * 0.508 / 3600 : 0);
   _sun.copy(moon.shared.uSun.value);
   sky.userData.setSpin(W_EARTH * (S.t - GETL.land) + 2.1);

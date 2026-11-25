@@ -14,7 +14,7 @@ const CHAIN = [
   ['orbit.html', '__orbit', 'H.S.running = true; H.setTime(H.END - 1);', 'lunar.html'],
   ['lunar.html', '__lunar', 'H.S.running = true; H.setTime(H.END - 1);', 'lm.html'],
   ['lm.html', '__lm', 'H.enterLM(true); H.S.running = true; H.setTime(H.END - 1);', 'descent.html'],
-  ['descent.html', '__descent', 'H.S.running = true; H.S.landed = H.S.t - 41;', 'index.html']
+  ['descent.html', '__descent', 'H.S.running = true; H.S.landed = H.S.t - 41;', 'surface.html']
 ];
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });

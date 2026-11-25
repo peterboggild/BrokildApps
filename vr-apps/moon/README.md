@@ -329,9 +329,11 @@ docking on. The same frame as the cabin inside (`src/lm-cabin.js`): y up from th
 - `tools/lm.html` shows the model alone (`tools/shot-lm-model.cjs` takes pictures; `lm.html?lm&fhatch=1` shows
   the hatch open from inside).
 
-## Out onto the Moon (`index.html?egress`, `src/egress.js`)
+## Chapter 6: on the Moon (`surface.html`, `src/egress.js`)
 
-Chapter 5's A lands you here; the front page has it as chapter 6. You stand at the Commander's station in the
+Its own chapter page (the Moon page's code, `src/main.js`, with `data-chapter="6"` on the body: the surface only, no
+test views). Chapter 5's A lands you here. Start in the cabin after the landing, or on the ground beside the LM
+(chosen for you if you had already climbed down: the place is kept). You stand at the Commander's station in the
 landed LM, the valley in the windows. The cabin is let down to vacuum and the Lunar Module Pilot (standing back,
 clear of the door) swings the forward hatch in. Then, as it was done: backwards out through the hatch on hands and
 knees, facing the cabin, along the porch, feet first down the ladder, the drop from the last rung to the footpad

@@ -1,4 +1,4 @@
-/* Out of the LM and down to the Moon (index.html?egress), in an emulated Meta Quest 3 (IWER) with Playwright and the
+/* Chapter 6, On the Moon (surface.html): out of the LM and down to the Moon, in an emulated Meta Quest 3 (IWER) with Playwright and the
  * installed Chrome, software GL.
  *   python -m http.server 8765        (from the repository root; or a threaded server)
  *   set NODE_PATH=<dir>\node_modules  (playwright-core, iwer)
@@ -22,7 +22,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   p.on('pageerror', e => { errs.push(e.message); console.log('PAGE ERROR', e.message); });
   p.on('console', m => { if (m.type() === 'error' && !/favicon|404|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
   await p.addInitScript({ content: fs.readFileSync(IWER, 'utf8') + ';window.__dev = new IWER.XRDevice(IWER.metaQuest3); window.__dev.stereoEnabled = true; window.__dev.installRuntime({ forceInstall: true });' });
-  await p.goto('http://127.0.0.1:8765/vr-apps/moon/index.html?egress');
+  await p.goto('http://127.0.0.1:8765/vr-apps/moon/surface.html');
   await p.waitForFunction(() => window.__moon && __moon.S.ready, null, { timeout: 240000 });
   await p.waitForSelector('#vr:not([disabled])', { timeout: 30000 });
   await p.click('#vr');
