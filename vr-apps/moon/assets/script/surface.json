@@ -1,8 +1,8 @@
 {
   "about": "Radio for chapter 6, on the Moon. All lines are cued by what happens (none by mission time). CAPCOM speaks from Houston (Quindar tones); the Lunar Module Pilot speaks over the suits' radio. 'ack' lines answer your own transmission (the left trigger held and let go): they cannot understand you, so the answers are general. 'next' lines say what comes next. 'small' lines are small talk on the surface. Original lines in the style of the Apollo air-to-ground; not quotes.",
   "channels": {
-    "CAPCOM": "houston",
-    "LMP": "loop"
+    "LMP": "loop",
+    "CAPCOM": "houston"
   },
   "lines": [
     {
@@ -102,6 +102,78 @@
       "text": "Challenger, Houston. Nothing more on the list for now. The valley is yours.",
       "dur": 4.94,
       "cue": "next-wait",
+      "delay": null
+    },
+    {
+      "id": "sfn03",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. The flag is next. Your crewmate is holding it out in the sunlight. Take hold of the pole and push it down.",
+      "dur": 7.95,
+      "cue": "next-flag",
+      "delay": null
+    },
+    {
+      "id": "sfn04",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. The rover is next. It is parked on the other side of the Lunar Module. Climb on by the left seat.",
+      "dur": 7.5,
+      "cue": "next-rover",
+      "delay": null
+    },
+    {
+      "id": "sfn05",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. The rover is yours. Have a drive round the valley, and keep the Lunar Module in sight.",
+      "dur": 6.92,
+      "cue": "next-drive",
+      "delay": null
+    },
+    {
+      "id": "sff01",
+      "t": null,
+      "who": "LMP",
+      "text": "Okay, I've got the flag. Come on over here and give me a hand with it.",
+      "dur": 3.69,
+      "cue": "flag-go",
+      "delay": null
+    },
+    {
+      "id": "sff02",
+      "t": null,
+      "who": "LMP",
+      "text": "Right here looks good. Take the pole and push it down. It goes in hard.",
+      "dur": 3.64,
+      "cue": "flag-here",
+      "delay": null
+    },
+    {
+      "id": "sff03",
+      "t": null,
+      "who": "LMP",
+      "text": "There she is. Isn't that a beautiful sight.",
+      "dur": 2.36,
+      "cue": "flag-done",
+      "delay": null
+    },
+    {
+      "id": "sff04",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. The flag looks great on the television. When you are ready, the rover is waiting.",
+      "dur": 6.29,
+      "cue": "rover-go",
+      "delay": null
+    },
+    {
+      "id": "sff05",
+      "t": null,
+      "who": "LMP",
+      "text": "All aboard. Take it easy on the first turn, she bounces.",
+      "dur": 3.36,
+      "cue": "drive",
       "delay": null
     },
     {

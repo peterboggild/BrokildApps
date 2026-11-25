@@ -17,8 +17,8 @@
  *   lmp.startOutside()   already down, moving about
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=26';
-import { LM } from './lm-model.js?v=26';
+import { makeEVASuit } from './eva-suit.js?v=27';
+import { LM } from './lm-model.js?v=27';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -29,9 +29,11 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
  * you ask), laid out along the ground away from the Sun and draped over the terrain. Image geometry as in
  * lm-shadow.js: across is horizontal and square to the Sun; a point w up the image falls w / sin(el) down-Sun, and
  * h / tan(el) further when the figure is h above the ground (a hop: the shadow leaves the feet). */
-export function makeFigureShadow(moon) {
-  const HALF = 1.0, W0 = -0.8, W1 = 2.8, NX = 6, NY = 40;
-  const rt = new THREE.WebGLRenderTarget(128, 256, { samples: 4 });
+export function makeFigureShadow(moon, opt = {}) {
+  /* (opt: half the width across, the image's lower and upper edge, the texture's size, the drape's grid: for the
+   * flag and the rover, which are wider than a man) */
+  const HALF = opt.half ?? 1.0, W0 = opt.w0 ?? -0.8, W1 = opt.w1 ?? 2.8, NX = opt.nx ?? 6, NY = opt.ny ?? 40, SZ = opt.size ?? [128, 256];
+  const rt = new THREE.WebGLRenderTarget(SZ[0], SZ[1], { samples: 4 });
   const geo = new THREE.PlaneGeometry(1, 1, NX, NY);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: rt.texture, transparent: true, opacity: 0.9, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
@@ -71,7 +73,7 @@ export function makeFigureShadow(moon) {
 }
 
 /* dust thrown by a boot: grains on ballistic arcs (no air: no cloud, no drift), gone where they land */
-function makeDust(moon) {
+export function makeDust(moon) {
   const N = 220, p = new Float32Array(N * 3).fill(-1e4), v = new Float32Array(N * 3), gy = new Float32Array(N), live = new Uint8Array(N);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
   const points = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x8f8b82, size: 0.03, sizeAttenuation: true, transparent: true, opacity: 0.85, depthWrite: false }));
@@ -120,13 +122,18 @@ export function makeLMP(o) {
 
   const cur = { ...STAND }, tgt = { ...STAND };
   const S = { phase: 'cabin', t: 0, rate: 1, pos: new THREE.Vector3(), yaw: 0, zc: 0, a: 2, vy: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
-    mode: 'act', act: 'look', actT: 0, actD: 6, spot: 0, target: new THREE.Vector3(), speed: 0, u: 0, lead: 1, waved: 0, lit: 1, bakeT: 1, cyc: 0, falls: 0 };
+    mode: 'act', act: 'look', actT: 0, actD: 6, spot: 0, cmd: null, arrived: false, anchor: null, target: new THREE.Vector3(), speed: 0, u: 0, lead: 1, waved: 0, lit: 1, bakeT: 1, cyc: 0, falls: 0 };
   const set = (p) => { for (const k of KEYS) tgt[k] = p[k] ?? STAND[k]; };
   const M = new THREE.Matrix4(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), V = (x, y, z) => new THREE.Vector3(x, y, z);
   const toWorld = v => v.applyMatrix4(M);
   const ladder = () => o.model.userData.ladder;
   const ladderAt = (a, out) => { const L = ladder(), i = clamp(Math.floor(a), 0, L.length - 2), k = clamp(a - i, 0, 1); return out.lerpVectors(L[i], L[i + 1], k).add(_w.set(0, 0, 0.13)); };
-  const spotWorld = (i, out) => { toWorld(out.set(SPOTS[i][0], 0, SPOTS[i][1])); out.y = o.moon.heightAt(out.x, out.z); return out; };
+  /* (his spots lie in front of the LM; or round the rover, once it has carried him off: S.anchor = [x, z, yaw]) */
+  const spotWorld = (i, out) => {
+    if (S.anchor) { const c = Math.cos(S.anchor[2]), sn = Math.sin(S.anchor[2]), x = SPOTS[i][0] * 0.9 + 2.5 * Math.sign(SPOTS[i][0]), z = (SPOTS[i][1] - 9) * 0.8; out.set(S.anchor[0] + x * c + z * sn, 0, S.anchor[1] - x * sn + z * c); }
+    else toWorld(out.set(SPOTS[i][0], 0, SPOTS[i][1]));
+    out.y = o.moon.heightAt(out.x, out.z); return out;
+  };
   const yawTo = (x, z) => Math.atan2(-(x - S.pos.x), -(z - S.pos.z));          /* the figure faces -z at yaw 0 */
 
   function apply(dt, snap) {
@@ -166,6 +173,16 @@ export function makeLMP(o) {
       S.spot = 0; spotWorld(0, S.pos); S.yaw = o.model.rotation.y + Math.PI; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 5;
       set(STAND); apply(0, true);
     },
+    /* told what to do (surface-ops.js): go to (x, z), then act ('hold': stand holding something out at his right;
+     * 'salute': facing face[x, z]) for hold seconds; null: as he pleases again. arrived: he is there */
+    command(c) { S.cmd = c; S.arrived = false; if (c && S.phase === 'roam') { S.target.set(c.x, 0, c.z); S.mode = 'go'; } else if (!c && S.phase === 'roam' && S.mode === 'act') { S.actT = 1e9; } },
+    get arrived() { return S.arrived; },
+    /* on the rover's right seat, and off it again (beside it, then about it) */
+    ride(on, x, z, ax, az, ayaw) {
+      if (on) { if (S.phase !== 'roam') return; S.phase = 'ride'; S.cmd = null; S.speed = 0; S.u = 0; }
+      else if (S.phase === 'ride') { S.phase = 'roam'; S.pos.set(x, o.moon.heightAt(x, z), z); S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 5; S.anchor = [ax, az, ayaw]; }
+    },
+    seat(hips, yaw) { S.pos.set(hips.x, hips.y - 0.97, hips.z); S.yaw = yaw; },
     /* he answers you on the radio: if he is standing, he turns to you */
     hail() { if (S.phase === 'roam' && S.mode === 'act') { S.act = 'you'; S.actT = 0.9; S.actD = Math.max(S.actD, 5); } },
     update(dt, ctx = {}) {
@@ -225,6 +242,9 @@ export function makeLMP(o) {
         S.pos.lerpVectors(S.from, S.to, k); S.pos.y += 0.3 * 4 * k * (1 - k);
         set({ wx: -0.15, alx: 0.6, arx: 0.6, alz: 0.5, arz: 0.5, ll: -0.1, lr: 0.25, kl: -0.5, kr: -0.4 });
         if (k >= 1) { S.pos.copy(S.to); footfall(1, 1.3); footfall(-1, 1.3); S.phase = 'roam'; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 4; S.spot = -1; if (o.voice) o.voice('lmpdown'); }
+      } else if (S.phase === 'ride') {
+        /* seated: the knees up, the hands on his lap, looking about a little */
+        set({ wx: -0.02, wy: 0.25 * Math.sin(S.t * 0.37), alx: 0.75, arx: 0.75, alz: 0.12, arz: 0.12, el: 1.0, er: 1.0, ll: 1.45, lr: 1.45, kl: -1.35, kr: -1.35 });
       } else if (S.phase === 'roam') roam(dt, pl);
       apply(dt, false);
       /* in the LM's shadow only the ground's glow lights him */
@@ -249,12 +269,13 @@ export function makeLMP(o) {
       S.yaw += clamp(dy, -2.0 * dt, 2.0 * dt); turning = Math.abs(dy) > 0.45;
       wantSpeed = turning ? 0 : Math.min(1.3, 0.35 + d * 0.8);
       /* you are in the way: he stops and turns to you */
-      if (pl && near < 1.6) { const ahead = -(pl.x - S.pos.x) * Math.sin(S.yaw) - (pl.z - S.pos.z) * Math.cos(S.yaw); if (ahead > 0) { S.mode = 'act'; S.act = 'you'; S.actT = 0; S.actD = 4; wantSpeed = 0; } }
-      if (d < 0.35 && S.mode === 'go') { S.mode = 'act'; S.act = SPOTS[S.spot][2]; S.actT = 0; S.actD = 6 + Math.random() * 8; }
+      if (pl && near < 1.6 && !S.cmd) { const ahead = -(pl.x - S.pos.x) * Math.sin(S.yaw) - (pl.z - S.pos.z) * Math.cos(S.yaw); if (ahead > 0) { S.mode = 'act'; S.act = 'you'; S.actT = 0; S.actD = 4; wantSpeed = 0; } }
+      if (d < 0.35 && S.mode === 'go') { S.mode = 'act'; S.actT = 0; if (S.cmd) { S.act = S.cmd.act; S.actD = S.cmd.hold; S.arrived = true; } else { S.act = SPOTS[Math.max(0, S.spot)][2]; S.actD = 6 + Math.random() * 8; } }
     } else {
       S.actT += dt;
       if (S.act === 'you' && pl) { const dy = wrap(yawTo(pl.x, pl.z) - S.yaw); S.yaw += clamp(dy, -1.6 * dt, 1.6 * dt); turning = Math.abs(dy) > 0.35; }
-      if (S.actT > S.actD && S.u < 0.05) nextSpot(-1);
+      if (S.cmd && S.cmd.face) { const dy = wrap(yawTo(S.cmd.face[0], S.cmd.face[1]) - S.yaw); S.yaw += clamp(dy, -1.6 * dt, 1.6 * dt); turning = Math.abs(dy) > 0.35; }
+      if (S.actT > S.actD && S.u < 0.05) { S.cmd = null; S.arrived = false; nextSpot(-1); }
     }
     S.speed += (wantSpeed - S.speed) * Math.min(1, dt * 2.5);
     const moving = S.speed > 0.08 || turning || S.u > 0.001;
@@ -275,6 +296,11 @@ export function makeLMP(o) {
       const lead = 0.1 + 0.5 * g * air, trail = 0.1 - 0.35 * g * air, kLead = -0.2 - 0.45 * air - 0.5 * push, kTrail = -0.2 - 0.3 * air - 0.5 * push;
       set({ lean: -0.2 * g, wx: -0.1 - 0.08 * g, alx: 0.4 + 0.25 * g * (a ? -air : air), arx: 0.4 + 0.25 * g * (a ? air : -air), alz: 0.38 + 0.15 * air, arz: 0.38 + 0.15 * air, el: 0.75, er: 0.75,
         lr: a ? lead : trail, ll: b ? lead : trail, kr: a ? kLead : kTrail, kl: b ? kLead : kTrail, dy: -0.06 * push });
+    } else if (S.act === 'hold') {
+      /* something stood on the ground at his right, his hand on it */
+      set({ arx: 1.05, arz: 0.2, er: 0.45, wy: 0.15 * Math.sin(S.actT * 0.4) });
+    } else if (S.act === 'salute') {
+      set({ arx: 1.75, arz: 0.75, er: 2.1, wx: -0.02 });
     } else if (S.act === 'work') {
       /* bent to something at his feet, the hands busy */
       const s1 = Math.sin(S.actT * 1.7), s2 = Math.sin(S.actT * 1.3 + 1);

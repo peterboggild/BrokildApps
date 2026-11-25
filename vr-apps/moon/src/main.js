@@ -9,23 +9,24 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=26';
-import { PAD_DROP } from './descent-space.js?v=26';
-import { makeLMShadow } from './lm-shadow.js?v=26';
+import { makeLMModel } from './vehicle.js?v=27';
+import { PAD_DROP } from './descent-space.js?v=27';
+import { makeLMShadow } from './lm-shadow.js?v=27';
 import { makePrints } from './prints.js?v=3';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=26';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=26';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=26';
-import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=26';
-import { makeLMP, makeFigureShadow } from './lmp.js?v=26';
-import { makeMoonRadio } from './moon-radio.js?v=26';
-import { LM } from './lm-model.js?v=26';
-import { makeEgress } from './egress.js?v=26';
-import { settleLM } from './lm-model.js?v=26';
-import { settings, applyCommon } from './settings.js?v=26';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=26';
+import { makeControllers, createHand } from './hands.js?v=27';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=27';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=27';
+import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=27';
+import { makeLMP, makeFigureShadow, makeDust } from './lmp.js?v=27';
+import { makeSurfaceOps } from './surface-ops.js?v=27';
+import { makeMoonRadio } from './moon-radio.js?v=27';
+import { LM } from './lm-model.js?v=27';
+import { makeEgress } from './egress.js?v=27';
+import { settleLM } from './lm-model.js?v=27';
+import { settings, applyCommon } from './settings.js?v=27';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=27';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -112,21 +113,22 @@ const LM_SOLID = (() => {
 const _cl = new THREE.Vector3();
 function pushOut(p, cx, cz, R) { const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d >= R) return; if (d < 1e-4) { p.x = cx + R; return; } p.x = cx + dx / d * R; p.z = cz + dz / d * R; }
 /* a point on the ground (world x, z) moved out of whatever it is in; the result in _cl */
-function clearOf(x, z) {
+function clearOf(x, z, body = BODY) {
   /* (on the ground's plane, turned by the LM's heading only: its slight tilt has no business here) */
   const dx = x - lmModel.position.x, dz = z - lmModel.position.z, c = Math.cos(lmModel.rotation.y), sn = Math.sin(lmModel.rotation.y);
   _cl.set(x, 0, z);
   if (Math.hypot(dx, dz) < 6) {
     _cl.set(dx * c - dz * sn, 0, dx * sn + dz * c);
     for (let n = 0; n < 2; n++) {
-      for (const [cx, cz, r] of LM_SOLID.circ) pushOut(_cl, cx, cz, r + BODY);
+      for (const [cx, cz, r] of LM_SOLID.circ) pushOut(_cl, cx, cz, r + body);
       for (const [[ax, az], [bx, bz], w] of LM_SOLID.segs) {
         const ux = bx - ax, uz = bz - az, t = Math.max(0, Math.min(1, ((_cl.x - ax) * ux + (_cl.z - az) * uz) / (ux * ux + uz * uz)));
-        pushOut(_cl, ax + ux * t, az + uz * t, w + BODY);
+        pushOut(_cl, ax + ux * t, az + uz * t, w + body);
       }
     }
     _cl.set(lmModel.position.x + _cl.x * c + _cl.z * sn, 0, lmModel.position.z - _cl.x * sn + _cl.z * c);
   }
+  if (ops && body <= BODY && !ops.driving) pushOut(_cl, ops.R.x, ops.R.z, 1.15 + body);          /* the rover, parked */
   if (lmp && lmp.on && ['pad', 'off', 'roam'].includes(lmp.S.phase)) { const bx = _cl.x, bz = _cl.z; pushOut(_cl, lmp.S.pos.x, lmp.S.pos.z, 0.45 + BODY); if (bx !== _cl.x || bz !== _cl.z) mradio.bump(); }
   return _cl;
 }
@@ -207,6 +209,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (!CH6) { if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface'); }
   if (e.code === 'KeyP') S.still = !S.still;
+  if (e.code === 'KeyG' && ops && S.view === 'surface' && !egress.active) ops.key(headGround(new THREE.Vector3()));
+  if (e.code === 'KeyF' && ops && ops.driving) ops.button('a'); else
   if (e.code === 'KeyF' && egress && egress.active) egress.go(); else if (e.code === 'KeyF' && egress && atLadder()) egress.mount();
   if (e.code === 'BracketRight') { S.sunOffset += 1; moon.setSunOffset(S.sunOffset); }
   if (e.code === 'BracketLeft') { S.sunOffset -= 1; moon.setSunOffset(S.sunOffset); }
@@ -224,6 +228,7 @@ renderer.domElement.addEventListener('pointermove', e => {
 const pad = { prev: {}, snap: 0 };
 /* the radio on the Moon (moon-radio.js): hold X (T on the screen) to transmit */
 const mradio = makeMoonRadio({ get toast() { return toast; }, level: () => settings.get('voices'), onLMP: () => lmp && lmp.hail() });
+let ops = null, opsStick = [0, 0], meSeated = false;
 let pttHeld = false, walkMoved = 0, walkD = 0, hopY = 0, tpWarn = 0, mountHint = 0;
 const _pd = new THREE.Vector3();
 /* by the front footpad (within reach of the ladder), on the ground */
@@ -236,7 +241,7 @@ let ctl = null;                                      /* the controllers by hand 
 function readControllers(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
-  let mx = 0, mz = 0, turn = 0, reach = 0, next = false, toggle = false, trig = false, grab = false, ptt = false;
+  let mx = 0, mz = 0, turn = 0, reach = 0, next = false, toggle = false, trig = false, grab = false, ptt = false, aPress = false, grabHand = null;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     if (src.handedness === 'right') trig = !!gp.buttons[0]?.pressed;
@@ -245,10 +250,11 @@ function readControllers(dt) {
     const k = src.handedness;
     /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
     const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a'] && k === 'right') { if (egress.active) egress.go(); else if (!CH6) next = true; }
+    if (a && !pad.prev[k + 'a'] && k === 'right') { aPress = true; if (egress.active) egress.go(); else if (!CH6) next = true; }
     /* climbing, the triggers grip too (the grips and the triggers both take hold of the ladder) */
     const tg = (gp.buttons[0]?.value || 0) > 0.5, sq = (gp.buttons[1]?.value || 0) > 0.5;
-    if ((tg || sq) && !pad.prev[k + 'g']) grab = true; pad.prev[k + 'g'] = tg || sq;
+    if ((tg || sq) && !pad.prev[k + 'g']) { grab = true; grabHand = EH[k]; } pad.prev[k + 'g'] = tg || sq;
+    if (ops && !sq) ops.release(EH[k]);
     if (k === 'left' && gp.buttons[4]?.pressed) ptt = true;
     EH[k].grip = sq || (egress.active && tg); EH[k].pos = ctl.grips[k].visible ? ctl.grips[k].position : null;
     if (hands[k]) { if (hands[k].parent !== ctl.grips[k]) ctl.grips[k].add(hands[k]); hands[k].userData.pose(gp.buttons[0]?.value || 0, gp.buttons[1]?.value || 0, [3, 4, 5].some(n => gp.buttons[n]?.touched), false, dt); }
@@ -257,6 +263,9 @@ function readControllers(dt) {
   }
   pttHeld = ptt;
   if (egress.active) { aimTeleport(null); return; }               /* climbing out: no walking, teleport or turning yet */
+  /* on the rover the stick drives and A steps off; walking, a grip takes the flag's pole or a seat on the rover */
+  if (ops && ops.driving) { opsStick = [mx, mz]; if (aPress) ops.button('a'); aimTeleport(null); return; }
+  if (ops && grab && ops.grab(grabHand, headGround(new THREE.Vector3()))) { aimTeleport(null); return; }
   /* by the footpad a grip or a trigger takes you onto the ladder */
   if (grab && atLadder()) { egress.mount(); aimTeleport(null); return; }
   /* near the LM the triggers are for the ladder, not for jumping (owner's wish) */
@@ -414,9 +423,9 @@ function info() {
   if (egress.active) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Leaving the Lunar Module', next: null, after: 'the walk on the Moon', get: 0, warp: 1,
     rows: [['Where', { cabin: 'in the cabin', turn: 'at the hatch', path: 'on the way down', drop: 'the last drop', pad: 'on the footpad' }[egress.E.stage] || '']],
     keys: [['grip, trigger', 'pull yourself along'], ['A', 'go by itself / stop'], ['L stick', 'press: panel, settings']], fps: S.fps };
-  if (CH6) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Walking in the valley of Taurus-Littrow', next: null, after: 'the flag and the rover are still to come', get: 0, warp: 1,
+  if (CH6) return { chapter: 'Chapter 6 \u00b7 On the Moon', now: 'Walking in the valley of Taurus-Littrow', next: null, after: ops && ops.driving ? 'A, standing still: step off' : 'the flag, then the rover', get: 0, warp: 1,
     rows: [['From the LM', Math.hypot(S.pos.x, S.pos.z).toFixed(0) + ' m']],
-    keys: [['L stick', 'walk'], ['R stick', 'turn 30 deg'], ['R trigger', 'aim a jump (10 m from the LM)'], ['X', 'hold: talk on the radio'], ['grip', 'at the ladder: climb'], ['L stick', 'press: panel, settings']], fps: S.fps };
+    keys: [['L stick', 'walk'], ['R stick', 'turn 30 deg'], ['R trigger', 'aim a jump (10 m from the LM)'], ['X', 'hold: talk on the radio'], ['grip', 'the ladder, the flag, the rover'], ['L stick', 'press: panel, settings']], fps: S.fps };
   return { chapter: 'The Moon \u00b7 Taurus-Littrow', now: VIEWS[S.view].label, next: null, after: S.view === 'surface' ? 'chapter 6 is the way here from the landing' : 'A: the next view', get: 0, warp: 1,
     rows: [['Frame time', S.ms.toFixed(1) + ' ms'], ['Draw calls', String(S.calls)], ['Triangles', (S.tris / 1000).toFixed(0) + 'k'], ['Foveation', S.foveation.toFixed(2)]],
     keys: [['A', 'next view'], ['L stick', 'press: panel, settings'], ['trigger', 'teleport (surface)'], ['L stick', 'walk'], ['R stick', 'turn 30 deg']], fps: S.fps };
@@ -453,6 +462,7 @@ function render() {
     lmc.group.visible = false; handFill.visible = false; helm.group.visible = cabinOn && close && helm.k > 0;
     if (me) { me.visible = nearOn && close && !egress.active; meShadow.mesh.visible = me.visible; }
     if (lmp) { lmp.fig.visible = nearOn && close && lmp.on; lmp.extras.visible = lmp.fig.visible; }
+    if (ops) ops.group.visible = nearOn && close;
   };
   /* the LM's cabin, seen from inside and through the open hatch: its own pass with its own lights (they would
    * flood the LM's outside), over the same depth, before the things in your hands */
@@ -522,6 +532,10 @@ function placeMe(close) {
   const eh = _cam.y - rig.position.y;
   me.scale.setScalar(Math.max(0.6, Math.min(1.2, (eh - 0.14) / 1.59)));
   me.position.set(_cam.x + Math.sin(meYaw) * 0.07, rig.position.y, _cam.z + Math.cos(meYaw) * 0.07); me.rotation.y = meYaw; me.updateMatrixWorld(true);
+  /* on the rover you sit: the hips on the seat, the knees up (and the whole suit of your shadow and reflection too) */
+  const seated = !!ops && ops.driving;
+  if (seated) { const hp = ops.hips; meYaw = ops.yaw; me.scale.setScalar(1); me.position.set(hp.x, hp.y - 0.97, hp.z); me.rotation.y = meYaw; me.updateMatrixWorld(true); }
+  if (seated !== meSeated) { meSeated = seated; for (const f of [me, meGhost]) { const J = f.userData.joints; if (seated) { J.legL.rotation.set(1.45, 0, -0.03); J.legR.rotation.set(1.45, 0, 0.03); J.kneeL.rotation.set(-1.35, 0, 0); J.kneeR.rotation.set(-1.35, 0, 0); J.waist.rotation.set(-0.02, 0, 0); } else f.userData.pose(); } }
   meGhost.position.copy(me.position); meGhost.rotation.y = meYaw; meGhost.scale.copy(me.scale); ghostArms();
   /* in the LM's shadow your suit is lit by the ground's glow only */
   const sunlit = (lmShadow.lit(_fw.copy(me.position).setY(me.position.y + 0.5)) + lmShadow.lit(_fw.setY(me.position.y + 1.4))) / 2;
@@ -561,6 +575,7 @@ function frame(t) {
   if (xr) readControllers(dt);
   toast.update(dt, camera); card.update(dt, camera);
   if (CH6 || Q.has('egress')) mradio.update(dt, { ptt: (xr ? pttHeld : !!keys.KeyT) && S.view === 'surface', lmpOut: !!lmp && lmp.on && lmp.S.phase === 'roam', quiet: !egress.active && !!lmp && lmp.S.phase === 'roam' });
+  if (ops && S.view === 'surface') ops.update(dt, { walking: !egress.active, stick: xr ? opsStick : [(keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0)] });
   if (lmp && S.view === 'surface' && (CH6 || Q.has('egress'))) lmp.update(dt, { walking: !egress.active, player: rig.position });
   if (CH6) saveProgress('surface.html', egress.active ? 0 : 1, t);
   if (S.view === 'surface' && egress.active) {
@@ -575,6 +590,13 @@ function frame(t) {
       if (keys.KeyA) { S.pos.x += fz * sp; S.pos.z -= fx * sp; } if (keys.KeyD) { S.pos.x -= fz * sp; S.pos.z += fx * sp; }
       if (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD) walkMoved += sp;
     }
+    if (ops && ops.driving) {
+      /* seated on the rover: your eyes are over the Commander's seat, level, facing where it points */
+      const e = ops.eye, h = ops.yaw, c = Math.cos(h), sn = Math.sin(h), cx = xr ? camera.position.x : 0, cz = xr ? camera.position.z : 0, cy = xr ? camera.position.y : 1.65;
+      S.heading = h; S.pos.set(e.x - (cx * c + cz * sn), 0, e.z - (-cx * sn + cz * c));
+      rig.position.set(S.pos.x, e.y - cy, S.pos.z); rig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), h);
+      walkMoved = 0; hopY = 0; STEP.last = null;
+    } else {
     collide();
     const lim = walkLimit();
     S.pos.x = Math.max(-lim, Math.min(lim, S.pos.x)); S.pos.z = Math.max(-lim, Math.min(lim, S.pos.z));
@@ -586,6 +608,7 @@ function frame(t) {
     rig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), S.heading);
     shadowMe(dt);
     if (atLadder() && performance.now() > mountHint) { mountHint = performance.now() + 30000; toast.say('The ladder: grip or trigger here to climb back up', 4); }
+    }
   } else {
     const v = VIEWS[S.view];
     if (!S.still) {
@@ -651,7 +674,13 @@ async function start() {
     lmShadow = makeLMShadow(moon);
     /* the Lunar Module Pilot, who follows you down and moves about in front of the LM (lmp.js) */
     lmp = makeLMP({ moon, model: m, env, renderer, sun, mirror: cubeRT.texture, voice: k => mradio.cue(k), cabinLmp: lmc.lmp, shade: p => lmShadow.lit(p), get prints() { return prints; }, get toast() { return toast; } });
-    scene.add(lmp.fig, lmp.extras); lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
+    scene.add(lmp.fig, lmp.extras);
+    /* the flag and the rover (surface-ops.js): chapter 6 only */
+    if (CH6 || Q.has('egress')) {
+      ops = makeSurfaceOps({ moon, renderer, sun, env, model: m, lmp, radio: mradio, get toast() { return toast; }, rig, camera, S, makeShadow: makeFigureShadow, makeDust,
+        clearOf: (x, z, body) => clearOf(x, z, body), step: k => suit.step(k) });
+      scene.add(ops.group);
+    } lmc.group.position.copy(m.position); lmc.group.rotation.copy(m.rotation); lmc.setHatchOpen(false); lmc.group.visible = false; lm.add(lmc.group);
     lmSun = new THREE.DirectionalLight(0xfff3e2, 2.6); lmSun.target = m; lm.add(lmSun);
     const hemi = new THREE.HemisphereLight(0x0c0c0e, 0x8c877e, 0.55); lm.add(hemi); lmHemi = hemi;
     lm.add(lmShadow.mesh); }
@@ -702,7 +731,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, get ops() { return ops; }, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },
