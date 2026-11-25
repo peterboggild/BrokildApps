@@ -81,7 +81,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   });
   ok('S-IVB: with us, then drifting off, then gone', sv[0] && sv[1] && !sv[2], JSON.stringify(sv));
   /* the end */
-  const end = await p.evaluate(async () => { __orbit.S.running = true; __orbit.setTime(__orbit.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __orbit.S.ended, t: __orbit.S.t, END: __orbit.END }; });
+  const end = await p.evaluate(async () => { __orbit.S.running = true; __orbit.setTime(__orbit.END - 3); for (let k = 0; k < 100 && !__orbit.S.ended; k++) await new Promise(r => setTimeout(r, 200));   /* by frames: software GL is slow */ return { ended: __orbit.S.ended, t: __orbit.S.t, END: __orbit.END }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
