@@ -1,0 +1,161 @@
+{
+  "about": "Radio and intercom for chapter 4: into the LM. The crawl through the tunnel, the LM cabin, undocking (GET 107:47:56), the Command Module coming round to look at the legs, separation, and go for powered descent. t = GET (seconds from liftoff); cue lines play on events. America is the Command and Service Module, Challenger the Lunar Module. Original lines in the style of Apollo procedure; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "LMP": "intercom",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "q01",
+      "t": 384010,
+      "who": "CMP",
+      "text": "Your turn. Probe and drogue are stowed, and the tunnel is clear.",
+      "dur": 3.64
+    },
+    {
+      "id": "q02",
+      "t": 384022,
+      "who": "LMP",
+      "text": "Come on through. Head first, hand over hand. Mind the hatch rim at the bottom.",
+      "dur": 4.44
+    },
+    {
+      "id": "q03",
+      "t": 384075,
+      "who": "CMP",
+      "text": "Take your time. Grab the tunnel wall and pull yourself along, nice and easy.",
+      "dur": 4.35
+    },
+    {
+      "id": "q04",
+      "t": null,
+      "who": "LMP",
+      "text": "Welcome aboard Challenger. Your restraints are by your feet.",
+      "dur": 3.03,
+      "cue": "arrive",
+      "delay": 1.5
+    },
+    {
+      "id": "q05",
+      "t": null,
+      "who": "CMP",
+      "text": "America here. I'm putting the drogue and the hatch back in. Close yours on your side.",
+      "dur": 4.53,
+      "cue": "arrive",
+      "delay": 9
+    },
+    {
+      "id": "q06",
+      "t": 386000,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. You are go for undocking.",
+      "dur": 3.37
+    },
+    {
+      "id": "q07",
+      "t": 386014,
+      "who": "LMP",
+      "text": "Roger, go for undocking. Thank you, Houston.",
+      "dur": 3.08
+    },
+    {
+      "id": "q08",
+      "t": 387960,
+      "who": "CMP",
+      "text": "Two minutes. Are you ready, Challenger?",
+      "dur": 2.58
+    },
+    {
+      "id": "q09",
+      "t": 387970,
+      "who": "LMP",
+      "text": "Ready when you are, America.",
+      "dur": 1.78
+    },
+    {
+      "id": "q10",
+      "t": 388062,
+      "who": "CMP",
+      "text": "Undocking in ten seconds.",
+      "dur": 1.75
+    },
+    {
+      "id": "q11",
+      "t": 388076,
+      "who": "CMP",
+      "text": "Undock. We are apart. Backing away now.",
+      "dur": 2.72
+    },
+    {
+      "id": "q12",
+      "t": 388092,
+      "who": "LMP",
+      "text": "Look up through the docking window. There she goes.",
+      "dur": 2.57
+    },
+    {
+      "id": "q13",
+      "t": 388200,
+      "who": "CMP",
+      "text": "I'm coming round in front of you, so I can see your legs.",
+      "dur": 3.28
+    },
+    {
+      "id": "q14",
+      "t": 388400,
+      "who": "CMP",
+      "text": "All four legs are down and locked, and the probes look good. You are a beautiful sight, Challenger.",
+      "dur": 5.22
+    },
+    {
+      "id": "q15",
+      "t": 388425,
+      "who": "LMP",
+      "text": "Thank you, America. See you in three days.",
+      "dur": 2.83
+    },
+    {
+      "id": "q16",
+      "t": 389816,
+      "who": "CMP",
+      "text": "Separation burn in one minute. Stand by.",
+      "dur": 2.61
+    },
+    {
+      "id": "q17",
+      "t": 389890,
+      "who": "CMP",
+      "text": "Burn complete. Opening it up. Good luck, Challenger.",
+      "dur": 3.32
+    },
+    {
+      "id": "q18",
+      "t": 393800,
+      "who": "CAPCOM",
+      "text": "America, Houston. We see a good circularization burn.",
+      "dur": 4.01
+    },
+    {
+      "id": "q19",
+      "t": 395600,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. All your systems look good going round.",
+      "dur": 4.08
+    },
+    {
+      "id": "q20",
+      "t": 396000,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. If you read, you are go for powered descent.",
+      "dur": 4.53
+    },
+    {
+      "id": "q21",
+      "t": 396014,
+      "who": "LMP",
+      "text": "Roger, go for PDI. Here we go.",
+      "dur": 2.51
+    }
+  ]
+}
