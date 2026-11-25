@@ -11,14 +11,20 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=13';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=13';
-import { makeOutside } from './earth.js?v=13';
-import { makeCabin } from './cabin.js?v=13';
-import { makeLaunchSound } from './launch-sound.js?v=13';
-import { makeRadio } from './radio.js?v=13';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=13';
-import { createHand } from './hands.js?v=13';
+import { state as ascentState, SUN, RE } from './ascent.js?v=14';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=14';
+import { makeOutside } from './earth.js?v=14';
+import { makeCabin } from './cabin.js?v=14';
+import { makeLaunchSound } from './launch-sound.js?v=14';
+import { makeRadio, combineRadios } from './radio.js?v=14';
+import { makeClock } from './clock.js?v=14';
+import { makeChatter } from './chatter.js?v=14';
+import { handOnCrew } from './crew-life.js?v=14';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=14';
+import { createHand, makeControllers } from './hands.js?v=14';
+import { makeWrist, makeToast, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=14';
+import { settings, applyCommon, holdsFor } from './settings.js?v=14';
+import { makeFloaters } from './floaters.js?v=14';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -28,8 +34,10 @@ const $ = id => document.getElementById(id);
 const TD = { sep: 13320, sepEnd: 13380, pitch0: 13385, pitch1: 13505, app0: 13510, dock: 13838, hard: 13860, extract: 17100, ptc: 21600, view: 17400 };
 const END = T_SOI + 90;
 const WARPS = [1, 10, 100, 1000, 10000];
-/* never warp across these */
-const HOLD = [[GET.tli - 150, GET.tliEnd + 40], [TD.sep - 60, TD.hard + 40], [TD.extract - 60, TD.extract + 240]];
+/* never warp across these (by the fast-forward setting: all of them, the major ones, or none) */
+const HOLD_ALL = [[GET.tli - 150, GET.tliEnd + 40, 'the TLI burn'], [TD.sep - 60, TD.hard + 40, 'transposition and docking'], [TD.extract - 60, TD.extract + 240, 'LM extraction']];
+const HOLD_MAJOR = HOLD_ALL.slice(0, 2);
+const holds = () => holdsFor(HOLD_ALL, HOLD_MAJOR);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -58,48 +66,32 @@ scene.add(outside.far, outside.near);
 const vehicle = makeVehicle(renderer);
 outside.near.add(vehicle.group, vehicle.lights);
 const attPad = new THREE.Quaternion(), attRel = new THREE.Quaternion(), att = new THREE.Quaternion(), attWant = new THREE.Quaternion();
-const RATE = 1.5 * Math.PI / 180;                 /* the fastest the attitude turns as you see it, outside docking, rad/s */
+const RATE = () => settings.get('turn') * Math.PI / 180;     /* the fastest the attitude turns as you see it, outside docking, rad/s */
 const OUT = { want: false, on: false, az: -1.25, el: 0.2, dist: 22 };
-const OPT = { body: true };
+const OPT = { get body() { return settings.get('body'); } };
 const sound = makeLaunchSound();
-let radio = null;
+let chat = null, radio = null;
 const fadeScene = new THREE.Scene();
 const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
 fadeScene.add(veil);
 const FADE = { k: 0, target: 0 };
 
-/* things floating free in the cabin: weightlessness made visible */
-const floaters = new THREE.Group(); cabin.group.add(floaters);
-{
-  const card = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.012), new THREE.MeshLambertMaterial({ color: 0xe9e4d4 }));
-  card.position.set(0.35, 0.05, -0.38); floaters.add(card);
-  const tether = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.3, 4), new THREE.MeshLambertMaterial({ color: 0x333333 }));
-  tether.position.set(0.35, 0.2, -0.38); floaters.add(tether);
-  const pen = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.14, 8), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
-  pen.position.set(-0.15, 0.12, -0.32); floaters.add(pen);
-}
+/* things floating free in the cabin: weightlessness made visible, and yours to take (floaters.js) */
+const floaters = makeFloaters(cabin.group, { tether: true });
+const ctl = makeControllers(renderer, head);
+const common = applyCommon(renderer, sound);
 
-/* ---------------------------------------------------------------- HUD (test instrument on the left controller) */
-const hud = (() => {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
-  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  mesh.renderOrder = 999;
-  let last = 0;
-  return { mesh, on: true, draw(now, w) {
-    if (now - last < 500) return; last = now;
-    g.clearRect(0, 0, 512, 256); g.fillStyle = 'rgba(0,0,0,0.72)'; g.fillRect(0, 0, 512, 256);
-    g.fillStyle = S.fps > 68 ? '#9fe6a0' : S.fps > 55 ? '#f0d070' : '#ff8a70'; g.font = 'bold 54px monospace'; g.fillText(S.fps.toFixed(0) + ' fps', 20, 64);
-    g.fillStyle = '#d8d8d8'; g.font = '26px monospace';
-    g.fillText('GET ' + fmt(S.t) + (S.warp > 1 ? '  x' + S.warp : ''), 20, 108);
-    g.fillText('Earth ' + km(w.alt) + '  Moon ' + km(w.dMoon), 20, 146);
-    if (S.ended) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 2.  A: chapter 3', 20, 184); }
-    else g.fillText((w.speed / 1000).toFixed(2) + ' km/s   ' + phase(S.t), 20, 184);
-    g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 222);
-    g.fillText('stick press: L panel, R re-seat', 12, 246);
-    tex.needsUpdate = true;
-  } };
-})();
+/* ---------------------------------------------------------------- the wrist panel (X) and messages */
+const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
+ctl.grips.left.add(wrist.mesh);
+const toast = makeToast(); head.add(toast.mesh);
+const EVENTS = [[GET.tli, 'TLI burn'], [TD.sep, 'transposition and docking'], [TD.extract, 'LM extraction'], [TD.ptc, 'passive thermal control'], [T_SOI, "the Moon's sphere of influence"]];
+function info() {
+  return { chapter: 'Chapter 2 \u00b7 To the Moon', now: phase(S.t), next: S.ended ? null : nextOf(EVENTS, S.t), after: 'chapter 3, lunar orbit', get: S.t, warp: S.warp,
+    rows: [['Above the Earth', fmtDist(w.alt)], ['To the Moon', fmtDist(w.dMoon)], ['Speed', fmtSpeed(w.speed)], ['Fast forward', settings.text('ff')]],
+    alert: S.ended ? 'End of chapter 2.  A: on to chapter 3' : null,
+    keys: [['A', 'faster (hold: real time)'], ['B', 'slower'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
+}
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = Math.floor(s % 60); return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
 const km = m => m > 1e6 ? (m / 1e6).toFixed(m > 1e8 ? 0 : 1) + 'k km' : (m / 1000).toFixed(0) + ' km';
 function phase(t) {
@@ -118,6 +110,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') { startSound(); S.running = !S.running; }
   if (e.code === 'KeyW') cycleWarp();
+  if (e.code === 'KeyS') clock.slower(S);
+  if (e.code === 'KeyP') wrist.press();
   if (e.code === 'KeyC') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyN' && S.ended) nextChapter('lunar.html');
@@ -129,25 +123,37 @@ let drag = null;
 renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; renderer.domElement.setPointerCapture(e.pointerId); });
 renderer.domElement.addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
-const held = t => HOLD.some(([a, b]) => t > a && t < b);
-function cycleWarp() { if (held(S.t)) { S.warp = 1; return; } S.warp = WARPS[(WARPS.indexOf(S.warp) + 1) % WARPS.length]; }
-function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; }
+const clock = makeClock({ holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
+const held = t => !!clock.inHold(t);
+function cycleWarp() { clock.faster(S); }
+function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
+function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; clock.reset(); }
 /* the chapter's end: A (or N on the screen) goes on; a page change must leave VR first */
 function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
 const STICK = { x: 0, y: 0, ry: 0 };
-const pad = { prev: {} };
-function readControllers() {
+const pad = { prev: {}, aDown: -1 };
+/* A (right): one step faster, held: real time at once; B (right): one step slower; X (left): the cheat window;
+ * Y (left): outside (both stay till pressed again); left stick press: the panel, then the settings; right stick
+ * press: re-seat */
+function readControllers(now) {
   const s = renderer.xr.getSession(); if (!s) return;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a']) { if (S.ended) nextChapter('lunar.html'); else cycleWarp(); }
-    if (k === 'left' && b && !pad.prev[k + 'b']) cabin.setCheat(!cabin.cheat);
-    if (k === 'right') OUT.want = !!b;
-    if (st && !pad.prev[k + 's']) { if (k === 'left') hud.on = !hud.on; else SEAT.pending = 1; }
-    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st;
+    if (k === 'right') {
+      if (a && !pad.prev.ra) { pad.aDown = now; if (S.ended) nextChapter('lunar.html'); }
+      if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
+      if (!a && pad.prev.ra && pad.aDown >= 0) { if (!S.ended) cycleWarp(); pad.aDown = -1; }
+      if (b && !pad.prev.rb && !S.ended) clock.slower(S);
+      if (st && !pad.prev.rs) SEAT.pending = 1;
+    } else if (k === 'left') {
+      if (a && !pad.prev.la) cabin.setCheat(!cabin.cheat);       /* X: the cheat window, Y: outside (both stay) */
+      if (b && !pad.prev.lb) OUT.want = !OUT.want;
+      if (st && !pad.prev.ls) wrist.press();
+    }
+    pad.prev[k[0] + 'a'] = a; pad.prev[k[0] + 'b'] = b; pad.prev[k[0] + 's'] = st;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-    if (k === 'left') { STICK.x = ax[0]; STICK.y = ax[1]; } else STICK.ry = ax[1];
+    if (k === 'left') { wrist.stick(ax[0], ax[1]); if (wrist.capturesStick) { STICK.x = 0; STICK.y = 0; } else { STICK.x = ax[0]; STICK.y = ax[1]; } } else STICK.ry = ax[1];
   }
 }
 
@@ -189,8 +195,11 @@ const smooth = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a
 function tdDist(t) {
   if (t < TD.sep) return 0;
   if (t < TD.app0) return 15 * smooth(TD.sep, TD.sepEnd + 20, t);
-  return 15 + (vehicle.DOCK_DIST - 15) * smooth(TD.app0, TD.dock, t);
+  if (t < TD.dock) return 15 + (vehicle.DOCK_DIST - 15) * smooth(TD.app0, TD.dock, t);
+  return vehicle.DOCK_DIST + (vehicle.HARD_DIST - vehicle.DOCK_DIST) * probeIn(t);       /* the probe draws the two together */
 }
+/* the probe's retraction after capture: 0 at capture, 1 ring on ring, a second before the latches fire */
+const probeIn = t => smooth(TD.dock + 4, TD.hard - 1, t);
 function tdAngle(t) { return Math.PI * smooth(TD.pitch0, TD.pitch1, t); }
 
 /* the vehicle's configuration for time t */
@@ -203,13 +212,14 @@ function configure(t) {
     vehicle.csmInSivb(tdDist(t), tdAngle(t), _md); _ms.copy(_md).invert();
     td.sivb = _ms; td.lm = _ml.multiplyMatrices(_ms, vehicle.LM_REST); td.open = smooth(TD.sep, TD.sep + 3, t); td.gone = t - (TD.sep + 4);
   } else {
-    vehicle.csmInSivb(vehicle.DOCK_DIST, Math.PI, _md); _ms.copy(_md).invert();
+    vehicle.csmInSivb(vehicle.HARD_DIST, Math.PI, _md); _ms.copy(_md).invert();
     DOCKED_LM.multiplyMatrices(_ms, vehicle.LM_REST);
     const d = t - TD.extract, s = d < 30 ? 0.04 * d * d : 36 + 2.4 * (d - 30);          /* springs, then the S-IVB's own push away */
     td.sivb = s > 8000 ? null : _ms.multiply(_mt.makeTranslation(0, -s, 0));
     td.lm = DOCKED_LM; td.open = 1; td.gone = t - (TD.sep + 4);
   }
   vehicle.space(td);
+  vehicle.setProbe(t < TD.dock ? 1 : 1 - probeIn(t));
   return td;
 }
 
@@ -244,17 +254,17 @@ const _tip = new THREE.Vector3(), _loc = new THREE.Vector3();
 function updateHands(dt) {
   const s = renderer.xr.getSession(); if (!s) return;
   let touched = null;
-  for (let i = 0; i < 2; i++) {
-    const src = s.inputSources[i]; if (!src || !src.gamepad) continue;
-    const m = hands[src.handedness]; if (!m) continue;
-    const grip = renderer.xr.getControllerGrip(i); if (m.parent !== grip) grip.add(m);
+  for (const h of ['left', 'right']) {
+    const src = ctl.src[h]; if (!src || !src.gamepad) continue;
+    const m = hands[h], grip = ctl.grips[h]; if (m.parent !== grip) grip.add(m);
     m.visible = !OUT.on;
     const gp = src.gamepad, b = k => gp.buttons[k] || null;
     m.userData.pose(b(0) ? b(0).value : 0, b(1) ? b(1).value : 0, [3, 4, 5].some(k => b(k) && (b(k).touched || b(k).pressed)), false, dt);
+    const onCrew = !OUT.on && handOnCrew(m, [cabin.life], gp, who => chat && chat.touch(who));
     m.userData.tip.getWorldPosition(_tip);
     let hit = false;
     if (!OUT.on) for (const pnl of cabin.panels) { _loc.copy(_tip); pnl.mesh.worldToLocal(_loc); if (Math.abs(_loc.x) < pnl.w / 2 && Math.abs(_loc.y) < pnl.h / 2 && Math.abs(_loc.z) < 0.03) hit = true; }
-    m.userData.warn = hit ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt); m.userData.setTint(m.userData.warn > 0);
+    m.userData.warn = hit || onCrew ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt); m.userData.setTint(m.userData.warn > 0);
     if (hit) { touched = _tip.clone(); if (!m.userData.buzzed) { gp.hapticActuators?.[0]?.pulse?.(0.5, 60).catch?.(() => {}); m.userData.buzzed = true; } } else m.userData.buzzed = false;
   }
   if (touched) { SIGN.k = 1; SIGN.t = 1.4; _loc.setFromMatrixPosition(camera.matrixWorld); sign.position.copy(touched).lerp(_loc, 0.25); sign.quaternion.copy(camera.getWorldQuaternion(_q)); sign.translateY(0.05); }
@@ -278,7 +288,7 @@ function render() {
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, f, n) => { cabin.group.visible = c && !OUT.on; hud.mesh.visible = c && hud.on; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
+  const show = (c, f, n) => { cabin.group.visible = c && !OUT.on; wrist.mesh.visible = c && wrist.on; toast.mesh.visible = c && toast.k > 0.01; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
   const nearest = Math.min(w.alt, w.dMoon - R_MOON), farthest = Math.max(w.alt + 2 * RE, w.dMoon + R_MOON);
   show(false, true, false); setPlanes(Math.max(20, Math.min(nearest * 0.2, OUT.on ? 2000 : 1e9)), Math.max(6e7, farthest * 1.5)); renderer.render(scene, camera);
   renderer.clearDepth();
@@ -295,14 +305,12 @@ function frame(now) {
   acc += dt; accN++;
   if (acc > 0.5) { S.fps = accN / acc; acc = 0; accN = 0; if ($('stat')) $('stat').textContent = `${S.fps.toFixed(0)} fps · ${S.calls} draw calls · ${(S.tris / 1000).toFixed(0)}k triangles`; }
   const xr = renderer.xr.isPresenting;
-  if (xr) readControllers();
-  /* the clock: warp stops short of a held stretch and drops to real time there */
+  ctl.update();
+  if (xr) readControllers(now);
+  /* the clock: warp stops short of a held stretch and drops to real time there, and says so */
   if (S.running && !S.still && !S.ended) {
-    let nt = S.t + dt * S.warp;
-    if (S.warp > 1) for (const [a] of HOLD) if (S.t < a && nt >= a) { nt = a; S.warp = 1; }
-    if (held(nt)) S.warp = 1;
-    S.t = Math.min(END, nt);
-    if (S.t >= END) { S.ended = true; S.running = false; hud.on = true; }
+    S.t = Math.min(END, clock.advance(S, dt));
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); }
   }
   w = where(S.t);
   /* the roll of passive thermal control: three turns an hour, but never faster than 1.4 deg/s to look at */
@@ -310,7 +318,7 @@ function frame(now) {
   /* comfort: the attitude as you see it never turns faster than RATE (in low orbit at high warp it would spin the
    * Earth past the windows); docking is exact, as its geometry depends on it */
   attitudeAt(S.t, w, attWant);
-  if (S.snap || (S.t > TD.sep - 5 && S.t < TD.view)) { att.copy(attWant); S.snap = false; } else att.rotateTowards(attWant, RATE * dt);
+  if (S.snap || (S.t > TD.sep - 5 && S.t < TD.view)) { att.copy(attWant); S.snap = false; } else att.rotateTowards(attWant, RATE() * dt);
   attRel.copy(att).multiply(_q.copy(attPad).invert());
   vehicle.group.quaternion.copy(attRel);
   if (OUT.on) placeOutside(w); else { rig.quaternion.copy(att); rig.position.copy(EYE_OFF).applyQuaternion(attRel); }
@@ -338,8 +346,8 @@ function frame(now) {
     if (at === TD.hard) for (let k = 1; k < 12; k++) setTimeout(() => sound.thump(0.18, 0.08, 1800), k * 90);
   }
   prevT = S.t;
-  /* floating things drift */
-  floaters.children.forEach((o, k) => { o.position.y += Math.sin(now / 1000 * 0.4 + k) * 0.00012; o.rotation.x += 0.0015 * (k + 1); o.rotation.z += 0.001 * (k - 1); });
+  /* floating things drift, and can be taken */
+  floaters.update(dt, { ctl, head, hands, enabled: xr && !OUT.on });
   /* instruments */
   cabin.timer.draw(S.t);
   cabin.ball.quaternion.copy(rig.quaternion).invert();
@@ -350,15 +358,17 @@ function frame(now) {
     lastDsky = now;
   }
   if (radio && S.running) radio.update(S.t, S.warp);
+  if (chat) chat.update(dt, { crew: ['CMP', 'LMP'], where: ['any', 'space', 'earth'], quiet: S.running && !S.ended && !OUT.on && !clock.inHold(S.t) && !(radio && radio.current(S.t)) });
   updateOutside(dt);
   updateHands(dt);
-  cabin.update(now / 1000);
+  cabin.update(now / 1000, { viewer: camera, radio: combineRadios(radio, chat && chat.radio) });
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 2. A (N on this screen) goes on to chapter 3, lunar orbit.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
-  hud.draw(now, w);
+  wrist.draw(now, info());
+  toast.update(dt, camera);
   render();
   S.frames++;
   if (window.__orbit.afterFrame) { const f = window.__orbit.afterFrame; window.__orbit.afterFrame = null; f(); }
@@ -367,11 +377,13 @@ function frame(now) {
 /* ---------------------------------------------------------------- start */
 async function startSound() {
   const ctx = sound.init();
-  if (ctx && !radio) radio = await makeRadio(ctx, sound.out, new URL('../assets/script/orbit.json', import.meta.url).href);
+  if (ctx) sound.setLevels({ voices: settings.get('voices'), sound: settings.get('sound') });
+  if (ctx && !radio) radio = await makeRadio(ctx, sound.voice, new URL('../assets/script/orbit.json', import.meta.url).href);
+  if (ctx && !chat) chat = await makeChatter(ctx, sound.voice);
 }
 function readOptions() {
   if ($('start')) setTime(+$('start').value);
-  if ($('opt-body')) OPT.body = $('opt-body').checked;
+  if ($('opt-body')) settings.set('body', $('opt-body').checked);
 }
 async function enterVR() {
   if (!navigator.xr) return;
@@ -379,12 +391,8 @@ async function enterVR() {
   renderer.xr.setFramebufferScaleFactor(num('scale', +($('scale')?.value || 1)));
   const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
-  renderer.xr.setFoveation(0.5);
-  for (const i of [0, 1]) {
-    const grip = renderer.xr.getControllerGrip(i); head.add(grip);
-    grip.addEventListener('connected', e => { if (e.data && e.data.handedness === 'left') grip.add(hud.mesh); });
-  }
-  hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
+  renderer.xr.setFoveation(settings.get('fov'));
+  common.all();
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');
@@ -408,4 +416,5 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__orbit = { S, OUT, END, renderer, camera, rig, head, cabin, outside, vehicle, hands, SEAT, TD, afterFrame: null, setTime, get radio() { return radio; }, where };
+window.__orbit = { S, OUT, END, renderer, camera, rig, head, cabin, outside, vehicle, hands, SEAT, TD, afterFrame: null, setTime, get radio() { return radio; }, where,
+  ctl, wrist, toast, clock, get chat() { return chat; }, floaters, settings, info };

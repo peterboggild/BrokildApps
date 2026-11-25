@@ -5,8 +5,8 @@
  * The stack is placed so that the Commander's eye point in the couch is at EYE_H. Proportions follow the Saturn V
  * (stage lengths scaled a little so the stack fits the eye height); paint patterns are simplified. */
 import * as THREE from 'three';
-import { EYE_H, SUN } from './ascent.js?v=13';
-import { canvasTex } from './vehicle.js?v=13';
+import { EYE_H, SUN } from './ascent.js?v=14';
+import { canvasTex } from './vehicle.js?v=14';
 
 export const ARM = { floor: EYE_H + 0.15, ceil: EYE_H + 2.55, half: 0.72, z0: -17.9, z1: -4.7 };   /* the walkway */
 export const WR = { half: 1.55, z0: -4.7, z1: -1.05 };                                          /* the White Room */

@@ -41,6 +41,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   /* the warp stops short of the burn and drops to real time */
   const w = await p.evaluate(async () => {
     const T = __orbit.where, tli = 11556;
+    __orbit.settings.set('ff', 'major');                 /* events only (the default stops for the radio too) */
     __orbit.setTime(tli - 400); __orbit.S.warp = 1000;
     await new Promise(r => setTimeout(r, 2500));
     return { t: __orbit.S.t, warp: __orbit.S.warp };
@@ -66,13 +67,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     if (outDir) await p.screenshot({ path: path.join(outDir, `orbit-${t}.png`) });
   }
   /* the outside view */
-  await p.evaluate(() => { __orbit.setTime(13700); __dev.controllers.right.updateButtonValue('b-button', 1); });   /* hold B */
+  await p.evaluate(() => { __orbit.setTime(13700); (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)); });   /* hold B */
   await p.waitForFunction(() => __orbit.OUT.on, null, { timeout: 30000 });
   await frames(30);
   const eo = await eyes();
   ok('outside view: both eyes drawn', eo.every(v => v > 1 && v < 250), eo.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'orbit-outside.png') });
-  await p.evaluate(() => { __dev.controllers.right.updateButtonValue('b-button', 0); });
+  await p.evaluate(() => { (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)); });
   /* the S-IVB goes away after the LM is pulled free */
   const sv = await p.evaluate(async () => {
     const vis = async t => { __orbit.setTime(t); await new Promise(r => { __orbit.afterFrame = r; }); await new Promise(r => { __orbit.afterFrame = r; }); return __orbit.vehicle.parts.sivb.visible; };
@@ -80,7 +81,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   });
   ok('S-IVB: with us, then drifting off, then gone', sv[0] && sv[1] && !sv[2], JSON.stringify(sv));
   /* the end */
-  const end = await p.evaluate(async () => { __orbit.S.running = true; __orbit.setTime(__orbit.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __orbit.S.ended, t: __orbit.S.t, END: __orbit.END }; });
+  const end = await p.evaluate(async () => { __orbit.S.running = true; __orbit.setTime(__orbit.END - 3); for (let k = 0; k < 100 && !__orbit.S.ended; k++) await new Promise(r => setTimeout(r, 200));   /* by frames: software GL is slow */ return { ended: __orbit.S.ended, t: __orbit.S.t, END: __orbit.END }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();

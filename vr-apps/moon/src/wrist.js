@@ -1,0 +1,124 @@
+/* The panel over your left hand: hidden until you press the left stick (owner's headset test: always there, it
+ * spoiled being there; A and B are faster and slower, X and Y the cheat window and outside). A press shows the
+ * status, again the settings (settings.js; the left stick chooses and changes), a third time puts it away. The same in every chapter. The status: where you are in the mission and
+ * what comes next, the figures that matter now (heights, distances, speed), the mission clock and the time warp, the
+ * buttons, and the frame rate in small type. Each chapter fills it with its own info:
+ *
+ *   wrist.draw(now, { chapter, now, next: [name, GET] | null, after, get, warp, rows: [[label, value], ...],
+ *                     alert, keys: [[button, what], ...], fps })
+ *
+ * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
+ * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
+import * as THREE from 'three';
+import { settings, DEFS } from './settings.js?v=14';
+
+export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
+  return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
+export const fmtDist = m => m >= 1e7 ? Math.round(m / 1000).toLocaleString('en-US') + ' km' : m >= 1e5 ? (m / 1000).toFixed(0) + ' km' : m >= 2000 ? (m / 1000).toFixed(1) + ' km' : m.toFixed(0) + ' m';
+export const fmtSpeed = v => v >= 1000 ? (v / 1000).toFixed(2) + ' km/s' : v.toFixed(v < 10 ? 1 : 0) + ' m/s';
+/* the first of [GET, name] events still to come */
+export const nextOf = (events, t) => { for (const [at, name] of events) if (at > t) return [name, at]; return null; };
+
+/* keys: the settings this chapter offers (keys of DEFS) */
+export function makeWrist(keys = Object.keys(DEFS)) {
+  const W = 640, H = 600;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1875), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  mesh.renderOrder = 999; mesh.visible = false;
+  /* above the controller, tipped towards your eyes */
+  mesh.position.set(0, 0.13, -0.06); mesh.rotation.set(-0.85, 0, 0);
+  let last = 0, cursor = 0;
+  const stick = { y: 0, x: 0 };
+  const w = {
+    mesh, on: false, page: 'status',
+    /* the left stick pressed: status, settings, away */
+    press() { if (!w.on) { w.on = true; w.page = 'status'; } else if (w.page === 'status') w.page = 'settings'; else w.on = false; last = 0; },
+    toggle() { w.press(); },
+    show(on) { if (on !== w.on || w.page !== 'status') { w.on = on; w.page = 'status'; last = 0; } },
+    /* while the settings are open the left stick is theirs */
+    get capturesStick() { return w.on && w.page === 'settings'; },
+    stick(x, y) {
+      if (!w.capturesStick) { stick.x = stick.y = 0; return; }
+      const ey = Math.abs(y) > 0.6 ? Math.sign(y) : 0, ex = Math.abs(x) > 0.6 ? Math.sign(x) : 0;
+      if (ey && ey !== stick.y) { cursor = (cursor + ey + keys.length) % keys.length; last = 0; }
+      if (ex && ex !== stick.x) { settings.step(keys[cursor], ex); last = 0; }
+      stick.y = Math.abs(y) < 0.3 ? 0 : ey || stick.y; stick.x = Math.abs(x) < 0.3 ? 0 : ex || stick.x;
+    },
+    draw(now, info) {
+      if (!w.on || !info || now - last < 250) return; last = now;
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(8,9,10,0.86)'; g.beginPath(); g.roundRect(0, 0, W, H, 22); g.fill();
+      g.strokeStyle = 'rgba(200,200,190,0.25)'; g.lineWidth = 2; g.stroke();
+      let y = 44;
+      const text = (s, x, size, color, bold) => { g.font = `${bold ? 'bold ' : ''}${size}px system-ui, Segoe UI, Arial, sans-serif`; g.fillStyle = color; g.fillText(s, x, y); };
+      g.textAlign = 'left';
+      if (w.page === 'settings') {
+        text('Settings', 24, 36, '#f2f0e8', true);
+        y += 34; text('left stick: up/down choose, left/right change; press: close', 24, 19, '#8d8a82');
+        y += 10;
+        keys.forEach((k, i) => {
+          y += 52;
+          if (i === cursor) { g.fillStyle = 'rgba(240,208,112,0.16)'; g.fillRect(12, y - 34, W - 24, 46); }
+          text(DEFS[k].label, 24, 23, i === cursor ? '#f0d070' : '#9aa3ad', i === cursor);
+          g.textAlign = 'right'; text((i === cursor ? '<  ' : '') + settings.text(k) + (i === cursor ? '  >' : ''), W - 24, 24, '#e8e6df', true); g.textAlign = 'left';
+        });
+        y = H - 22; text('Resolution: on the start page (needs a new start).', 24, 18, '#77746d');
+        tex.needsUpdate = true; return;
+      }
+      text(info.chapter || '', 24, 26, '#9aa3ad', true);
+      y += 44; text(info.now || '', 24, 36, '#f2f0e8', true);
+      if (info.next) {
+        const [name, at] = info.next, dt = at - info.get;
+        y += 36; text('Next: ' + name + (isFinite(dt) ? '  in ' + fmtGET(dt).replace(/^0:/, '') : ''), 24, 25, '#c8c4b8');
+      }
+      if (info.after) { y += 32; text('Then: ' + info.after, 24, 22, '#8d8a82'); }
+      /* the clock */
+      y += 50; text('GET ' + fmtGET(info.get), 24, 34, '#f0d070', true);
+      if (info.warp > 1) { g.textAlign = 'right'; text('time x' + info.warp.toLocaleString('en-US'), W - 24, 28, '#f0a060', true); g.textAlign = 'left'; }
+      /* the figures */
+      y += 8;
+      for (const [label, value] of info.rows || []) {
+        y += 38; text(label, 24, 25, '#9aa3ad'); g.textAlign = 'right'; text(value, W - 24, 28, '#e8e6df', true); g.textAlign = 'left';
+      }
+      if (info.alert) { y += 46; text(info.alert, 24, 27, '#f0d070', true); }
+      /* the buttons */
+      y += 22; g.fillStyle = 'rgba(200,200,190,0.18)'; g.fillRect(24, y, W - 48, 2);
+      const btns = info.keys || [], col = Math.ceil(btns.length / 2);
+      const y0 = y;
+      btns.forEach(([k, what], i) => {
+        const x = i < col ? 24 : W / 2 + 8; y = y0 + 30 + (i % col) * 28;
+        text(k, x, 20, '#f0d070', true); text(what, x + 86, 20, '#c8c4b8');
+      });
+      y = H - 16; g.textAlign = 'right';
+      text((info.fps || 0).toFixed(0) + ' fps', W - 24, 18, info.fps > 68 ? '#7fb880' : info.fps > 55 ? '#c8a850' : '#d07060');
+      g.textAlign = 'left';
+      tex.needsUpdate = true;
+    }
+  };
+  return w;
+}
+
+/* A short message in front of you for a few seconds: why the clock stopped, or why it will not run faster. Add
+ * toast.mesh to the camera's parent (the head); show it only in the cabin pass. */
+export function makeToast() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 128;
+  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.06), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+  mesh.renderOrder = 1001; mesh.visible = false;
+  const T = { mesh, k: 0, left: 0, text: '',
+    say(s, secs = 3) {
+      T.left = secs; if (s === T.text) return; T.text = s;
+      g.clearRect(0, 0, 1024, 128); g.fillStyle = 'rgba(8,9,10,0.82)'; g.beginPath(); g.roundRect(4, 4, 1016, 120, 26); g.fill();
+      g.fillStyle = '#f0e6c8'; g.font = 'bold 40px system-ui, Segoe UI, Arial, sans-serif'; g.textAlign = 'center'; g.fillText(s, 512, 78, 980);
+      tex.needsUpdate = true;
+    },
+    /* every frame: hold it 0.9 m ahead of your eyes, a little low */
+    update(dt, camera) {
+      T.left -= dt; T.k += ((T.left > 0 ? 1 : 0) - T.k) * Math.min(1, dt * 6);
+      mesh.material.opacity = T.k;
+      mesh.position.set(0, -0.12, -0.9).applyQuaternion(camera.quaternion).add(camera.position); mesh.quaternion.copy(camera.quaternion);
+    }
+  };
+  return T;
+}

@@ -30,6 +30,7 @@ foreach ($l in $data.lines) {
   $dur = [double](& ffprobe -v error -show_entries format=duration -of csv=p=0 $ogg)
   $entry = [ordered]@{ id = $l.id; t = $l.t; who = $l.who; text = $l.text; dur = [math]::Round($dur, 2) }
   if ($l.cue) { $entry.cue = $l.cue; $entry.delay = $l.delay }
+  if ($l.where) { $entry.where = $l.where }
   $lines += $entry
   Write-Host ("{0,-6} {1,7} {2,-7} {3,5:N2}s  {4}" -f $l.id, $l.t, $l.who, $dur, $l.text)
 }

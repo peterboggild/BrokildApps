@@ -1,0 +1,653 @@
+{
+  "about": "The crew's own remarks, in every chapter (chatter.js): now and then a word of small talk (cue 'small'; 'where' says where it fits: any, space (weightless), earth (the Earth in the windows), moon (the Moon close), lm (in the LM), pad (before liftoff)), and their answer when you put your hand on them (cue 'touch'). Not authentic, by the owner's wish: atmosphere. Fast forward never stops for these. Original lines, not quotes. CMP is the Command Module Pilot (centre couch), LMP the Lunar Module Pilot (right couch, and beside you in the LM).",
+  "channels": {
+    "CMP": "intercom",
+    "LMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "tc1",
+      "t": null,
+      "who": "CMP",
+      "text": "Hands off, Commander.",
+      "dur": 1.51,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc2",
+      "t": null,
+      "who": "CMP",
+      "text": "Don't do that.",
+      "dur": 0.97,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc3",
+      "t": null,
+      "who": "CMP",
+      "text": "What are you doing?",
+      "dur": 1.07,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc4",
+      "t": null,
+      "who": "CMP",
+      "text": "Hey! Watch the hoses.",
+      "dur": 1.61,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc5",
+      "t": null,
+      "who": "CMP",
+      "text": "That tickles.",
+      "dur": 1.0,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc6",
+      "t": null,
+      "who": "CMP",
+      "text": "Careful, I'm plugged into that.",
+      "dur": 2.07,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc7",
+      "t": null,
+      "who": "CMP",
+      "text": "A little personal space, please.",
+      "dur": 2.2,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tc8",
+      "t": null,
+      "who": "CMP",
+      "text": "Need something?",
+      "dur": 1.01,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl1",
+      "t": null,
+      "who": "LMP",
+      "text": "Hands off, Commander.",
+      "dur": 1.64,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl2",
+      "t": null,
+      "who": "LMP",
+      "text": "Easy there.",
+      "dur": 0.81,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl3",
+      "t": null,
+      "who": "LMP",
+      "text": "What are you doing?",
+      "dur": 1.08,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl4",
+      "t": null,
+      "who": "LMP",
+      "text": "Mind the suit connectors.",
+      "dur": 1.51,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl5",
+      "t": null,
+      "who": "LMP",
+      "text": "Don't do that, I'm working here.",
+      "dur": 1.95,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl6",
+      "t": null,
+      "who": "LMP",
+      "text": "Looking for something?",
+      "dur": 1.21,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl7",
+      "t": null,
+      "who": "LMP",
+      "text": "Hey, that's my side.",
+      "dur": 1.55,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "tl8",
+      "t": null,
+      "who": "LMP",
+      "text": "Careful, you'll knock a switch.",
+      "dur": 1.87,
+      "cue": "touch",
+      "delay": null
+    },
+    {
+      "id": "cs01",
+      "t": null,
+      "who": "CMP",
+      "text": "Quite something.",
+      "dur": 1.03,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs02",
+      "t": null,
+      "who": "LMP",
+      "text": "I could get used to this.",
+      "dur": 1.42,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs03",
+      "t": null,
+      "who": "CMP",
+      "text": "My arm is sore.",
+      "dur": 1.13,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs04",
+      "t": null,
+      "who": "LMP",
+      "text": "Anyone else hungry?",
+      "dur": 1.22,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs05",
+      "t": null,
+      "who": "CMP",
+      "text": "This coffee tastes like the bag it came in.",
+      "dur": 2.42,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs06",
+      "t": null,
+      "who": "LMP",
+      "text": "Remind me to write that down.",
+      "dur": 1.57,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs07",
+      "t": null,
+      "who": "CMP",
+      "text": "Everything looks good on my side.",
+      "dur": 1.76,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs08",
+      "t": null,
+      "who": "LMP",
+      "text": "Not a bad view for a day's work.",
+      "dur": 1.82,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs09",
+      "t": null,
+      "who": "CMP",
+      "text": "I wonder what's on the news back home.",
+      "dur": 1.91,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs10",
+      "t": null,
+      "who": "LMP",
+      "text": "Funny how quiet it gets.",
+      "dur": 1.6,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs11",
+      "t": null,
+      "who": "CMP",
+      "text": "Hard to believe we're really here.",
+      "dur": 1.75,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs12",
+      "t": null,
+      "who": "LMP",
+      "text": "I'll never complain about my commute again.",
+      "dur": 2.1,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs13",
+      "t": null,
+      "who": "CMP",
+      "text": "Good thing none of us snores. Much.",
+      "dur": 2.27,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs14",
+      "t": null,
+      "who": "LMP",
+      "text": "Ten more minutes, then I'll run the next systems check.",
+      "dur": 2.94,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs15",
+      "t": null,
+      "who": "CMP",
+      "text": "My feet are cold.",
+      "dur": 1.19,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs16",
+      "t": null,
+      "who": "LMP",
+      "text": "Best seat in the house.",
+      "dur": 1.42,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs17",
+      "t": null,
+      "who": "CMP",
+      "text": "I should have brought a better camera.",
+      "dur": 1.7,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs18",
+      "t": null,
+      "who": "LMP",
+      "text": "You'd think I'd be used to it by now.",
+      "dur": 1.87,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs19",
+      "t": null,
+      "who": "CMP",
+      "text": "Somebody remind me why we volunteered.",
+      "dur": 2.22,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs20",
+      "t": null,
+      "who": "LMP",
+      "text": "I keep reaching for things that aren't there.",
+      "dur": 1.98,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs21",
+      "t": null,
+      "who": "CMP",
+      "text": "Say, how are we doing on water?",
+      "dur": 2.13,
+      "cue": "small",
+      "delay": null,
+      "where": "any"
+    },
+    {
+      "id": "cs22",
+      "t": null,
+      "who": "LMP",
+      "text": "My ears are still ringing from the launch.",
+      "dur": 1.98,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs23",
+      "t": null,
+      "who": "CMP",
+      "text": "I just lost my pencil again.",
+      "dur": 1.86,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs24",
+      "t": null,
+      "who": "LMP",
+      "text": "Everything floats if you let it.",
+      "dur": 1.59,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs25",
+      "t": null,
+      "who": "CMP",
+      "text": "Sleeping up here is the easiest thing in the world.",
+      "dur": 2.55,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs26",
+      "t": null,
+      "who": "LMP",
+      "text": "Watch out, there's a crumb heading your way.",
+      "dur": 2.2,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs27",
+      "t": null,
+      "who": "CMP",
+      "text": "My head feels stuffed up, like a cold coming on.",
+      "dur": 2.8,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs28",
+      "t": null,
+      "who": "LMP",
+      "text": "Strange, no up and no down.",
+      "dur": 2.07,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs29",
+      "t": null,
+      "who": "CMP",
+      "text": "Somebody's checklist is drifting around back here.",
+      "dur": 2.76,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs30",
+      "t": null,
+      "who": "LMP",
+      "text": "I bumped my head on the hatch again.",
+      "dur": 1.81,
+      "cue": "small",
+      "delay": null,
+      "where": "space"
+    },
+    {
+      "id": "cs31",
+      "t": null,
+      "who": "CMP",
+      "text": "Look at that Earth. You can see the whole thing.",
+      "dur": 2.48,
+      "cue": "small",
+      "delay": null,
+      "where": "earth"
+    },
+    {
+      "id": "cs32",
+      "t": null,
+      "who": "LMP",
+      "text": "There's Africa, clear as anything.",
+      "dur": 2.09,
+      "cue": "small",
+      "delay": null,
+      "where": "earth"
+    },
+    {
+      "id": "cs33",
+      "t": null,
+      "who": "CMP",
+      "text": "Hard to believe everybody is down there.",
+      "dur": 2.11,
+      "cue": "small",
+      "delay": null,
+      "where": "earth"
+    },
+    {
+      "id": "cs34",
+      "t": null,
+      "who": "LMP",
+      "text": "It gets smaller every time I look.",
+      "dur": 1.95,
+      "cue": "small",
+      "delay": null,
+      "where": "earth"
+    },
+    {
+      "id": "cs35",
+      "t": null,
+      "who": "LMP",
+      "text": "Look at those craters.",
+      "dur": 1.34,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs36",
+      "t": null,
+      "who": "CMP",
+      "text": "Every shade of grey there is.",
+      "dur": 1.68,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs37",
+      "t": null,
+      "who": "LMP",
+      "text": "It's a lot bigger up close.",
+      "dur": 1.59,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs38",
+      "t": null,
+      "who": "CMP",
+      "text": "That's a whole lot of nothing down there.",
+      "dur": 1.98,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs39",
+      "t": null,
+      "who": "LMP",
+      "text": "I can't wait to see what those rocks tell us.",
+      "dur": 2.31,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs40",
+      "t": null,
+      "who": "LMP",
+      "text": "Somewhere down there is our valley.",
+      "dur": 1.67,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs41",
+      "t": null,
+      "who": "CMP",
+      "text": "I'm going to miss this view.",
+      "dur": 1.53,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs42",
+      "t": null,
+      "who": "LMP",
+      "text": "The light down there is something else.",
+      "dur": 1.86,
+      "cue": "small",
+      "delay": null,
+      "where": "moon"
+    },
+    {
+      "id": "cs43",
+      "t": null,
+      "who": "LMP",
+      "text": "Cosy in here.",
+      "dur": 1.01,
+      "cue": "small",
+      "delay": null,
+      "where": "lm"
+    },
+    {
+      "id": "cs44",
+      "t": null,
+      "who": "LMP",
+      "text": "It's like standing in a phone booth.",
+      "dur": 1.79,
+      "cue": "small",
+      "delay": null,
+      "where": "lm"
+    },
+    {
+      "id": "cs45",
+      "t": null,
+      "who": "LMP",
+      "text": "Smells new in here, doesn't it?",
+      "dur": 1.87,
+      "cue": "small",
+      "delay": null,
+      "where": "lm"
+    },
+    {
+      "id": "cs46",
+      "t": null,
+      "who": "LMP",
+      "text": "These straps take some getting used to.",
+      "dur": 2.07,
+      "cue": "small",
+      "delay": null,
+      "where": "lm"
+    },
+    {
+      "id": "cs47",
+      "t": null,
+      "who": "CMP",
+      "text": "Nice day for it.",
+      "dur": 1.1,
+      "cue": "small",
+      "delay": null,
+      "where": "pad"
+    },
+    {
+      "id": "cs48",
+      "t": null,
+      "who": "LMP",
+      "text": "I can hear the pumps working.",
+      "dur": 1.45,
+      "cue": "small",
+      "delay": null,
+      "where": "pad"
+    },
+    {
+      "id": "cs49",
+      "t": null,
+      "who": "CMP",
+      "text": "Almost there. Here we go.",
+      "dur": 1.77,
+      "cue": "small",
+      "delay": null,
+      "where": "pad"
+    },
+    {
+      "id": "cs50",
+      "t": null,
+      "who": "LMP",
+      "text": "Comfortable? Me neither.",
+      "dur": 1.67,
+      "cue": "small",
+      "delay": null,
+      "where": "pad"
+    }
+  ]
+}

@@ -8,7 +8,8 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=13';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=14';
+import { makeCrewLife } from './crew-life.js?v=14';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -79,7 +80,7 @@ export function makeLMCabin() {
 
   /* ---------------- panels: the two flight panels under the windows, the centre console with the DSKY between the
    * stations, a side console at each station's outer wall */
-  const panel = makePanelTexture();
+  const panel = makePanelTexture([], 'lm');
   const pm = L(0xffffff, { map: panel.texture });
   const panels = [];
   const panelAt = (u0, u1, w, h, x, y, z, rx, ry) => {
@@ -131,6 +132,7 @@ export function makeLMCabin() {
   /* ---------------- the Lunar Module Pilot, standing at the right station */
   const lmp = makeCrewman({ variant: 1, standing: true });
   lmp.position.set(LMC.LMP.x, FLOOR + 1.6, LMC.LMP.z); lmp.rotation.y = Math.PI; g.add(lmp);
+  const life = makeCrewLife([{ man: lmp, who: 'LMP' }]);
 
   /* ---------------- light: floodlights over each station; the Sun through the windows */
   const amb = new THREE.HemisphereLight(0xf4f1ea, 0x8a877f, 2.6);
@@ -143,8 +145,8 @@ export function makeLMCabin() {
     group: g, panels, dsky, balls, lmp, sunIn,
     setHatchOpen(on) { hatchLid.visible = !on; stub.visible = on; },
     setDaylight(k, sunLocal) { sunIn.intensity = 0.8 * k; sunIn.position.copy(sunLocal).multiplyScalar(3); amb.intensity = 2.4 + 0.6 * k; },
-    update(t) {
-      const h = lmp.userData.head; if (h) { h.rotation.y = 0.2 * Math.sin(t * 0.13) + 0.15 * Math.sin(t * 0.41); h.rotation.x = -0.1 + 0.08 * Math.sin(t * 0.19); }
-    }
+    /* the LMP's life (crew-life.js); ctx: { viewer (the camera), radio, busy } */
+    life,
+    update(t, ctx) { life.update(t, ctx); }
   };
 }

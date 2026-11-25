@@ -7,7 +7,7 @@
  * spacecraft. Heights below follow the pad (pad.js) with the stage lengths a little compressed to fit the eye height.
  * The Commander's eye point is EYE_OFF in this frame. */
 import * as THREE from 'three';
-import { EYE_H, SUN, EVENTS } from './ascent.js?v=13';
+import { EYE_H, SUN, EVENTS } from './ascent.js?v=14';
 
 export const STACK = {
   base: 8.5, sicTop: 50.5, skirtTop: 54.5, siiTop: 75, sivbAft: 80.5, sivbTop: 91.2, iuTop: 92.1, slaTop: 100.6,
@@ -267,8 +267,10 @@ export function makeVehicle(renderer) {
   /* the forward tunnel, the docking probe, the base heat shield's rim */
   const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.35, 32), mylar); tunnel.position.y = cmY1 + 0.17; cm.add(tunnel);
   const probe = new THREE.Group(); probe.position.y = cmY1 + 0.35; cm.add(probe);
+  const probeRod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.75, 10), grey);
   { const c1 = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.3, 24), grey); c1.position.y = 0.15; probe.add(c1);
-    const c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.75, 10), grey); c2.position.y = 0.55; probe.add(c2); }
+    probeRod.position.y = 0.55; probe.add(probeRod); }
+  const RING_H = cmY1 + 0.35;                 /* the CM's docking ring, the top of its tunnel (CSM frame) */
   const rim = new THREE.Mesh(new THREE.TorusGeometry(cmR0 + 0.005, 0.025, 6, 64), mylar); rim.rotation.x = Math.PI / 2; rim.position.y = cmY0; cm.add(rim);
   /* windows, where the cabin's are: dark glass that mirrors the sky */
   const glass = Std({ color: 0x050608, metalness: 0.6, roughness: 0.04, envMap: env, envMapIntensity: 1.2 });
@@ -400,7 +402,12 @@ export function makeVehicle(renderer) {
   /* docked: the probe tip (2.93 m up the CSM axis) on the drogue at the top of the LM (rest top) */
   const PROBE = 2.93, LM_TOP = Y(S.iuTop) + 0.7 + lm.userData.top;
   const DOCK_DIST = LM_TOP - (2 * CSM_C.y - PROBE);
-  return { group: g, lights, update, space, csmInSivb, DOCK_DIST, LM_REST, parts, env, lm };
+  /* hard docked: after capture the probe retracts and pulls the two spacecraft together, ring on ring, before the
+   * twelve latches fire (owner's headset test: they stayed apart, the probe only touching) */
+  const HARD_DIST = LM_TOP - (2 * CSM_C.y - RING_H);
+  /* the probe's rod: 1 out (capture), 0 drawn in (hard docked); it slides down into the tunnel */
+  function setProbe(k) { probeRod.position.y = 0.55 - (1 - k) * (DOCK_DIST - HARD_DIST); probeRod.visible = k > 0.02; }
+  return { group: g, lights, update, space, csmInSivb, DOCK_DIST, HARD_DIST, setProbe, LM_REST, parts, env, lm };
 }
 
 /* The Lunar Module, legs folded as it rode in the adapter: the gold-and-black foil-wrapped descent stage with its

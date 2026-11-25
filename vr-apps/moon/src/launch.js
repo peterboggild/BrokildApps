@@ -12,14 +12,19 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=13';
-import { makeOutside } from './earth.js?v=13';
-import { makeCabin } from './cabin.js?v=13';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=13';
-import { makeRadio } from './radio.js?v=13';
-import { makePad, ARM, WR } from './pad.js?v=13';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=13';
-import { createHand } from './hands.js?v=13';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=14';
+import { makeOutside } from './earth.js?v=14';
+import { makeCabin } from './cabin.js?v=14';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=14';
+import { makeRadio, combineRadios } from './radio.js?v=14';
+import { makeClock } from './clock.js?v=14';
+import { makeChatter } from './chatter.js?v=14';
+import { handOnCrew } from './crew-life.js?v=14';
+import { makePad, ARM, WR } from './pad.js?v=14';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=14';
+import { createHand, makeControllers } from './hands.js?v=14';
+import { makeWrist, makeToast, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=14';
+import { settings, applyCommon, holdsFor } from './settings.js?v=14';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -69,36 +74,32 @@ outside.near.add(vehicle.group, vehicle.lights);
 const attPad = new THREE.Quaternion(), attRel = new THREE.Quaternion();
 /* looking from outside (B held) */
 const OUT = { want: false, on: false, az: -1.25, el: 0.12, dist: 16 };
-const OPT = { body: true };
+const OPT = { get body() { return settings.get('body'); } };
 /* a black veil for the moment of climbing in */
 const fadeScene = new THREE.Scene();
 const veil = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
 fadeScene.add(veil);
 const FADE = { k: 0, target: 0 };
 const sound = makeLaunchSound(), haptics = makeHaptics();
-let radio = null;
+let chat = null, radio = null;
 
-/* ---------------------------------------------------------------- the HUD (a test instrument on the left controller) */
-const hud = (() => {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
-  const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false,
-    }));
-  mesh.renderOrder = 999;
-  let last = 0;
-  return { mesh, on: true, draw(now) {
-    if (now - last < 500) return; last = now;
-    g.clearRect(0, 0, 512, 256); g.fillStyle = 'rgba(0,0,0,0.72)'; g.fillRect(0, 0, 512, 256);
-    g.fillStyle = S.fps > 68 ? '#9fe6a0' : S.fps > 55 ? '#f0d070' : '#ff8a70'; g.font = 'bold 70px monospace'; g.fillText(S.fps.toFixed(0) + ' fps', 20, 80);
-    g.fillStyle = '#d8d8d8'; g.font = '28px monospace';
-    g.fillText(S.calls + ' calls  ' + (S.tris / 1000).toFixed(0) + 'k tris', 20, 126);
-    if (S.t >= END) { g.fillStyle = '#f0d070'; g.fillText('End of chapter 1.  A: chapter 2', 20, 168); }
-    else g.fillText(phase(S.t) + (S.warp > 1 ? '   x' + S.warp : ''), 20, 168);
-    g.fillStyle = '#8a8a8a'; g.font = '19px monospace'; g.fillText('A/X time  Y window  hold B outside', 12, 214);
-    g.fillText('left stick press: panel  right stick press: re-seat', 12, 240);
-    tex.needsUpdate = true;
-  } };
-})();
+/* ---------------------------------------------------------------- the wrist panel (X) and messages */
+const ctl = makeControllers(renderer, head);
+const common = applyCommon(renderer, sound);
+const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
+ctl.grips.left.add(wrist.mesh);
+const toast = makeToast(); head.add(toast.mesh);
+const LEVENTS = [[EVENTS.liftoff, 'liftoff'], [EVENTS.maxQ, 'max Q'], [EVENTS.sicCutoff, 'first staging'], [EVENTS.towerJett, 'tower jettison'],
+  [EVENTS.siiCutoff, 'second staging'], [EVENTS.seco, 'orbit insertion'], [END, 'end of the chapter']];
+function info() {
+  const boarding = S.mode !== 'seated';
+  return { chapter: 'Chapter 1 \u00b7 Launch', now: boarding ? 'boarding: the White Room and the hatch' : S.running || S.t > 0 ? phase(S.t) : 'the count is holding',
+    next: S.t >= END ? null : nextOf(LEVENTS, S.t), after: 'chapter 2, to the Moon', get: S.t, warp: S.warp,
+    rows: [['Altitude', fmtDist(st.alt)], ['Speed', fmtSpeed(st.speed)], ['Downrange', fmtDist(st.downrange)], ['Fast forward', settings.text('ff')]],
+    alert: S.t >= END ? 'End of chapter 1.  A: on to chapter 2' : null,
+    keys: boarding ? [['L stick', 'walk'], ['trigger', 'board now'], ['L stick', 'press: panel, settings']]
+      : [['A', 'faster (hold: real time)'], ['B', 'slower'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
+}
 
 /* ---------------------------------------------------------------- input */
 const keys = {};
@@ -106,6 +107,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') { startCount(); S.running = !S.running || !S.started; S.started = true; }
   if (e.code === 'KeyW' && S.mode === 'seated') cycleWarp();
+  if (e.code === 'KeyS' && S.mode === 'seated') clock.slower(S);
+  if (e.code === 'KeyP') wrist.press();
   if (e.code === 'KeyE' && S.mode === 'boarding') boardNow();
   if (e.code === 'KeyC' && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO' && S.mode === 'seated') OUT.want = !OUT.want;
@@ -122,26 +125,39 @@ renderer.domElement.addEventListener('pointermove', e => {
   S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2));
   drag = [e.clientX, e.clientY];
 });
-function warpAllowed(t) { return t > EVENTS.towerJett + 20 && !(t > EVENTS.siiCutoff - 15 && t < EVENTS.sivbIgnition + 8) && t < EVENTS.seco - 12; }
-function cycleWarp() { S.warp = !warpAllowed(S.t) ? 1 : S.warp === 1 ? 4 : S.warp === 4 ? 16 : 1; }
-function setTime(t) { S.t = t; S.warp = 1; }
+/* fast forward (clock.js): x4 at most from fifteen seconds before liftoff to the tower jettison, through the second
+ * staging (every event) and at orbit insertion */
+const LHOLD_ALL = [[-15, EVENTS.towerJett + 20, 'liftoff and the first stage'], [EVENTS.siiCutoff - 15, EVENTS.sivbIgnition + 8, 'the second staging'], [EVENTS.seco - 12, END + 1, 'orbit insertion']];
+const clock = makeClock({ holds: () => holdsFor(LHOLD_ALL, [LHOLD_ALL[0], LHOLD_ALL[2]]), lines: () => radio ? radio.lines : [], warps: [1, 4, 16], cap: 4, toast });
+function cycleWarp() { clock.faster(S); }
+function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
+function setTime(t) { S.t = t; S.warp = 1; clock.reset(); }
 /* the chapter's end: A (or N on the screen) goes on; a page change must leave VR first */
 function nextChapter(href) { const s = renderer.xr.getSession(), go = () => { location.href = href; }; if (s) s.end().then(go, go); else go(); }
-const pad = { prev: {} };
-function readControllers() {
+const pad = { prev: {}, aDown: -1 };
+/* A (right): one step faster, held: real time at once; B (right): one step slower; X (left): the cheat window;
+ * Y (left): outside (both stay till pressed again); left stick press: the panel, then the settings; right stick
+ * press: re-seat; boarding: the trigger boards */
+function readControllers(now) {
   const s = renderer.xr.getSession(); if (!s) return;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed, tr = gp.buttons[0]?.pressed;
-    if (a && !pad.prev[k + 'a'] && S.mode === 'seated') { if (S.t >= END) nextChapter('orbit.html'); else cycleWarp(); }
-    /* Y (left): the cheat window; B (right), held: outside; stick presses: left the panel, right re-seat */
-    if (k === 'left' && b && !pad.prev[k + 'b'] && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
-    if (k === 'right') OUT.want = !!b && S.mode === 'seated';
-    if (st && !pad.prev[k + 's']) { if (k === 'left') hud.on = !hud.on; else if (S.mode === 'seated') SEAT.pending = 1; }
-    if (tr && !pad.prev[k + 't'] && S.mode === 'boarding') boardNow();
-    pad.prev[k + 'a'] = a; pad.prev[k + 'b'] = b; pad.prev[k + 's'] = st; pad.prev[k + 't'] = tr;
+    if (k === 'right') {
+      if (a && !pad.prev.ra && S.mode === 'seated') { pad.aDown = now; if (S.t >= END) { nextChapter('orbit.html'); pad.aDown = -1; } }
+      if (a && pad.aDown >= 0 && now - pad.aDown > 600) { realTime(); pad.aDown = -1; }
+      if (!a && pad.prev.ra && pad.aDown >= 0) { cycleWarp(); pad.aDown = -1; }
+      if (b && !pad.prev.rb && S.mode === 'seated' && S.t < END) clock.slower(S);
+      if (st && !pad.prev.rs && S.mode === 'seated') SEAT.pending = 1;
+    } else if (k === 'left') {
+      if (a && !pad.prev.la && S.mode === 'seated') cabin.setCheat(!cabin.cheat);       /* X: the cheat window, Y: outside (both stay) */
+      if (b && !pad.prev.lb && S.mode === 'seated') OUT.want = !OUT.want;
+      if (st && !pad.prev.ls) wrist.press();
+    }
+    if (tr && !pad.prev[k[0] + 't'] && S.mode === 'boarding') boardNow();
+    pad.prev[k[0] + 'a'] = a; pad.prev[k[0] + 'b'] = b; pad.prev[k[0] + 's'] = st; pad.prev[k[0] + 't'] = tr;
     const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-    if (k === 'left') { STICK.x = ax[0]; STICK.y = ax[1]; } else { STICK.turn = ax[0]; STICK.ry = ax[1]; }
+    if (k === 'left') { wrist.stick(ax[0], ax[1]); if (wrist.capturesStick) { STICK.x = 0; STICK.y = 0; } else { STICK.x = ax[0]; STICK.y = ax[1]; } } else { STICK.turn = ax[0]; STICK.ry = ax[1]; }
   }
 }
 const STICK = { x: 0, y: 0, turn: 0, ry: 0 };
@@ -230,7 +246,7 @@ function render() {
   outside.dome.position.setFromMatrixPosition(camera.matrixWorld);
   renderer.info.reset();
   renderer.clear(true, true, true);
-  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN && !OUT.on; hud.mesh.visible = (c || S.mode !== 'seated') && hud.on; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
+  const show = (c, f, n) => { cabin.group.visible = c && !NOCABIN && !OUT.on; wrist.mesh.visible = (c || S.mode !== 'seated') && wrist.on; toast.mesh.visible = (c || S.mode !== 'seated') && toast.k > 0.01; outside.far.visible = f; outside.near.visible = n; sign.visible = c && SIGN.k > 0.01; };
   if (S.mode !== 'seated') {
     /* boarding: the sky, then the pad, the arm, the White Room and the spacecraft (its cabin seen through the
      * open hatch) together, in one depth range */
@@ -331,18 +347,18 @@ function updateHands(dt) {
   const s = renderer.xr.getSession();
   if (!s) return;
   let touched = null;
-  for (let i = 0; i < 2; i++) {
-    const src = s.inputSources[i]; if (!src || !src.gamepad) continue;
-    const m = hands[src.handedness]; if (!m) continue;
-    const grip = renderer.xr.getControllerGrip(i);
+  for (const h of ['left', 'right']) {
+    const src = ctl.src[h]; if (!src || !src.gamepad) continue;
+    const m = hands[h], grip = ctl.grips[h];
     if (m.parent !== grip) grip.add(m);
     m.visible = !OUT.on;
     const gp = src.gamepad, b = k => gp.buttons[k] || null;
     const thumb = [3, 4, 5].some(k => b(k) && (b(k).touched || b(k).pressed));
     m.userData.pose(b(0) ? b(0).value : 0, b(1) ? b(1).value : 0, thumb, false, dt);
+    const onCrew = S.mode === 'seated' && !OUT.on && handOnCrew(m, [cabin.life], gp, who => chat && chat.touch(who));
     m.userData.tip.getWorldPosition(_tip);
     const hit = S.mode === 'seated' && !OUT.on && touchingPanel(_tip);
-    m.userData.warn = hit ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt);
+    m.userData.warn = hit || onCrew ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt);
     m.userData.setTint(m.userData.warn > 0);
     if (hit) {
       touched = _tip.clone();
@@ -365,15 +381,15 @@ function frame(now) {
   acc += dt; accN++;
   if (acc > 0.5) { S.fps = accN / acc; acc = 0; accN = 0; if ($('stat')) $('stat').textContent = `${S.fps.toFixed(0)} fps · ${S.calls} draw calls · ${(S.tris / 1000).toFixed(0)}k triangles`; }
   const xr = renderer.xr.isPresenting;
-  if (xr) readControllers();
+  ctl.update();
+  if (xr) readControllers(now);
   if (S.mode === 'boarding') walk(dt);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (S.mode === 'seating' && FADE.k > 0.97) seatAfterBoarding();
   if (S.resumeAt && performance.now() > S.resumeAt) { S.resumeAt = 0; S.running = true; S.started = true; }
   if (S.running && !S.still) {
-    if (!warpAllowed(S.t)) S.warp = 1;
-    S.t = Math.min(END, S.t + dt * S.warp);
-    if (S.t >= END && !S.endShown) { S.endShown = true; hud.on = true; }      /* the way on is on the wrist */
+    S.t = Math.min(END, clock.advance(S, dt));
+    if (S.t >= END && !S.endShown) { S.endShown = true; wrist.show(true); }      /* the way on is on the wrist */
   }
   st = state(S.t, st);
   placeRig();
@@ -383,7 +399,7 @@ function frame(now) {
   if (S.mode !== 'seated') cabin.setHatch(1);
   updateOutside(dt);
   updateHands(dt);
-  cabin.update(now / 1000);
+  cabin.update(now / 1000, { viewer: camera, radio: combineRadios(radio, chat && chat.radio) });
   cabin.setBody(OPT.body && S.mode === 'seated');
   /* the cover and the daylight */
   const open = S.t >= EVENTS.towerJett;
@@ -411,12 +427,14 @@ function frame(now) {
   sound.update(S.t, S.warp);
   sound.ambience(S.mode !== 'seated');
   if (radio && S.running) radio.update(S.t, S.warp);
+  if (chat) chat.update(dt, { crew: ['CMP', 'LMP'], where: S.t < -20 ? ['pad'] : ['any', 'earth'], quiet: S.mode === 'seated' && !OUT.on && (S.t < -60 || S.t > EVENTS.seco + 20) && !(radio && radio.current(S.t)) });
   if (xr) haptics(renderer.xr.getSession(), S.t, S.shake, now / 1000);
   if (!xr && EYE_TEST) { head.position.fromArray(EYE_TEST); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   else if (!xr) { head.position.set(0, S.mode === 'seated' ? 0 : 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : ''; }
   if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + (S.running ? phase(S.t) : 'holding') + (S.warp > 1 ? '  ×' + S.warp : '');
-  hud.draw(now);
+  wrist.draw(now, info());
+  toast.update(dt, camera);
   render();
   S.frames++;
   if (window.__launch.afterFrame) { const f = window.__launch.afterFrame; window.__launch.afterFrame = null; f(); }
@@ -426,7 +444,9 @@ const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(
 /* ---------------------------------------------------------------- start */
 async function startSound() {
   const ctx = sound.init();
-  if (ctx && !radio) radio = await makeRadio(ctx, sound.out, new URL('../assets/script/launch.json', import.meta.url).href);
+  if (ctx) sound.setLevels({ voices: settings.get('voices'), sound: settings.get('sound') });
+  if (ctx && !radio) radio = await makeRadio(ctx, sound.voice, new URL('../assets/script/launch.json', import.meta.url).href);
+  if (ctx && !chat) chat = await makeChatter(ctx, sound.voice);
 }
 function startCount() { startSound(); }
 async function enterVR() {
@@ -436,14 +456,9 @@ async function enterVR() {
   renderer.xr.setFramebufferScaleFactor(num('scale', +($('scale')?.value || 1)));
   const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
   await renderer.xr.setSession(session);
-  renderer.xr.setFoveation(0.5);
-  const hz = +($('hz')?.value || 72);
-  if (session.updateTargetFrameRate && session.supportedFrameRates?.includes(hz)) session.updateTargetFrameRate(hz).catch(() => {});
-  for (const i of [0, 1]) {
-    const grip = renderer.xr.getControllerGrip(i); head.add(grip);       /* the same frame as the camera */
-    grip.addEventListener('connected', e => { if (e.data && e.data.handedness === 'left') grip.add(hud.mesh); });
-  }
-  hud.mesh.position.set(0, 0.09, -0.06); hud.mesh.rotation.set(-0.9, 0, 0);
+  if ($('hz')) settings.set('hz', +$('hz').value);
+  renderer.xr.setFoveation(settings.get('fov'));
+  common.all();
   S.yaw = 0; S.pitch = 0;
   head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   document.body.classList.add('invr');
@@ -458,7 +473,7 @@ function beginBoarding() {
   setTimeout(() => radio?.cue('board'), 1500);
 }
 function readOptions() {
-  if ($('opt-body')) OPT.body = $('opt-body').checked;
+  if ($('opt-body')) settings.set('body', $('opt-body').checked);
   if ($('start')) { const v = $('start').value; if (v === 'board') { S.mode = 'boarding'; S.t = -210; } else { S.mode = 'seated'; S.t = +v; } }
   if ($('shake')) S.shake = +$('shake').value;
 }
@@ -482,6 +497,6 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__launch = { S, W, OUT, OPT, renderer, camera, rig, head, cabin, outside, padScene, vehicle, hands, afterFrame: null, setTime, SEAT, boardNow, beginBoarding, get radio() { return radio; },
+window.__launch = { S, W, OUT, OPT, ctl, wrist, toast, clock, get chat() { return chat; }, settings, info, renderer, camera, rig, head, cabin, outside, padScene, vehicle, hands, afterFrame: null, setTime, SEAT, boardNow, beginBoarding, get radio() { return radio; },
   walkTo(x, z) { W.x = x; W.z = z; },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; } };

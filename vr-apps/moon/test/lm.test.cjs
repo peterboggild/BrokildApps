@@ -88,13 +88,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok('America alongside: both eyes drawn', e2.every(v => v > 4 && v < 250), e2.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'lm-formation.png') });
   /* the outside view */
-  await p.evaluate(() => __dev.controllers.right.updateButtonValue('b-button', 1));
+  await p.evaluate(() => (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)));
   await p.waitForFunction(() => __lm.OUT.on, null, { timeout: 30000 });
   await frames(20);
   const eo = await eyes();
   ok('outside view: both eyes drawn', eo.every(v => v > 1 && v < 250), eo.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'lm-outside.png') });
-  await p.evaluate(() => __dev.controllers.right.updateButtonValue('b-button', 0));
+  await p.evaluate(() => (__dev.controllers.left.updateButtonValue('y-button', 1), setTimeout(() => __dev.controllers.left.updateButtonValue('y-button', 0), 300)));
   /* the end */
   const end = await p.evaluate(async () => { __lm.S.running = true; __lm.setTime(__lm.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __lm.S.ended, t: __lm.S.t }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));
