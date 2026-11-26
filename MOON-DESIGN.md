@@ -770,6 +770,20 @@ ids: the surface's lines are `sf...`; an earlier run with short ids overwrote ot
 working copy (restored from git before anything was committed): new scripts must take a prefix no other script
 uses, since all voices share one folder.
 
+### 12.15 The flag, the rover, the missions and the finale (25-26 November 2026, Fable)
+
+Built in one run at the owner's word ("merge when you have done it"), each piece merged when its tests were green:
+the flag and the rover (#138), then the samples, the film, the lift-off and the console finale. What the owner
+asked for and how it came out: the film is taken while you look at the camera, from where you stand; the chapter
+stops with the LM some 50 m up; the film is the prize, on a console at Houston, a static picture with the tube
+enlarged and the colour muted. Not done: a video file on the headset (the film is drawn live from kept motion, so
+there is no file; a recording of the tube's texture could be tried later), the LM's shadow split in two at
+lift-off, the LMP walking to the ladder and climbing in (he is simply aboard after you), voices of the owner's own.
+To judge in the headset: the whole run's length and pacing, whether the tongs' reach is right, the film's
+framing from wherever the rover was parked, and the frame rate while the film plays (the valley is drawn a third
+time for it, small).
+
+## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
   SwiftShader (`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`), wait by

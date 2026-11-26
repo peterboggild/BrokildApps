@@ -8,7 +8,8 @@
  * way out (and only along it); A goes on by itself, through the hatch, over the porch, down the ladder, the drop to
  * the pad, onto the ground; the walk is then yours, standing on the terrain beyond the footpad with two prints;
  * both eyes drawn inside and outside; the Lunar Module Pilot then follows you out and down and moves about; the radio
- * answers; from the ground you climb back up into the cabin; no errors. */
+ * answers; the flag, the rover, a sample, the film's motion kept, the sample bag; from the ground you climb back up
+ * into the cabin; he is aboard, the lift-off, the finale's console and film; no errors. */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright-core');
@@ -157,6 +158,39 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     return { on, d, mate, eyeUp, off: !o.ops.driving, after: o.lmp.S.phase };
   });
   ok('the rover: seated by a grip, the stick drives it, he rides along, A steps off', drove.on && drove.d > 3 && drove.mate === 'ride' && drove.eyeUp > 1.3 && drove.eyeUp < 1.9 && drove.off && drove.after === 'roam', JSON.stringify(drove));
+  /* the samples: a rock lifted with a grip and let go at the rover's bags; the rest by the test's short cut */
+  const smp = await p.evaluate(async () => {
+    const o = __moon, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; }), V3 = o.rig.position.constructor;
+    o.ops.jump('samples'); o.ops.rate = 3;
+    const a = o.ops.smp.at; o.ops.R.x = a.x + 4; o.ops.R.z = a.z + 1; await frame(); await frame();
+    const n = o.ops.smp.nearest(a.x, a.z), gy = o.moon.heightAt(n.x, n.z);
+    const hand = (x, y, z) => { const v = o.rig.worldToLocal(new V3(x, y, z)); c.position.set(v.x, v.y, v.z); };
+    o.S.pos.set(n.x + 0.6, 0, n.z); o.S.heading = 0; await frame(); await frame(); await frame();
+    hand(n.x, gy + 0.9, n.z); await frame(); await frame(); c.updateButtonValue('squeeze', 1); await frame(); await frame(); await frame();
+    const held = o.ops.smp.rocks.some(r => r.state === 'held');
+    const bag = o.ops.rover.localToWorld(o.ops.rover.userData.bag.clone());
+    o.S.pos.set(bag.x + 0.7, 0, bag.z); await frame(); await frame(); await frame();
+    for (let k = 0; k < 8; k++) { hand(bag.x, bag.y + 0.15, bag.z); await frame(); }
+    c.updateButtonValue('squeeze', 0); await frame(); await frame();
+    return { held, kg: o.ops.smp.kg, rows: o.ops.status().length };
+  });
+  ok('a sample: lifted with a grip, let go at the rover, weighed', smp.held && smp.kg > 5 && smp.rows === 2, JSON.stringify(smp));
+  /* the film: the rover parked before the LM, he goes to stand for it, you stand by him: nine seconds are kept */
+  await p.evaluate(() => { const o = __moon, R = o.ops.R, v = o.lm.localToWorld(new o.rig.position.constructor(4, 0, 26)); o.ops.jump('film-go'); R.x = v.x; R.z = v.z; R.yaw = Math.atan2(-(o.lm.position.x - v.x), -(o.lm.position.z - v.z)); o.S.pos.set(v.x + 2.5, 0, v.z + 2.5); o.lmp.S.rate = 4; });
+  await p.waitForFunction(() => __moon.ops.st.step === 'film-pose' && __moon.lmp.arrived, null, { timeout: 600000 });
+  await p.evaluate(() => { const o = __moon, F = o.ops.F; o.S.pos.set(F.me[0], 0, F.me[1]); });
+  await p.waitForFunction(() => __moon.ops.st.step === 'load', null, { timeout: 600000 });
+  const kept = await p.evaluate(() => ({ n: __moon.ops.rec.frames.length, len: +__moon.ops.rec.length.toFixed(1) }));
+  ok('the film: the motion of you both is kept', kept.n > 20 && kept.len > 7, JSON.stringify(kept));
+  /* the sample bag from the back of the rover */
+  const bagged = await p.evaluate(async () => {
+    const o = __moon, R = o.ops.R, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; });
+    const bag = o.ops.rover.localToWorld(o.ops.rover.userData.bag.clone());
+    o.S.pos.set(bag.x + 0.9 * Math.sin(R.yaw), 0, bag.z + 0.9 * Math.cos(R.yaw)); await frame(); await frame(); await frame();
+    c.updateButtonValue('squeeze', 1); await frame(); await frame(); await frame(); c.updateButtonValue('squeeze', 0); await frame();
+    return o.ops.F.bag;
+  });
+  ok('the sample bag: a grip at the back of the rover', bagged);
   /* back up: by the footpad a grip puts you on the pad at the ladder; A climbs, into the cabin */
   await p.evaluate(() => { const o = __moon, v = o.lm.localToWorld(new o.rig.position.constructor(0, 0, 5.5)); o.lmp.S.rate = 0; o.lmp.S.pos.x += 30; o.S.pos.set(v.x, 0, v.z); });
   await frames(4);
@@ -178,6 +212,18 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await frames(4);
   const e9 = await eye();
   ok('A climbs: the jump for the last rung, the ladder, the porch, and you stand in the cabin again', up.hop && up.path && up.in && up.cabin && e9[2] < 1.2 && e9[1] > 3.6 && e9[1] < 4.3, Object.keys(up).join(' ') + ' ' + JSON.stringify(e9));
+  /* aboard with the samples: he is in, the hatch shuts, the count, the lift-off; at 50 m the finale */
+  await p.waitForFunction(() => __moon.ops.st.step === 'aboard', null, { timeout: 120000 });
+  ok('aboard with the samples: he is in the cabin too', await p.evaluate(() => __moon.lmc.lmp.visible && !__moon.lmp.on));
+  await p.waitForFunction(() => __moon.finale, null, { timeout: 900000 });
+  const up2 = await p.evaluate(() => ({ alt: +__moon.ops.F.alt.toFixed(0), door: __moon.egress.E.door, y: +(__moon.lm.position.y).toFixed(1) }));
+  ok('the hatch shut, the lift-off to 50 m, and the view goes to the console', up2.alt >= 50 && up2.door === 0, JSON.stringify(up2));
+  await p.waitForFunction(() => __moon.ops.F.part === 'liftoff' && __moon.ops.F.on === 1, null, { timeout: 900000 });
+  const e5 = await eyes2();
+  ok('the finale: the console and its film, both eyes drawn', e5.every(v => v > 4 && v < 250), e5.map(v => v.toFixed(0)).join(' / '));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-finale.png') });
+  await p.waitForFunction(() => __moon.ops.F.end, null, { timeout: 900000 });
+  ok('the film ends with the words', await p.evaluate(() => __moon.ops.F.caption === 1));
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');
