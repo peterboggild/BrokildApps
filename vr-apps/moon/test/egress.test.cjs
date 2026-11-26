@@ -255,6 +255,10 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.waitForFunction(() => __moon.finale, null, { timeout: 900000 });
   const up2 = await p.evaluate(() => ({ alt: +__moon.ops.F.alt.toFixed(0), door: __moon.egress.E.door, y: +(__moon.lm.position.y).toFixed(1) }));
   ok('the hatch shut, the lift-off to 50 m, and the view goes to the console', up2.alt >= 50 && up2.door === 0, JSON.stringify(up2));
+  /* the film's far pass is in the picture (the sky is drawn, not left empty: the mountains and stars were lost in the headset) */
+  await p.waitForFunction(() => __moon.ops.F.parts && __moon.ops.F.part === 'pan' && __moon.ops.F.on === 1, null, { timeout: 900000 });
+  const skyA = await p.evaluate(() => new Promise(r => { __moon.afterFrame = () => { const px = new Uint8Array(4); __moon.renderer.readRenderTargetPixels(__moon.filmRT, 400, 585, 1, 1, px); r(px[3]); }; }));
+  ok("the film's sky and far ground are drawn", skyA === 255, 'alpha ' + skyA);
   await p.waitForFunction(() => __moon.ops.F.parts && __moon.ops.F.part === 'wave' && __moon.ops.F.on === 1, null, { timeout: 900000 });
   const parts = await p.evaluate(() => __moon.ops.F.parts.map(q => q.k + ':' + q.d.toFixed(0)));
   const whole = await p.evaluate(() => __moon.shadows);

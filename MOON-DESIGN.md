@@ -804,6 +804,10 @@ Decided and built:
 - He goes up the ladder first, as on Apollo 17 (the Commander was the last one on the Moon); the ladder is yours
   when he is in.
 - The LM's shadow in two at lift-off; the gloves dimmed in the LM's shadow.
+- Found on the way: in the headset the film had lost its mountains, stars and sky since #139 (the film's texture was
+  multisampled, and its picture is given up between the far pass and the near one); it is a plain 800 x 600 texture
+  now, and the test looks for the sky. And an answer to your own transmission was dropped when someone spoke for more
+  than 8 s; it waits 25 s now.
 
 Still not done: the fingers and the wrists' turn in the film, a bow from the waist, his backpack through the hatch
 frame (the owner: "ok"), voices of the owner's own. To judge in the headset: whether a crouch and a jump look right

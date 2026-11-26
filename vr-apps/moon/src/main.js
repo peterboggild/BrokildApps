@@ -235,7 +235,9 @@ let ops = null, opsStick = [0, 0], meSeated = false;
  * joint with a clipping plane that rises with it; a second model, cut off above, stays behind as the descent stage.
  * The film is the scene drawn from the rover's camera into a texture, in the view's own two passes, and shown on
  * the console's tube. */
-const filmRT = new THREE.WebGLRenderTarget(640, 480, { samples: 4 }), filmCam = new THREE.PerspectiveCamera(30, 4 / 3, 0.3, 40e3);
+/* (not multisampled: the film is two passes into it, far then near, and a multisampled target's picture is given up
+ * between them in the headset: the first pass, the mountains and the sky, was lost) */
+const filmRT = new THREE.WebGLRenderTarget(800, 600), filmCam = new THREE.PerspectiveCamera(30, 4 / 3, 0.3, 40e3);
 const con = makeConsole(filmRT.texture); con.group.visible = false;
 let finaleOn = false, finaleFade = 0, rigLift = 0, lmDescent = null, lmBaseY = 0, ghostBake = 0, endSaid = false;
 const clipAsc = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), clipDesc = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
@@ -509,7 +511,7 @@ function setPlanes(n, f) {
   if (renderer.xr.isPresenting) { const xc = renderer.xr.getCamera(); fix(xc); xc.cameras.forEach(fix); }
   else { camera.near = n; camera.far = f; camera.updateProjectionMatrix(); }
 }
-const _cam = new THREE.Vector3();
+const _cam = new THREE.Vector3(); let lastShow = null;
 function render() {
   const xr = renderer.xr.isPresenting;
   scene.updateMatrixWorld(true);
@@ -532,6 +534,7 @@ function render() {
     if (lmp) { lmp.fig.visible = nearOn && close && lmp.on; lmp.extras.visible = lmp.fig.visible; }
     if (ops) ops.group.visible = nearOn && close;
   };
+  lastShow = show;
   /* the LM's cabin, seen from inside and through the open hatch: its own pass with its own lights (they would
    * flood the LM's outside), over the same depth, before the things in your hands */
   const inCabin = close && (egress.active || (egress.E.stage === 'done' && _cam.distanceTo(lmModel.position) < 9));
@@ -864,7 +867,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, get shadows() { return { split: lmSplit, asc: !!shAsc && shAsc.mesh.visible, desc: !!shDesc && shDesc.mesh.visible, whole: !!lmShadow && lmShadow.mesh.visible }; }, get lmShadow() { return lmShadow; }, get ghost() { return meGhost; }, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, get ops() { return ops; }, get finale() { return finaleOn; }, con, get lmDescent() { return lmDescent; }, clipAsc, clipDesc, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, filmPass: () => filmPass(lastShow), filmRT, get shadows() { return { split: lmSplit, asc: !!shAsc && shAsc.mesh.visible, desc: !!shDesc && shDesc.mesh.visible, whole: !!lmShadow && lmShadow.mesh.visible }; }, get lmShadow() { return lmShadow; }, get ghost() { return meGhost; }, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, get ops() { return ops; }, get finale() { return finaleOn; }, con, get lmDescent() { return lmDescent; }, clipAsc, clipDesc, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },

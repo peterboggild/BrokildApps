@@ -465,7 +465,8 @@ What there is to do once you are both down (chapter 6 only).
   scene and the first rock you stow are kept as they happen (the last 12 and 9 seconds of each); the wave when you
   say so. Played back, the motion is blended between the kept frames (`makeRecorder().sample`) and set on the whole
   suit that stands for you, on him, the flag, the rock and the rover where it stood then, and the scene is drawn
-  from a camera's place into a 640 x 480 texture (the view's own two passes): beyond the flag with the LM behind,
+  from a camera's place into an 800 x 600 texture (the view's own two passes; not multisampled, or the headset gives
+  up the first pass, the mountains and the sky, before the second): beyond the flag with the LM behind,
   to the Sun's side of you and the rover, and the rover's own camera for the wave and the lift-off. It is the same
   scene, so it shows what a camera there would have seen, movement for movement. Why not a video: frames from a
   second camera would have to be drawn, read back and encoded in the headset while you play (frame rate), and the
