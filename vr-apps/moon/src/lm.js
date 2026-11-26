@@ -517,7 +517,15 @@ async function startSound() {
 function readOptions() {
   const v = $('start') ? +$('start').value : S.t;
   setTime(v);
-  if (v > START) enterLM(true); else { S.mode = 'cm'; cabin.group.visible = true; cabin.setBody(true); body.set(0, 0, 0); }
+  if (v > START) enterLM(true);
+  else {
+    /* from the couch again: everything as it was before you went through. (Started a second time on the same page,
+     * the LM's hatch was still shut from the first: no tunnel was drawn, and you floated to the LM through open
+     * space, the two ships apart: owner's headset test.) */
+    S.mode = 'cm'; cabin.group.visible = true; cabin.setBody(true); body.set(0, 0, 0); vel.set(0, 0, 0);
+    S.hatchShut = false; S.arrivedAt = -1; S.auto = false; S.hardK = 0; spacing(0); OUT.want = OUT.on = false;
+    if (radio) for (const l of radio.lines) l.off = false;
+  }
 }
 async function enterVR() {
   if (!navigator.xr) return;
@@ -584,4 +592,4 @@ if (Q.has('shot')) document.body.classList.add('invr');
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
 window.__lm = { S, OUT, END, UNDOCK, SEP, ctl, wrist, toast, clock, get chat() { return chat; }, settings, info, renderer, camera, rig, head, cabin, lmc, vehicle, hands, SEAT, body, afterFrame: null, setTime,
-  get zH() { return zH; }, get radio() { return radio; }, get L() { return L; }, beginCrawl, enterLM, tunnel };
+  get zH() { return zH; }, get radio() { return radio; }, get L() { return L; }, beginCrawl, enterLM, tunnel, readOptions };
