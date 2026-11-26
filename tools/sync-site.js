@@ -111,8 +111,20 @@ const EXTRA = {
     alt: "Journey to the Moon: On the Moon — out of the Lunar Module's hatch, down the ladder and the first step in the Taurus-Littrow valley",
     type: "website",
   },
+  "vr-apps/moon/liftoff.html": {
+    alt: "Journey to the Moon: The Lift-off — the ascent stage leaving the Taurus-Littrow valley for lunar orbit, from the Commander's station of the Lunar Module",
+    type: "website",
+  },
+  "vr-apps/moon/rendezvous.html": {
+    alt: "Journey to the Moon: The Rendezvous — the Command Module growing from a point of light to the docking, and the way up through the tunnel",
+    type: "website",
+  },
+  "vr-apps/moon/leaving.html": {
+    alt: "Journey to the Moon: Leaving the Moon — the Lunar Module cast off, the burn for home behind the Moon, and the Moon falling away",
+    type: "website",
+  },
   "vr-apps/moon/index.html": {
-    alt: "Journey to the Moon — the Moon from NASA's orbiter data, seen from orbit and from the Apollo 17 landing site",
+    alt: "Journey to the Moon — Apollo 17 for the Meta Quest 3 browser, chapter by chapter",
     type: "website",
   },
 };
