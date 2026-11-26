@@ -659,3 +659,12 @@ All NASA / USGS, public domain. No NASA insignia are used.
 - LROC NAC digital terrain models `NAC_DTM_APOLLO17` and `NAC_DTM_APOLLO17_2M` (NASA/GSFC/Arizona State University):
   https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_DTM_APOLLO17
 - Sun position at landing: Apollo 17 traverse planning data (Apollo Lunar Surface Journal)
+
+## Chapter 7: the lift-off (`liftoff.html`)
+
+The first part of the journey home: from thirty seconds before the ascent engine lights to orbit insertion, standing
+at the Commander's station. `src/liftoff-space.js` simulates the flight (fixed thrust, ten seconds straight up, the
+pitch-over, cut-off 18 km up in a 16 by 89 km orbit); `src/liftoff.js` is the page, made from `src/descent.js`. The
+descent stage stays on the ground: two copies of the LM model, each cut at the joint. Voices: `tools/script/liftoff.json`
+(`as01` to `as16`). Pictures: `tools/shot-liftoff.cjs "t=667303&out&od=30" out.png`. Test: `test/liftoff.test.cjs`.
+Not to be confused with `src/ascent.js`, the Saturn V's ascent of chapter 1.

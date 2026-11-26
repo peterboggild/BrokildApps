@@ -14,10 +14,10 @@
 <body>
 <script type="module">
 import * as THREE from 'three';
-import { makeEVASuit, suitEnvironment } from '../src/eva-suit.js?v=32';
-import { makeRover } from '../src/rover.js?v=32';
-import { makeFlag } from '../src/flag.js?v=32';
-import { makeConsole } from '../src/finale.js?v=32';
+import { makeEVASuit, suitEnvironment } from '../src/eva-suit.js?v=33';
+import { makeRover } from '../src/rover.js?v=33';
+import { makeFlag } from '../src/flag.js?v=33';
+import { makeConsole } from '../src/finale.js?v=33';
 const q = new URLSearchParams(location.search), num = (k, d) => q.has(k) ? +q.get(k) : d;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);

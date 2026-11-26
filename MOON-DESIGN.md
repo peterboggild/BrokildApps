@@ -892,6 +892,27 @@ no tunnel was drawn: fixed by resetting that state when you start from the couch
 7. "The video at the end can get a small degree of noise and glitches." The tube's shader has torn bands of lines,
    a hair of jitter, white drop-out lines, a rolling hum bar and now and then a sag into snow.
 
+### 12.20 The journey home, part 1: the lift-off (26 November 2026, Fable)
+
+The owner: "are you up for finishing the adventure, and taking me home?" Chapter 7, `liftoff.html`
+(`src/liftoff.js`, `src/liftoff-space.js`, `tools/script/liftoff.json`, `test/liftoff.test.cjs`). The names are
+"liftoff", not "ascent": `src/ascent.js` is the Saturn V's ascent table of chapter 1.
+
+- The flight (`liftoff-space.js`) is simulated, not a table from data: the ascent engine's fixed 15.6 kN on a stage
+  of 4950 kg burning 5 kg/s; ten seconds straight up; then every moment the thrust's vertical part is what brings
+  the LM level at 18.3 km when the horizontal speed is there, the rest of the thrust forward. That gives a 440 s
+  burn (Apollo 17: 441 s), a pitch-over to 50 degrees (52), 312 km downrange, and a 16 by 89 km orbit (9 by 48
+  nautical miles).
+- `liftoff.js` was made from `descent.js` (the same page skeleton and passes). You stand at the Commander's
+  station; nothing is flown by hand. The LM's +y follows the thrust, the windows forward on the way up and turned
+  down to the Moon after the pitch-over (4.5 degrees a second).
+- The two stages are two copies of the model, each cut at the joint by a world plane set every frame from its own
+  matrix (12.19's lesson); each has its own baked shadow, together the whole LM's while it stands.
+- Fast forward drops to real time for the lift-off and for the cut-off; the long burn between may be run faster.
+- Chapter 6's finale now leads on to it (A), and saves it as the place to continue.
+- Not there yet: the rover and the flag left in the valley are not drawn in this chapter; the crew is bare-headed
+  as in the descent; the chapter ends 45 s after the cut-off, where the rendezvous will begin.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

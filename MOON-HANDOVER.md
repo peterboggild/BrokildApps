@@ -18,11 +18,10 @@ assistant can only test on the flat screen and in an emulator.
 
 ## 2. Where it stands
 
-Live on main after PR #144 (#143: entering the LM: voices, hard dock seen from outside, the panels, the view
-reset; #144: the tunnel when chapter 4 is started twice on one page), with PR #145 (the owner's notes on the
-ending and the samples, 12.19 of `MOON-DESIGN.md`) open at the time of writing. All moon modules carry `?v=32`
-(`prints.js` its own `?v=4`, `lm.js` `?v=33` in `lm.html`); `index.html` and `surface.html` load
-`src/main.js?v=25`. Check `git log` for what has landed since.
+Live on main after PR #145 (the owner's notes on the ending and the samples, 12.19 of `MOON-DESIGN.md`), with
+PR #146 (the journey home, part 1: chapter 7, the lift-off, 12.20) open at the time of writing. All moon modules
+carry `?v=33` (`prints.js` its own `?v=4`, `lm.js` `?v=34` in `lm.html`); `index.html` and `surface.html` load
+`src/main.js?v=26`. Check `git log` for what has landed since.
 
 | Chapter | Page | State |
 |---|---|---|
@@ -31,7 +30,8 @@ ending and the samples, 12.19 of `MOON-DESIGN.md`) open at the time of writing. 
 | 3 Earth orbit | `orbit.html` | done, headset-checked |
 | 4 To the Moon, docking | `lunar.html` | done; the docking's spacing was noted as off, not fixed |
 | 5 Descent | `lm.html`, `descent.html` | done, headset-checked |
-| 6 On the Moon | `surface.html` (`src/main.js`) | complete to its finale; **nothing since #135 is headset-tested** |
+| 6 On the Moon | `surface.html` (`src/main.js`) | complete to its finale; the owner has played it to the end |
+| 7 The lift-off | `liftoff.html` (`src/liftoff.js`) | to orbit insertion; emulator only, not headset-tested |
 
 Chapter 6 as it now runs: suiting up in the cabin (helmets go on), out through the hatch and down the ladder, the
 Lunar Module Pilot (LMP) follows and lopes about, radio (push-to-talk on X; no microphone is opened), the flag, the
@@ -149,7 +149,8 @@ is used with SwiftShader).
 
 ```
 cd vr-apps/moon
-node test/egress.test.cjs <folder for pictures>    # chapter 6, 33 checks, about 25 minutes
+node test/egress.test.cjs <folder for pictures>    # chapter 6, 39 checks, about 40 minutes
+node test/liftoff.test.cjs <folder for pictures>   # chapter 7, 18 checks, about 6 minutes
 node test/xr.test.cjs                              # 12
 node test/lm.test.cjs                              # 14
 node test/descent.test.cjs                         # 20
@@ -184,11 +185,11 @@ node test/chain.test.cjs                           # 5
 
 ## 8. What comes next
 
-Waiting for: his headset verdict on #143 (panels, view reset) and #145. On 26 November he asked: "are you up for
-finishing the adventure, and taking me home?" The journey home is the next work, after #145.
+Waiting for: his headset verdict on #143 (panels, view reset), #145 and chapter 7.
 
-**The journey home** (he said "Later", then asked for an estimate on 26 November). The estimate given: about six
-pull requests of the size of #136 to #139, two or three long sessions, with a headset round between them.
+**The journey home** is under way (he asked for it on 26 November). Part 1, the lift-off to orbit, is chapter 7.
+Next: the rendezvous and docking with America (chapter 4's docking and `lm.js`'s outside view are the material),
+then the rest of the table below. The estimate given was about six pull requests of the size of #136 to #139.
 
 | Part | What it takes | Size |
 |---|---|---|

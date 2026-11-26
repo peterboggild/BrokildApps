@@ -9,25 +9,25 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=32';
-import { PAD_DROP } from './descent-space.js?v=32';
-import { makeLMShadow } from './lm-shadow.js?v=32';
+import { makeLMModel } from './vehicle.js?v=33';
+import { PAD_DROP } from './descent-space.js?v=33';
+import { makeLMShadow } from './lm-shadow.js?v=33';
 import { makePrints } from './prints.js?v=4';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=32';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=32';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=32';
-import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=32';
-import { makeLMP, makeFigureShadow, makeDust } from './lmp.js?v=32';
-import { makeSurfaceOps } from './surface-ops.js?v=32';
-import { makeConsole } from './finale.js?v=32';
-import { makeMoonRadio } from './moon-radio.js?v=32';
-import { LM } from './lm-model.js?v=32';
-import { makeEgress } from './egress.js?v=32';
-import { settleLM } from './lm-model.js?v=32';
-import { settings, applyCommon } from './settings.js?v=32';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=32';
+import { makeControllers, createHand } from './hands.js?v=33';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=33';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=33';
+import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=33';
+import { makeLMP, makeFigureShadow, makeDust } from './lmp.js?v=33';
+import { makeSurfaceOps } from './surface-ops.js?v=33';
+import { makeConsole } from './finale.js?v=33';
+import { makeMoonRadio } from './moon-radio.js?v=33';
+import { LM } from './lm-model.js?v=33';
+import { makeEgress } from './egress.js?v=33';
+import { settleLM } from './lm-model.js?v=33';
+import { settings, applyCommon } from './settings.js?v=33';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=33';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -215,7 +215,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (!CH6) { if (e.code === 'Digit1') setView('orbit'); if (e.code === 'Digit2') setView('low'); if (e.code === 'Digit3') setView('surface'); }
   if (e.code === 'KeyP') S.still = !S.still;
-  if (e.code === 'KeyF' && finaleOn && ops.F.end) { location.href = 'index.html'; return; }
+  if (e.code === 'KeyF' && finaleOn && ops.F.end) { location.href = 'liftoff.html'; return; }
   if (e.code === 'KeyG' && ops && S.view === 'surface' && !egress.active) ops.key(headGround(new THREE.Vector3()));
   if (e.code === 'KeyF' && ops && ops.button('a')) { /* the rover, or ready for the camera */ } else
   if (e.code === 'KeyF' && egress && egress.active) egress.go(); else if (e.code === 'KeyF' && egress && atLadder()) mountLadder();
@@ -346,7 +346,7 @@ function readControllers(dt) {
     const k = src.handedness;
     /* A (right): the next view; left stick press: the panel, then the settings (as in the chapters) */
     const a = gp.buttons[4]?.pressed, st = gp.buttons[3]?.pressed;
-    if (a && !pad.prev[k + 'a'] && k === 'right' && finaleOn && ops.F.end) { location.href = 'index.html'; return; }
+    if (a && !pad.prev[k + 'a'] && k === 'right' && finaleOn && ops.F.end) { location.href = 'liftoff.html'; return; }
     if (a && !pad.prev[k + 'a'] && k === 'right') { aPress = true; if (egress.active) egress.go(); else if (!CH6) next = true; }
     /* The triggers and the grips both take hold (owner's wish: the pistol triggers grip and work things whenever
      * you are close to something: the flag's pole, a rock, the rover, the ladder; they jump only when you are well
@@ -721,10 +721,10 @@ function frame(t) {
     con.caption(['APOLLO 17', 'You completed the first part', 'of the Apollo 17 mission.', 'Have a safe trip back.'], F.caption);
     if (F.actors && (ghostBake += dt) > 0.15) { ghostBake = 0; meShadow.bake(renderer, meGhost, moon.shared.uSun.value); }
     if (F.actors) meShadow.drape(meGhost.position.x, meGhost.position.y, meGhost.position.z);
-    if (F.end && !endSaid) { endSaid = true; saveProgress('surface.html', 1, t); toast.say('A: back to the chapters', 1e6, true); }
+    if (F.end && !endSaid) { endSaid = true; saveProgress('liftoff.html', null, 0, true); toast.say('A: on to chapter 7, the lift-off', 1e6, true); }
   }
   if (lmp && S.view === 'surface' && (CH6 || Q.has('egress'))) lmp.update(dt, { walking: !egress.active, player: rig.position });
-  if (CH6) saveProgress('surface.html', egress.active ? 0 : 1, t);
+  if (CH6 && !endSaid) saveProgress('surface.html', egress.active ? 0 : 1, t);
   if (S.view === 'surface' && egress.active) {
     egress.update(dt, xr ? [EH.left, EH.right] : []);
     rig.position.y += rigLift;                                    /* the lift-off carries you up with the cabin */
