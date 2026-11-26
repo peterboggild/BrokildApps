@@ -9,7 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { makeCrewLife } from './crew-life.js?v=37';
+import { makeCrewLife } from './crew-life.js?v=38';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
@@ -176,7 +176,7 @@ export function makeCabin() {
     const box = new THREE.Mesh(new THREE.BoxGeometry(p.w + 0.03, p.h + 0.03, 0.12), dark);
     box.position.set(0, 0, -0.065); m.add(box);
     for (const s of panel.switches) if (s.u >= p.u0 && s.u < p.u1) {
-      switches.push({ mesh: m, x: ((s.u - p.u0) / (p.u1 - p.u0) - 0.5) * p.w, y: (s.v - 0.5) * p.h, up: s.up });
+      switches.push({ mesh: m, x: ((s.u - p.u0) / (p.u1 - p.u0) - 0.5) * p.w, y: (s.v - 0.5) * p.h, up: s.up, group: s.group, gid: s.gid });
     }
   });
   /* toggle switches, in 3D: a hex nut and a lever, tipped up or down */
@@ -184,13 +184,36 @@ export function makeCabin() {
   const nut = new THREE.CylinderGeometry(0.0065, 0.0065, 0.004, 6); nut.rotateX(Math.PI / 2);
   const im1 = new THREE.InstancedMesh(lever, mat(0xd9dadb), switches.length), im2 = new THREE.InstancedMesh(nut, metal, switches.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
-  switches.forEach((s, k) => {
-    s.mesh.updateMatrix();
+  const setLever = (s, k) => {
     const local = new THREE.Matrix4().compose(new THREE.Vector3(s.x, s.y, 0.004), q.setFromEuler(e.set(Math.PI / 2 + (s.up ? -0.5 : 0.5), 0, 0)), one);
     im1.setMatrixAt(k, m4.multiplyMatrices(s.mesh.matrix, local));
+  };
+  switches.forEach((s, k) => {
+    s.mesh.updateMatrix(); setLever(s, k);
     im2.setMatrixAt(k, m4.multiplyMatrices(s.mesh.matrix, new THREE.Matrix4().makeTranslation(s.x, s.y, 0.002)));
   });
   g.add(im1, im2);
+  /* Switches that are yours to flip (procedure.js): the switches of a named group, where each is, flipping one, and
+   * the lamp that shows which is next (a ring of amber light round it). */
+  const lamp = new THREE.Mesh(new THREE.RingGeometry(0.011, 0.019, 28), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.95, depthTest: false, ...NO_STENCIL }));
+  lamp.renderOrder = 30; lamp.visible = false; g.add(lamp);
+  const controls = {
+    list: switches,
+    /* the switches of the group of that name nearest your own couch, in reading order */
+    group(name) {
+      const by = new Map();
+      switches.forEach((s, k) => { if (s.group === name) { if (!by.has(s.gid)) by.set(s.gid, []); by.get(s.gid).push(k); } });
+      let best = null, bd = 1e9; const v = new THREE.Vector3();
+      for (const ks of by.values()) { let d = 0; for (const k of ks) d += controls.pos(k, v).length(); d /= ks.length; if (d < bd) { bd = d; best = ks; } }
+      return best ? best.slice().sort((a, b) => (switches[b].y - switches[a].y) || (switches[a].x - switches[b].x)) : [];
+    },
+    /* where a switch's lever is, in the cabin's frame */
+    pos(k, out) { const s = switches[k]; return out.set(s.x, s.y, 0.014).applyMatrix4(s.mesh.matrix); },
+    set(k, up) { const s = switches[k]; s.up = up; setLever(s, k); im1.instanceMatrix.needsUpdate = true; },
+    lamp(k) { lamp.visible = k !== null && k !== undefined; if (!lamp.visible) return; const s = switches[k]; lamp.position.set(s.x, s.y, 0.006).applyMatrix4(s.mesh.matrix); lamp.quaternion.copy(s.mesh.quaternion); },
+    pulse(t) { lamp.material.opacity = 0.6 + 0.4 * Math.sin(t * 7); lamp.scale.setScalar(1 + 0.12 * Math.sin(t * 7)); },
+    get lampOn() { return lamp.visible; }
+  };
 
   /* the DSKY (guidance computer display) on the centre panel, and the mission event timer */
   const dsky = makeDsky();
@@ -239,7 +262,7 @@ export function makeCabin() {
 
   let cheatOn = false;
   return {
-    group: g, covers, dsky, timer, ball, sunIn, amb, panels, crewmen, get body() { return body; },
+    group: g, covers, dsky, timer, ball, sunIn, amb, panels, crewmen, controls, get body() { return body; },
     /* the forward hatch at the end of the tunnel: closed, or taken out (with the probe and drogue) for the crew to
      * go through to the LM */
     setTunnelOpen(on) { fwd.visible = !on; },
@@ -677,6 +700,7 @@ export function makePanelTexture(keepOut = [], style = 'cm', sections = [[0, 1 /
     x.strokeStyle = 'rgba(0,0,0,0.55)'; x.lineWidth = 2; const a = rnd() * Math.PI;
     x.beginPath(); x.moveTo(sx - Math.cos(a) * 5, sy - Math.sin(a) * 5); x.lineTo(sx + Math.cos(a) * 5, sy + Math.sin(a) * 5); x.stroke();
   };
+  let groups = 0;
   /* a group of controls: a white line round it, its name set into the top line */
   const group = (gx, gy, gw, gh, name) => {
     x.strokeStyle = P.line; x.lineWidth = 2.5; x.strokeRect(gx, gy, gw, gh);
@@ -700,7 +724,8 @@ export function makePanelTexture(keepOut = [], style = 'cm', sections = [[0, 1 /
         for (const sx of [xx + 11, xx + pw - 11]) if (ph > 140) screw(sx, y + ph / 2);
         const kind = rnd(), gx = xx + 22, gy = y + 34, gw = pw - 44, gh = ph - 62;
         if (kind < 0.58) {                                 /* a row or two of toggle switches, some behind guards */
-          group(gx, gy, gw, gh, words[Math.floor(rnd() * words.length)]);
+          const gname = words[Math.floor(rnd() * words.length)], gid = ++groups;
+          group(gx, gy, gw, gh, gname);
           const rows = gh > 150 ? 2 : 1, n = Math.max(2, Math.floor((gw - 20) / 52));
           const guarded = rnd() < 0.35;
           for (let r = 0; r < rows; r++) for (let k = 0; k < n; k++) {
@@ -710,7 +735,7 @@ export function makePanelTexture(keepOut = [], style = 'cm', sections = [[0, 1 /
             if (guarded) { x.fillStyle = '#cfd2d5'; x.fillRect(sx - 19, sy - 15, 5, 30); x.fillRect(sx + 14, sy - 15, 5, 30); }
             label(pos[Math.floor(rnd() * pos.length)], sx, sy - 20, 11);
             label(pos[Math.floor(rnd() * pos.length)], sx, sy + 30, 11, false);
-            switches.push({ u: sx / W, v: 1 - sy / H, up: rnd() < 0.5 });
+            switches.push({ u: sx / W, v: 1 - sy / H, up: rnd() < 0.5, group: gname, gid });
           }
         } else if (kind < 0.8) {                           /* instruments: tape meters or round dials, black with white scales */
           const n = Math.max(1, Math.floor((pw - 30) / 96)), round = rnd() < 0.4;

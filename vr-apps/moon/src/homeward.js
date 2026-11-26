@@ -13,22 +13,23 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat  ?eva=s (outside, s metres
  *      along the rail, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=37';
-import { NORMAL, W_EARTH, R_MOON } from './space.js?v=37';
-import { where, GETH } from './home-space.js?v=37';
-import { makeOutside } from './earth.js?v=37';
-import { makeCabin } from './cabin.js?v=37';
-import { makeLaunchSound } from './launch-sound.js?v=37';
-import { makeRadio, combineRadios } from './radio.js?v=37';
-import { makeClock } from './clock.js?v=37';
-import { makeChatter } from './chatter.js?v=37';
-import { handOnCrew } from './crew-life.js?v=37';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=37';
-import { createHand, makeControllers } from './hands.js?v=37';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=37';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=37';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=37';
-import { makeFloaters } from './floaters.js?v=37';
+import { state as ascentState, SUN, RE } from './ascent.js?v=38';
+import { NORMAL, W_EARTH, R_MOON } from './space.js?v=38';
+import { where, GETH } from './home-space.js?v=38';
+import { makeOutside } from './earth.js?v=38';
+import { makeCabin } from './cabin.js?v=38';
+import { makeLaunchSound } from './launch-sound.js?v=38';
+import { makeRadio, combineRadios } from './radio.js?v=38';
+import { makeClock } from './clock.js?v=38';
+import { makeChatter } from './chatter.js?v=38';
+import { handOnCrew } from './crew-life.js?v=38';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=38';
+import { createHand, makeControllers } from './hands.js?v=38';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=38';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=38';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=38';
+import { makeFloaters } from './floaters.js?v=38';
+import { makeProcedure } from './procedure.js?v=38';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -91,16 +92,17 @@ const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock
 const EVENTS = [[EVA_T, 'the walk outside'], [END, 'end of the chapter, 25,000 km from home']];
 function info() {
   const out = EVA.state === 'out';
-  return { chapter: 'Chapter 10 \u00b7 The coast home', now: phase(S.t), next: S.ended ? null : EVA.state === 'wait' ? ['go out of the hatch (the clock waits)', NaN] : out ? [EVA.has ? 'back to the hatch with the cassette' : 'along the rail to the instrument bay', NaN] : nextOf(EVENTS, S.t), after: 're-entry', get: S.t, warp: S.warp,
+  return { chapter: 'Chapter 10 \u00b7 The coast home', now: phase(S.t), next: S.ended ? null : EVA.state === 'suit' ? ['flip the lit SUIT switches (the clock waits)', NaN] : EVA.state === 'wait' ? ['go out of the hatch (the clock waits)', NaN] : out ? [EVA.has ? 'back to the hatch with the cassette' : 'along the rail to the instrument bay', NaN] : nextOf(EVENTS, S.t), after: 're-entry', get: S.t, warp: S.warp,
     rows: [['To the Earth', fmtDist(w.alt)], ['From the Moon', fmtDist(w.dMoon)], ['Speed', fmtSpeed(w.speed)], ['Fast forward', settings.text('ff')]],
     alert: S.ended ? 'End of chapter 10.  A: back to the chapters' : null,
-    keys: out || EVA.state === 'wait' ? [['grip', 'pull yourself along the rail'], ['L stick', 'forward and back along it'], ['A', 'go by itself'], ['grip', 'at the bay: take the cassette'], ['L stick', 'press: panel, settings']]
+    keys: EVA.state === 'suit' ? [['fingertip', 'flip the lit switch'], ['A', 'do it for me'], ['L stick', 'press: panel, settings']] : out || EVA.state === 'wait' ? [['grip', 'pull yourself along the rail'], ['L stick', 'forward and back along it'], ['A', 'go by itself'], ['grip', 'at the bay: take the cassette'], ['L stick', 'press: panel, settings']]
       : [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = Math.floor(s % 60); return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
 const km = m => m > 1e6 ? (m / 1e6).toFixed(m > 1e8 ? 0 : 1) + 'k km' : (m / 1000).toFixed(0) + ' km';
 function phase(t) {
   if (EVA.state === 'out') return EVA.has ? 'outside, the cassette in hand' : 'outside, on the rail';
+  if (EVA.state === 'suit') return 'suiting up';
   if (EVA.state === 'wait') return 'the hatch is open';
   if (t < EVA_T) return 'coasting home';
   return 'coasting home, the film aboard';
@@ -145,7 +147,7 @@ const pad = { prev: {}, grip: {}, aDown: -1 };
  * stick press: the panel, then the settings; right stick press: re-seat */
 function readControllers(now) {
   const s = renderer.xr.getSession(); if (!s) return;
-  const walk = EVA.state === 'wait' || EVA.state === 'out';
+  const walk = EVA.state === 'wait' || EVA.state === 'out' || EVA.state === 'suit';
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
     const k = src.handedness, a = gp.buttons[4]?.pressed, b = gp.buttons[5]?.pressed, st = gp.buttons[3]?.pressed, g = !!gp.buttons[1]?.pressed || (gp.buttons[0]?.value || 0) > 0.6;
@@ -223,7 +225,9 @@ const RAIL = [new THREE.Vector3(-1.62, 0.9, 0), new THREE.Vector3(-2.75, -0.95, 
 if (Q.has('off')) for (const p of RAIL) { const r = Math.hypot(p.x, p.z), k = (1.96 + num('off', 0.8)) / r; p.x *= k; p.z *= k; }          /* test aid: further off, for pictures */
 const RAIL_L = [RAIL[0].distanceTo(RAIL[1]), RAIL[1].distanceTo(RAIL[2])], RAIL_LEN = RAIL_L[0] + RAIL_L[1];
 const railAt = (sv, out) => sv < RAIL_L[0] ? out.copy(RAIL[0]).lerp(RAIL[1], sv / RAIL_L[0]) : out.copy(RAIL[1]).lerp(RAIL[2], Math.min(1, (sv - RAIL_L[0]) / RAIL_L[1]));
-const EVA = { state: 'in', s: 0, v: 0, auto: false, has: false, hand: null, hintT: 0, grab: {}, k: 0 };
+const EVA = { state: 'in', s: 0, v: 0, auto: false, has: false, hand: null, hintT: 0, grab: {}, k: 0, suitT: 0, doneAt: -1 };
+/* suiting up is your own work at the panel (procedure.js): the SUIT switches, one after another */
+const proc = makeProcedure(cabin, { click: () => sound.thump(0.12, 0.03, 2600), buzz: h => { const g = ctl.src[h] && ctl.src[h].gamepad; g?.hapticActuators?.[0]?.pulse?.(0.6, 50)?.catch?.(() => {}); } });
 const bay = new THREE.Group(), cassette = new THREE.Group(), CASS_HOME = new THREE.Vector3(-2.31, -3.0, 0.3);
 { const M = (c, m = 0.3, r = 0.6) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r });
   const box = (w, h, d, x, y, z, mat, to = bay) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); to.add(b); return b; };
@@ -248,9 +252,9 @@ const bay = new THREE.Group(), cassette = new THREE.Group(), CASS_HOME = new THR
   const hd = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 16, Math.PI), alu); hd.position.set(-0.15, 0, 0); hd.rotation.z = Math.PI / 2; cassette.add(hd);
   cassette.position.copy(CASS_HOME); bay.add(cassette); }
 bay.rotation.y = BAY_AZ; vehicle.parts.csm.add(bay);
-function evaReset(done) { EVA.state = done ? 'done' : 'in'; EVA.s = 0; EVA.v = 0; EVA.auto = false; EVA.has = done; EVA.hand = null; EVA.hintT = 0; EVA.grab = {}; bay.add(cassette); cassette.position.copy(CASS_HOME); cassette.rotation.set(0, 0, 0); cassette.visible = !done; FADE.target = 0; }
+function evaReset(done) { proc.cancel(); cabin.setHelmets(false); EVA.suitT = 0; EVA.doneAt = -1; EVA.state = done ? 'done' : 'in'; EVA.s = 0; EVA.v = 0; EVA.auto = false; EVA.has = done; EVA.hand = null; EVA.hintT = 0; EVA.grab = {}; bay.add(cassette); cassette.position.copy(CASS_HOME); cassette.rotation.set(0, 0, 0); cassette.visible = !done; FADE.target = 0; }
 /* A, a grip or the stick: out of the hatch; outside, A goes by itself (to the bay, and back when you have the film) */
-function evaGo() { if (EVA.state === 'wait') { EVA.state = 'leaving'; FADE.target = 1; card.hide(); } else if (EVA.state === 'out') EVA.auto = !EVA.auto; }
+function evaGo() { if (EVA.state === 'suit') proc.auto(); else if (EVA.state === 'wait') { EVA.state = 'leaving'; FADE.target = 1; card.hide(); } else if (EVA.state === 'out') EVA.auto = !EVA.auto; }
 /* a grip by the cassette takes it (k: which hand; none: the right) */
 const _cw = new THREE.Vector3(), _hw2 = new THREE.Vector3();
 function evaTake(k) {
@@ -269,8 +273,18 @@ function placeEVA() {
   rig.position.copy(_rp).applyQuaternion(attRel); rig.quaternion.copy(attRel).multiply(_rq);
 }
 function updateEVA(dt, xr) {
-  /* the time has come: the cabin is let down, the hatch opened; the clock waits for you */
-  if (EVA.state === 'in' && S.t >= EVA_T && S.t < EVA_T + 30 && S.running) { EVA.state = 'wait'; EVA.hintT = 0; cue('hatch'); sound.thump(0.3, 0.3, 500); if (OUT.want) OUT.want = false; }
+  /* The time has come; the clock waits for you. First you suit up: the SUIT switches on your panel light one after
+   * another, and you flip them (A does it). Then the helmets are on, the cabin is let down, and the hatch opened
+   * (it stood open over bare heads: owner's headset test). */
+  if (EVA.state === 'in' && S.t >= EVA_T && S.t < EVA_T + 30 && S.running) {
+    EVA.state = 'suit'; EVA.hintT = 0; if (OUT.want) OUT.want = false; cue('suit');
+    proc.start('SUIT', 4, () => { cabin.setHelmets(true); EVA.suitT = 4; cue('suited'); sound.thump(0.25, 1.6, 300); });
+    toast.say('Suit up: touch the lit SUIT switches on your panel, one after another (A does it for you)', 9, true);
+  }
+  if (EVA.state === 'suit') {
+    if (proc.active) { EVA.hintT += dt; if (EVA.hintT > 16) { EVA.hintT = 0; toast.say('The lit switch on the panel before you: touch it with a fingertip. Or press A', 8, true); } }
+    else { EVA.suitT -= dt; if (EVA.suitT <= 0) { EVA.state = 'wait'; EVA.hintT = 0; cue('hatch'); sound.thump(0.3, 0.3, 500); } }
+  }
   if (EVA.state === 'wait') {
     EVA.hintT += dt;
     if (xr && STICK.y < -0.4) evaGo();
@@ -278,7 +292,8 @@ function updateEVA(dt, xr) {
       if (EVA.hints >= 2) card.show({ title: 'Out of the hatch, to the instrument bay', sub: 'A  \u00b7  or a grip  \u00b7  or the left stick forward' }, 12); }
   }
   if (EVA.state === 'leaving' && FADE.k > 0.92) { EVA.state = 'out'; EVA.s = 0; EVA.v = 0; FADE.target = 0; cabin.setCheat(false); cue('out'); if (xr) seat(); }
-  if (EVA.state === 'entering' && FADE.k > 0.92) { EVA.state = 'done'; FADE.target = 0; cassette.visible = false; cue('in'); sound.thump(0.4, 0.3, 500); if (xr) SEAT.pending = 1; S.snap = true; }
+  if (EVA.state === 'entering' && FADE.k > 0.92) { EVA.state = 'done'; EVA.doneAt = S.t; FADE.target = 0; cassette.visible = false; cue('in'); sound.thump(0.4, 0.3, 500); if (xr) SEAT.pending = 1; S.snap = true; }
+  if (EVA.state === 'done' && EVA.doneAt >= 0 && S.t > EVA.doneAt + 25) { EVA.doneAt = -1; cabin.setHelmets(false); }          /* the cabin is up again: helmets off */
   if (EVA.state !== 'out') return;
   /* along the rail: a gripping hand stays where it took hold (you move the other way); the stick; or by itself */
   let moved = false;
@@ -312,7 +327,7 @@ function placeOutside(w) {
 }
 function updateOutside(dt) {
   if (OUT.want !== OUT.on) { FADE.target = 1; if (FADE.k > 0.9) { OUT.on = OUT.want; FADE.target = 0; } }
-  else if (FADE.target === 1 && FADE.k > 0.9) FADE.target = 0;
+  else if (FADE.target === 1 && FADE.k > 0.9 && EVA.state !== 'leaving' && EVA.state !== 'entering') FADE.target = 0;          /* (the walk's own fades are its own: this line ended them a moment before they were done, at the headset's frame rate, and you never left your couch: owner's headset test) */
   if (!OUT.on) return;
   let ax = 0, ay = 0, ey = 0;
   if (renderer.xr.isPresenting) { ax = STICK.x; ay = STICK.y; ey = STICK.ry; }
@@ -328,7 +343,7 @@ const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.045), new THREE.Mesh
   x.fillStyle = '#fff'; x.font = 'bold 46px Arial'; x.textAlign = 'center'; x.fillText('Not now', 128, 64);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })() }));
 sign.renderOrder = 1000; sign.visible = false; scene.add(sign);
-const _tip = new THREE.Vector3(), _loc = new THREE.Vector3();
+const _tip = new THREE.Vector3(), _loc = new THREE.Vector3(), tips = { left: null, right: null };
 function updateHands(dt) {
   const s = renderer.xr.getSession(); if (!s) return;
   let touched = null;
@@ -341,7 +356,8 @@ function updateHands(dt) {
     const onCrew = !OUT.on && !outside1 && handOnCrew(m, [cabin.life], gp, who => chat && chat.touch(who));
     m.userData.tip.getWorldPosition(_tip);
     let hit = false;
-    if (!OUT.on && !outside1) for (const pnl of cabin.panels) { _loc.copy(_tip); pnl.mesh.worldToLocal(_loc); if (Math.abs(_loc.x) < pnl.w / 2 && Math.abs(_loc.y) < pnl.h / 2 && Math.abs(_loc.z) < 0.03) hit = true; }
+    tips[h] = cabin.group.worldToLocal((tips[h] || new THREE.Vector3()).copy(_tip));          /* your fingertip, in the cabin's frame (procedure.js) */
+    if (!OUT.on && !outside1 && !proc.active) for (const pnl of cabin.panels) { _loc.copy(_tip); pnl.mesh.worldToLocal(_loc); if (Math.abs(_loc.x) < pnl.w / 2 && Math.abs(_loc.y) < pnl.h / 2 && Math.abs(_loc.z) < 0.03) hit = true; }
     m.userData.warn = hit || onCrew ? 0.4 : Math.max(0, (m.userData.warn || 0) - dt); m.userData.setTint(m.userData.warn > 0);
     if (hit) { touched = _tip.clone(); if (!m.userData.buzzed) { gp.hapticActuators?.[0]?.pulse?.(0.5, 60).catch?.(() => {}); m.userData.buzzed = true; } } else m.userData.buzzed = false;
   }
@@ -391,7 +407,7 @@ function frame(now) {
   /* the clock: warp stops short of the walk outside and drops to real time; while the hatch stands open it waits */
   if (S.running && !S.still && !S.ended) {
     if (EVA.state !== 'in' && EVA.state !== 'done') S.warp = 1;
-    if (EVA.state !== 'wait') S.t = Math.min(END, clock.advance(S, dt));
+    if (EVA.state !== 'wait' && EVA.state !== 'suit') S.t = Math.min(END, clock.advance(S, dt));
     if (EVA.state === 'in' && prevT < EVA_T && S.t > EVA_T) S.t = EVA_T;          /* (not past it) */
     if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 10', sub: 'The Earth fills the window. Re-entry comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
   }
@@ -437,11 +453,12 @@ function frame(now) {
   if (chat) chat.update(dt, { crew: ['CMP', 'LMP'], where: ['any', 'space', 'earth'], quiet: S.running && !S.ended && !OUT.on && (EVA.state === 'in' || EVA.state === 'done') && !clock.inHold(S.t) && !(radio && radio.current(S.t)) });
   updateOutside(dt);
   updateHands(dt);
+  proc.update(dt, xr ? tips : null);
   cabin.update(now / 1000, { viewer: camera, radio: combineRadios(radio, chat && chat.radio) });
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 10. A (N on this screen): back to the chapters.' : EVA.state === 'wait' ? 'The hatch is open: F to go out. Outside: arrow keys along the rail, F by itself, G takes the cassette.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 10. A (N on this screen): back to the chapters.' : EVA.state === 'suit' ? 'Suit up: F flips the lit SUIT switches for you.' : EVA.state === 'wait' ? 'The hatch is open: F to go out. Outside: arrow keys along the rail, F by itself, G takes the cassette.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);
@@ -500,5 +517,5 @@ if (Q.has('shot')) document.body.classList.add('invr');
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok && $('vr')) { $('vr').disabled = false; $('vr').textContent = 'Enter VR'; } });
 })().catch(e => { console.error(e); if ($('err')) $('err').textContent = 'Could not start: ' + e.message; });
 
-window.__home = { S, OUT, START, END, EVA_T, EVA, RAIL_LEN, bay, cassette, renderer, camera, rig, head, cabin, outside, vehicle, hands, SEAT, afterFrame: null, setTime, get radio() { return radio; }, where, FADE, evaGo, evaTake, att,
+window.__home = { S, OUT, START, END, EVA_T, EVA, RAIL_LEN, bay, cassette, renderer, camera, rig, head, cabin, outside, vehicle, hands, SEAT, afterFrame: null, setTime, get radio() { return radio; }, where, FADE, evaGo, evaTake, att, proc, tips,
   ctl, wrist, toast, badge, clock, get chat() { return chat; }, floaters, settings, info };

@@ -981,6 +981,30 @@ Chapter 10, `homeward.html` (`src/homeward.js`, `src/home-space.js`, `tools/scri
 - Not there yet: no suit, helmet or umbilical is drawn on you (your hands are the cabin's); the hatch does not
   show as open from outside; one cassette of the real three; the Moon's pull is not in the flight.
 
+### 12.24 The owner's notes on chapter 10 and the cabin (26 November 2026, Fable)
+
+1. "The red LED display in the cockpit cannot show the number when it's great enough, and also sits awkwardly on top
+   of some controls." The Command Module's clock was laid out for the launch's minutes and seconds. It now shows
+   hours:minutes:seconds after the first hundred minutes, wider, in a bezel of its own (`makeTimer`, #152).
+2. "Before the moonwalk, the hatch is open when astronauts don't have helmets on." And: "the 'Not now' suggests that
+   there is a 'now', and the panel right in front of me says 'suit' ... They could light up in the sequence they
+   need to be flipped." Both answered by one thing, `src/procedure.js`: at the walk's time the SUIT switches of
+   the group nearest your couch (`cabin.controls.group('SUIT')`) light one after another with an amber ring; a
+   fingertip on the lit one flips it, with a click in the hand; A does the rest. When they are done the helmets go
+   on, the cabin is let down, and only then is the hatch opened. The panel's art is random but seeded, and every
+   switch now knows its group's name, so other procedures can be given the same way (the owner: "this does not need
+   to happen often").
+3. "I cannot move - the stick is not working, so I cannot approach the hatch." A fault of timing. Going out is a
+   fade to black that ends at 0.92; `updateOutside` turned any fade back at 0.9. At the emulator's few frames a
+   second the fade stepped over that gap and the test passed; at 72 frames a second it never got through.
+   **A test at two frames a second proves nothing about anything that depends on small steps**: such things need
+   a check that sets the state by hand (the test now puts the fade at 0.905 and looks at the next frame).
+   Chapters 4 and 8 had the guard; chapter 10 did not.
+4. "Can the pen, paper and other objects please not pass through the astronauts - they should bounce off."
+   `floaters.js` now finds the crew's bodies (the spheres cabin.js gives each crewman for touching, yours too)
+   and pushes a floating thing out of them, turning its speed back. It is the shared module, so every chapter with
+   the cabin has it.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

@@ -18,10 +18,11 @@ assistant can only test on the flat screen and in an emulator.
 
 ## 2. Where it stands
 
-Live on main after PR #150 (chapters 7 to 9; the Brokild VR page's card), with PR #151 (chapter 10, the coast home
-and the walk outside, 12.23 of `MOON-DESIGN.md`) open at the time of writing. All moon modules carry `?v=36`
-(`prints.js` its own `?v=4`, `lm.js` and `liftoff.js` `?v=37` in their pages); `moon.html` and `surface.html` load
-`src/main.js?v=29`. Check `git log` for what has landed since. The owner gave a standing yes on 26 November to
+Live on main after PR #152 (chapters 7 to 10; the Brokild VR page's card; the cabin's clock), with PR #153 (the
+owner's notes on chapter 10 and the cabin, 12.24 of `MOON-DESIGN.md`: suiting up at the panel, the way out of the
+hatch, things that float bouncing off the crew) open at the time of writing. All moon modules carry `?v=38`
+(`prints.js` its own `?v=4`, `lm.js` and `liftoff.js` `?v=39` in their pages); `moon.html` and `surface.html` load
+`src/main.js?v=31`. Check `git log` for what has landed since. The owner gave a standing yes on 26 November to
 merge each finished, tested piece of the journey home and go on. **A new chapter goes in three places**: the Moon
 app's `index.html`, the card on `vr-apps/index.html`, and `sitemap.xml` with the list in `tools/sync-site.js`.
 
@@ -139,6 +140,9 @@ ids start with `sf`. Run `pwsh -File tools/tts.ps1 surface.json`, then `git chec
   looked right. Anything drawn into a texture in more than one pass must not be multisampled, and must be checked
   in the XR emulator, not only flat.
 - A thing placed from `camera.matrixWorld` inside `frame()` uses last frame's pose; place it in `render()`.
+- The emulator runs at about two frames a second, with every step capped at 0.1 s. A thing that depends on small
+  steps (a fade watched for crossing a value, a timer running out between two checks) can pass there and fail in
+  the headset. Test such things by setting the state by hand and looking at the next frame.
 - Clipping planes are in world space. The LM stands tilted on the ground: a plane meant to cut it along its own
   deck must be made from its world matrix (`setClips` in `main.js`), not from a height.
 - State set on the way through a chapter must be reset where the chapter is started again on the same page
@@ -158,7 +162,7 @@ node test/egress.test.cjs <folder for pictures>    # chapter 6, 39 checks, about
 node test/liftoff.test.cjs <folder for pictures>   # chapter 7, 19 checks, about 6 minutes
 node test/rendezvous.test.cjs <folder>             # chapter 8, 17 checks, about 10 minutes
 node test/leaving.test.cjs <folder>                # chapter 9, 14 checks, about 5 minutes
-node test/homeward.test.cjs <folder>               # chapter 10, 15 checks, about 6 minutes
+node test/homeward.test.cjs <folder>               # chapter 10, 20 checks, about 7 minutes
 node test/xr.test.cjs                              # 12
 node test/lm.test.cjs                              # 14
 node test/descent.test.cjs                         # 20
