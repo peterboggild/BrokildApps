@@ -312,6 +312,33 @@
       "delay": null
     },
     {
+      "id": "sfg12",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. The camera is on you both. Tell us when you are ready, and we will roll.",
+      "dur": 6.01,
+      "cue": "film-ready",
+      "delay": null
+    },
+    {
+      "id": "sfg13",
+      "t": null,
+      "who": "LMP",
+      "text": "You have the bag. I'll go up first. Last man on the Moon, that's you.",
+      "dur": 4.03,
+      "cue": "lmp-up",
+      "delay": null
+    },
+    {
+      "id": "sfg14",
+      "t": null,
+      "who": "LMP",
+      "text": "I'm in. The ladder is yours. Come on up.",
+      "dur": 2.57,
+      "cue": "lmpin",
+      "delay": null
+    },
+    {
       "id": "sfa01",
       "t": null,
       "who": "LMP",

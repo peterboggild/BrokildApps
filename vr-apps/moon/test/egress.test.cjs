@@ -8,8 +8,10 @@
  * way out (and only along it); A goes on by itself, through the hatch, over the porch, down the ladder, the drop to
  * the pad, onto the ground; the walk is then yours, standing on the terrain beyond the footpad with two prints;
  * both eyes drawn inside and outside; the Lunar Module Pilot then follows you out and down and moves about; the radio
- * answers; the flag, the rover, a sample, the film's motion kept, the sample bag; from the ground you climb back up
- * into the cabin; he is aboard, the lift-off, the finale's console and film; no errors. */
+ * answers; your gloves dim in the LM's shadow; the flag, the rover, a sample, the film (nothing kept until you say
+ * so, then twelve seconds), the sample bag; he goes up the ladder first and the ladder is his meanwhile; from the
+ * ground you climb back up into the cabin; the lift-off (the LM's shadow in two), the finale's console and film
+ * (the valley, the flag, the rock, the wave, the lift-off); no errors. */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright-core');
@@ -120,6 +122,26 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     return { lm: +Math.hypot(a[0] - c.x, a[1] - c.z).toFixed(2), man: +Math.hypot(b[0] - L.pos.x, b[1] - L.pos.z).toFixed(2) };
   });
   ok('the LM and the other astronaut are solid', hit.lm > 2.4 && hit.man > 0.7, JSON.stringify(hit));
+  /* your gloves: in the Sun, and in the LM's shadow (found by asking the shadow's own picture round the LM) */
+  const dim = await p.evaluate(async () => {
+    const o = __moon, frame = () => new Promise(r => { o.afterFrame = r; }), c = o.lm.position, V = c.constructor, was = o.S.pos.clone();
+    const probe = (x, z, want) => { const y = o.moon.heightAt(x, z); return [0.9, 1.3, 1.7].every(h => [-0.4, 0, 0.4].every(d => Math.abs(o.lmShadow.lit(new V(x + d, y + h, z + d)) - want) < 0.05)); };
+    let sun = null, at = null;
+    for (let a = 0; a < 6.28 && !sun; a += 0.3) { const x = c.x + Math.sin(a) * 22, z = c.z + Math.cos(a) * 22; if (probe(x, z, 1)) sun = [x, z]; }
+    if (!sun) return { sun };
+    o.S.pos.set(sun[0], 0, sun[1]); for (let k = 0; k < 14; k++) await frame();
+    const sunny = [o.hands.left.userData.lit, o.hands.right.userData.lit].map(v => +v.toFixed(2));
+    for (let r = 8; r <= 14 && !at; r += 2) for (let a = 0; a < 6.28 && !at; a += 0.1) {
+      const x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
+      if (probe(x, z, 0)) at = [x, z];
+    }
+    if (!at) return { at };
+    o.S.pos.set(at[0], 0, at[1]); for (let k = 0; k < 14; k++) await frame();
+    const shade = [o.hands.left.userData.lit, o.hands.right.userData.lit], col = o.hands.left.userData.litF;
+    o.S.pos.copy(was); for (let k = 0; k < 3; k++) await frame();
+    return { at: at.map(v => +v.toFixed(1)), sunny, shade: shade.map(v => +v.toFixed(2)), col: +col.toFixed(2) };
+  });
+  ok("your gloves: lit in the Sun, dimmed in the LM's shadow", !!dim.at && dim.sunny.every(v => v > 0.9) && dim.shade.every(v => v < 0.3) && dim.col < 0.55, JSON.stringify(dim));
   /* the radio: X held and let go, and someone answers */
   await p.waitForFunction(() => __moon.radio.ready, null, { timeout: 120000 });
   await p.evaluate(() => { __dev.controllers.left.updateButtonValue('x-button', 1); });
@@ -179,9 +201,14 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.evaluate(() => { const o = __moon, R = o.ops.R, v = o.lm.localToWorld(new o.rig.position.constructor(4, 0, 26)); o.ops.jump('film-go'); R.x = v.x; R.z = v.z; R.yaw = Math.atan2(-(o.lm.position.x - v.x), -(o.lm.position.z - v.z)); o.S.pos.set(v.x + 2.5, 0, v.z + 2.5); o.lmp.S.rate = 4; });
   await p.waitForFunction(() => __moon.ops.st.step === 'film-pose' && __moon.lmp.arrived, null, { timeout: 600000 });
   await p.evaluate(() => { const o = __moon, F = o.ops.F; o.S.pos.set(F.me[0], 0, F.me[1]); });
+  await p.waitForFunction(() => __moon.ops.F.canGo, null, { timeout: 600000 });
+  await frames(6);
+  const idle = await p.evaluate(() => ({ step: __moon.ops.st.step, n: __moon.ops.rec.frames.length, a: __moon.ops.button('a') }));
+  await p.waitForFunction(() => __moon.ops.st.step === 'film-rec', null, { timeout: 600000 });
   await p.waitForFunction(() => __moon.ops.st.step === 'load', null, { timeout: 600000 });
-  const kept = await p.evaluate(() => ({ n: __moon.ops.rec.frames.length, len: +__moon.ops.rec.length.toFixed(1) }));
-  ok('the film: the motion of you both is kept', kept.n > 20 && kept.len > 7, JSON.stringify(kept));
+  const kept = await p.evaluate(() => { const r = __moon.ops.rec, a = r.sample(r.length / 2, new Float32Array(48), { yaw: [3, 23, 41], quat: [5, 10], hold: [42, 44] });
+    return { n: r.frames.length, len: +r.length.toFixed(1), q: +Math.hypot(a[5], a[6], a[7], a[8]).toFixed(3), legs: +a[15].toFixed(2), him: +a[27].toFixed(2) }; });
+  ok('the film: nothing is kept until you say so (A); then the count, and twelve seconds of you both', idle.step === 'film-pose' && idle.n === 0 && idle.a && kept.n > 20 && kept.len > 10 && Math.abs(kept.q - 1) < 0.01, JSON.stringify(idle) + ' ' + JSON.stringify(kept));
   /* the sample bag from the back of the rover */
   const bagged = await p.evaluate(async () => {
     const o = __moon, R = o.ops.R, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; });
@@ -191,8 +218,18 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     return o.ops.F.bag;
   });
   ok('the sample bag: a grip at the back of the rover', bagged);
+  /* he goes up first: to the footpad, up the ladder, in over the porch; the ladder is not yours meanwhile */
+  const busy = await p.evaluate(() => ({ boarding: __moon.lmp.boarding, free: __moon.ops.ladderFree }));
+  const went = {};
+  for (let k = 0; k < 3000; k++) {
+    const ph = await p.evaluate(() => ({ p: __moon.lmp.S.phase, in: __moon.lmp.aboard, y: __moon.lmp.S.pos.y - __moon.lm.position.y }));
+    went[ph.p] = Math.max(went[ph.p] ?? -9, +ph.y.toFixed(1));
+    if (ph.in) break;
+    await p.waitForTimeout(200);
+  }
+  ok('he goes up first: the footpad, the jump, the ladder, the porch, and in (the ladder his meanwhile)', busy.boarding && !busy.free && 'hopon' in went && 'up' in went && 'crawlin' in went && await p.evaluate(() => __moon.lmp.aboard && __moon.ops.ladderFree && !__moon.lmp.on), JSON.stringify(went));
   /* back up: by the footpad a grip puts you on the pad at the ladder; A climbs, into the cabin */
-  await p.evaluate(() => { const o = __moon, v = o.lm.localToWorld(new o.rig.position.constructor(0, 0, 5.5)); o.lmp.S.rate = 0; o.lmp.S.pos.x += 30; o.S.pos.set(v.x, 0, v.z); });
+  await p.evaluate(() => { const o = __moon, v = o.lm.localToWorld(new o.rig.position.constructor(0, 0, 5.5)); o.S.pos.set(v.x, 0, v.z); });
   await frames(4);
   const near = await p.evaluate(() => __moon.atLadder());
   await p.evaluate(() => { __dev.controllers.right.updateButtonValue('squeeze', 1); });
@@ -218,7 +255,17 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await p.waitForFunction(() => __moon.finale, null, { timeout: 900000 });
   const up2 = await p.evaluate(() => ({ alt: +__moon.ops.F.alt.toFixed(0), door: __moon.egress.E.door, y: +(__moon.lm.position.y).toFixed(1) }));
   ok('the hatch shut, the lift-off to 50 m, and the view goes to the console', up2.alt >= 50 && up2.door === 0, JSON.stringify(up2));
+  /* the film's far pass is in the picture (the sky is drawn, not left empty: the mountains and stars were lost in the headset) */
+  await p.waitForFunction(() => __moon.ops.F.parts && __moon.ops.F.part === 'pan' && __moon.ops.F.on === 1, null, { timeout: 900000 });
+  const skyA = await p.evaluate(() => new Promise(r => { __moon.afterFrame = () => { const px = new Uint8Array(4); __moon.renderer.readRenderTargetPixels(__moon.filmRT, 400, 585, 1, 1, px); r(px[3]); }; }));
+  ok("the film's sky and far ground are drawn", skyA === 255, 'alpha ' + skyA);
+  await p.waitForFunction(() => __moon.ops.F.parts && __moon.ops.F.part === 'wave' && __moon.ops.F.on === 1, null, { timeout: 900000 });
+  const parts = await p.evaluate(() => __moon.ops.F.parts.map(q => q.k + ':' + q.d.toFixed(0)));
+  const whole = await p.evaluate(() => __moon.shadows);
   await p.waitForFunction(() => __moon.ops.F.part === 'liftoff' && __moon.ops.F.on === 1, null, { timeout: 900000 });
+  await p.waitForFunction(() => __moon.shadows.split, null, { timeout: 900000 });
+  const two = await p.evaluate(() => __moon.shadows);
+  ok("the film's scenes in order; the LM's shadow whole while it stands, in two once the ascent stage is off", parts[0].startsWith('pan') && parts.some(q => q.startsWith('wave:12')) && parts[parts.length - 1].startsWith('liftoff') && whole.whole && !whole.split && two.split && two.asc && two.desc && !two.whole, JSON.stringify(parts) + ' ' + JSON.stringify(whole) + ' ' + JSON.stringify(two));
   const e5 = await eyes2();
   ok('the finale: the console and its film, both eyes drawn', e5.every(v => v > 4 && v < 250), e5.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-finale.png') });

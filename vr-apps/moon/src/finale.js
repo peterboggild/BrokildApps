@@ -110,13 +110,32 @@ export function makeConsole(filmTexture) {
 }
 
 /* motion kept for the film: frames of numbers at their times; at(t) gives the frame at or before t */
-export function makeRecorder() {
+export function makeRecorder(max = 0) {
   const frames = [];
   return {
     frames,
-    get length() { return frames.length ? frames[frames.length - 1].t : 0; },
+    /* seconds kept (max > 0: only the last max seconds are, the older frames fall away) */
+    get length() { return frames.length ? frames[frames.length - 1].t - frames[0].t : 0; },
     clear() { frames.length = 0; },
-    add(t, data) { frames.push({ t, data: Float32Array.from(data) }); },
-    at(t) { if (!frames.length) return null; let i = 0; while (i < frames.length - 1 && frames[i + 1].t <= t) i++; return frames[i].data; }
+    add(t, data) { frames.push({ t, data: Float32Array.from(data) }); if (max) while (frames.length > 2 && t - frames[0].t > max) frames.shift(); },
+    /* the frame at t seconds from the first, as it was kept */
+    at(t) { if (!frames.length) return null; t += frames[0].t; let i = 0; while (i < frames.length - 1 && frames[i + 1].t <= t) i++; return frames[i].data; },
+    /* the motion at t seconds from the first, between the two frames about it: every number blended, spec.yaw the
+     * short way round, spec.quat (each the first of four numbers) as rotations, spec.hold as they were (not blended) */
+    sample(t, out, spec = {}) {
+      if (!frames.length) return null; t += frames[0].t;
+      let i = 0; while (i < frames.length - 2 && frames[i + 1].t <= t) i++;
+      const A = frames[i], B = frames[Math.min(frames.length - 1, i + 1)], a = A.data, b = B.data;
+      const k = B.t > A.t ? Math.max(0, Math.min(1, (t - A.t) / (B.t - A.t))) : 0;
+      for (let n = 0; n < a.length; n++) out[n] = a[n] + (b[n] - a[n]) * k;
+      for (const n of spec.yaw || []) { const d = Math.atan2(Math.sin(b[n] - a[n]), Math.cos(b[n] - a[n])); out[n] = a[n] + d * k; }
+      for (const n of spec.quat || []) {
+        const s = a[n] * b[n] + a[n + 1] * b[n + 1] + a[n + 2] * b[n + 2] + a[n + 3] * b[n + 3] < 0 ? -1 : 1; let l = 0;
+        for (let q = 0; q < 4; q++) { out[n + q] = a[n + q] + (s * b[n + q] - a[n + q]) * k; l += out[n + q] * out[n + q]; }
+        l = Math.sqrt(l) || 1; for (let q = 0; q < 4; q++) out[n + q] /= l;
+      }
+      for (const n of spec.hold || []) out[n] = a[n];
+      return out;
+    }
   };
 }

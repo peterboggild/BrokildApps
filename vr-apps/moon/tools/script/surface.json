@@ -44,6 +44,9 @@
     { "id": "sfg09", "cue": "go-liftoff", "who": "CAPCOM", "text": "Challenger, Houston. You are go for lift-off. The rover's camera is on you." },
     { "id": "sfg10", "cue": "count", "who": "LMP", "text": "Ten seconds. Abort stage. Engine arm, ascent. Three. Two. One. Ignition." },
     { "id": "sfg11", "cue": "liftoff", "who": "LMP", "text": "We're on our way, Houston!" },
+    { "id": "sfg12", "cue": "film-ready", "who": "CAPCOM", "text": "Challenger, Houston. The camera is on you both. Tell us when you are ready, and we will roll." },
+    { "id": "sfg13", "cue": "lmp-up", "who": "LMP", "text": "You have the bag. I'll go up first. Last man on the Moon, that's you." },
+    { "id": "sfg14", "cue": "lmpin", "who": "LMP", "text": "I'm in. The ladder is yours. Come on up." },
 
     { "id": "sfa01", "cue": "ack", "who": "LMP", "text": "Roger that." },
     { "id": "sfa02", "cue": "ack", "who": "LMP", "text": "Copy." },

@@ -444,23 +444,48 @@ What there is to do once you are both down (chapter 6 only).
      with your hand over a rock within a long arm lifts it to your hand; carry it to the back of the rover and let
      go there, and it is in the bags, weighed (9 to 17 kg each; 100 kg wanted). Let go elsewhere and it falls.
   2. *The film*: park the rover 20 to 30 m from the LM and step off. The camera on its mast turns to the LM; he goes
-     to stand before it and calls you; stand by him, face the rover and wave. Nine seconds are kept: how you both
-     moved (33 numbers, 15 times a second), not pictures.
-  3. *Home*: a grip at the back of the rover gives you the sample bag; up the ladder with it, into the cabin. He
-     follows, the hatch swings shut and is locked, Houston gives the go, he counts, and the ascent stage lifts off
-     (1.75 m/s2 net), the dust blown out flat and the descent stage's foil torn loose.
+     to stand before it and calls you; stand by him. Nothing is kept until you say so: **A**, or a word on the
+     radio (X held and let go). Then "Recording in 3, 2, 1", a red dot with the seconds left for twelve seconds
+     (face the rover and wave, or whatever you like), and "Cut". The wrist panel says the same.
+  3. *Home*: a grip at the back of the rover gives you the sample bag. **He goes up first** (the Commander was the
+     last one on the Moon): round to the front of the LM if he is behind it, a hop onto the footpad, the jump for
+     the lowest rung, up the ladder, down on his knees over the porch and in through the hatch (`lmp.climb()`).
+     The ladder is his meanwhile ("Your crewmate goes up first"); when he calls that he is in, up with the bag,
+     into the cabin. The hatch swings shut and is locked, Houston gives the go, he counts, and the ascent stage
+     lifts off (1.75 m/s2 net), the dust blown out flat and the descent stage's foil torn loose.
   4. *The finale* (`src/finale.js`): at 50 m the view goes dark, and you are at a console in Mission Control: a
      picture of one, drawn in code (pale green cabinet, lamp buttons, number wheels; no room, no people), its tube
-     drawn large. It plays the film in muted colour with scan lines: the two of you waving, then the lift-off as
-     the rover's camera saw it, its operator a little behind as he was. Then: "You completed the first part of the
+     drawn large. It plays the film in muted colour with scan lines, a blink of black at each cut: the valley (a
+     slow turn that ends on the LM), the flag going up, a rock lifted and stowed, the two of you waving, then the
+     lift-off as the rover's camera saw it, its operator a little behind as he was. Then: "You completed the first part of the
      Apollo 17 mission. Have a safe trip back." A returns to the chapters.
-- **How the film is made**: nothing is recorded as video. The scene is drawn again from the rover's camera into a
-  640 x 480 texture (the view's own two passes), with the kept motion set on the whole suit that stands for you and
-  on him; the console's tube shows that texture through a small shader. If no wave was kept, he waves alone beside
-  a standing suit.
+- **How the film is made**: not pictures but motion, and the scene drawn again. Thirty times a second 48 numbers
+  are kept: where your suit stood, its turn and height, both arms and elbows as your hands had them, your legs and
+  waist, his place and whole pose, the flag (where, how far in, how far out), the rock in your hand. The flag's
+  scene and the first rock you stow are kept as they happen (the last 12 and 9 seconds of each); the wave when you
+  say so. Played back, the motion is blended between the kept frames (`makeRecorder().sample`) and set on the whole
+  suit that stands for you, on him, the flag, the rock and the rover where it stood then, and the scene is drawn
+  from a camera's place into an 800 x 600 texture (the view's own two passes; not multisampled, or the headset gives
+  up the first pass, the mountains and the sky, before the second): beyond the flag with the LM behind,
+  to the Sun's side of you and the rover, and the rover's own camera for the wave and the lift-off. It is the same
+  scene, so it shows what a camera there would have seen, movement for movement. Why not a video: frames from a
+  second camera would have to be drawn, read back and encoded in the headset while you play (frame rate), and the
+  result could only be coarser than this. Scenes that never happened are left out (no flag scene if you planted
+  none); with no wave kept, he waves alone beside a standing suit.
+- **Your own suit moves as you do** (`placeMe` in `main.js`; it is what your shadow, his visor and the film show).
+  Its height follows how tall you stand, slowly; your eyes lower than that is a crouch (the knees bend, the boots
+  stay under you), higher is a jump (the boots leave the ground); moving over the ground swings the legs in a
+  stride. The arms follow your hands as before. Not kept or shown: the fingers and the wrists' turn (the gloves
+  follow the forearms), and a bow from the waist (the suit moves under your head instead).
 - **The ascent stage** is the LM's model cut off below its joint by a clipping plane that rises with it; a second
-  model, cut off above, stays as the descent stage (`liftModel` in `main.js`). The LM's baked shadow stays whole
-  (not yet split).
+  model, cut off above, stays as the descent stage (`liftModel` in `main.js`). **The LM's shadow goes in two** with
+  it: at lift-off each stage's own silhouette is drawn once (`lm-shadow.js`: `bake` with the clipping plane); the
+  descent stage's stays, the ascent stage's is laid out again every frame further down-Sun (`lift(alt)`: a point
+  alt higher throws its shadow alt / tan(elevation) further), in the cabin's view and in the film alike. While the
+  film shows the LM standing, the whole shadow is back.
+- **Your gloves in the LM's shadow** are lit by the ground's glow only, like the rest of your suit (`dimHands`): the
+  shadow's kept picture is asked whether the Sun reaches each glove (two look-ups a frame, nothing drawn), and the
+  glove's colours are turned down, each glove as a whole with a short fade (no shadow edge across the fingers).
 - Viewer: `tools/suit.html?what=rover`, `?what=flag`, `?what=console&words`. Test: in `test/egress.test.cjs`.
 
 ## The stars

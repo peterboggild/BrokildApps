@@ -16,7 +16,7 @@
  *   const mr = makeMoonRadio({ toast, level: () => 0..1, onLMP: () => {} });
  *   mr.init()                 on a click or entering VR (browsers allow sound only then)
  *   mr.update(dt, { ptt, quiet, lmpOut })      every frame */
-import { makeRadio } from './radio.js?v=28';
+import { makeRadio } from './radio.js?v=29';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const NAME = { CAPCOM: 'Houston', LMP: 'Lunar Module Pilot' };
@@ -98,7 +98,7 @@ export function makeMoonRadio(o = {}) {
       if (!st.ptt && wasHeld) {
         click(900); micOn(false);
         if (held > 0.35 && radio) {
-          push('ack', { delay: 0.7 + Math.random() * 0.6, who: st.lmpOut && Math.random() < 0.65 ? 'LMP' : 'CAPCOM', avoid: lastAck, keep: 8 });
+          push('ack', { delay: 0.7 + Math.random() * 0.6, who: st.lmpOut && Math.random() < 0.65 ? 'LMP' : 'CAPCOM', avoid: lastAck, keep: 25 });        /* (it waits out whoever is speaking) */
           if (T - nextHeard > 40) push(next, { delay: 2.5, keep: 30 });
         }
       }

@@ -16,7 +16,7 @@
  *   rover.userData.bag       where the samples go (a point at the back)
  *   rover.userData.handle    the hand controller (a Group: it tips with the stick) */
 import * as THREE from 'three';
-import { Parts } from './lm-model.js?v=28';
+import { Parts } from './lm-model.js?v=29';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 export const ROVER = { TRACK: 1.83, BASE: 2.29, WHEEL_R: 0.41, LEN: 3.1 };

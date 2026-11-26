@@ -783,6 +783,37 @@ To judge in the headset: the whole run's length and pacing, whether the tongs' r
 framing from wherever the rover was parked, and the frame rate while the film plays (the valley is drawn a third
 time for it, small).
 
+### 12.16 The owner's notes on the finale, and what came of them (26 November 2026, Fable)
+
+The owner read the list of what was not done and asked why, then asked for it: "if you could make these adjustments
+it would be perfect". And of the film: that it is redrawn is fine, but "it would be important that waving or anything
+like that is also recorded, i.e. that it's an accurate scene reproduction, looking exactly as it would. Maybe video
+recording is easier? You decide. There must be a video to show in the console at the end." While it was being built
+he added: a message when the recording starts and ends, or a "ready" button; and more shots "as credit roll video,
+i.e. landscape, astronauts setting up the flag, picking up rocks etc."
+
+Decided and built:
+- The film stays motion drawn again, not a video: the same scene from a camera's place is what a camera would have
+  seen, and it costs nothing while you play. What was missing was how much of you was kept: arms only, 15 times a
+  second, unblended. Now 48 numbers 30 times a second, blended on playback: the arms as before, and the legs and
+  waist, which your suit now moves at all (a crouch, a jump, a stride).
+- Recording on your word: A or a radio transmission when you stand by him; a count of three; a red dot with the
+  seconds left; "Cut". Twelve seconds.
+- More scenes, in the order they happened: the valley, the flag going up, a rock lifted and stowed (both kept as
+  they happen, with the flag, the rock and the rover as they were), the wave, the lift-off.
+- He goes up the ladder first, as on Apollo 17 (the Commander was the last one on the Moon); the ladder is yours
+  when he is in.
+- The LM's shadow in two at lift-off; the gloves dimmed in the LM's shadow.
+- Found on the way: in the headset the film had lost its mountains, stars and sky since #139 (the film's texture was
+  multisampled, and its picture is given up between the far pass and the near one); it is a plain 800 x 600 texture
+  now, and the test looks for the sky. And an answer to your own transmission was dropped when someone spoke for more
+  than 8 s; it waits 25 s now.
+
+Still not done: the fingers and the wrists' turn in the film, a bow from the waist, his backpack through the hatch
+frame (the owner: "ok"), voices of the owner's own. To judge in the headset: whether a crouch and a jump look right
+in your shadow and in his visor, the stride of your own legs seen from above, the wait while he climbs (about 25 s
+from the footpad), the count and the red dot, each scene's framing in the film, the film's length (about a minute).
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
