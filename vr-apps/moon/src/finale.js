@@ -77,13 +77,22 @@ export function makeConsole(filmTexture) {
         vec2 q = abs(p) - vec2(0.80, 0.76); float edge = length(max(q, 0.0)) - 0.16;
         if (edge > 0.0) discard;
         vec2 uv = 0.5 + 0.5 * p * (1.0 + 0.04 * dot(p, p));
+        /* The picture came 380 000 km over a small dish, in 1972 (owner: "a small degree of noise and glitches").
+         * tb: the clock of the faults, twelve a second. Now and then a band of lines is torn sideways; the whole
+         * picture jitters a hair; a few lines drop out white; once in a while the signal sags into snow. */
+        float tb = floor(uT * 12.0);
+        float tear = step(0.88, hash(vec2(tb, 3.1))) * smoothstep(0.05, 0.0, abs(uv.y - hash(vec2(tb, 7.7))));
+        uv.x += tear * (hash(vec2(tb, floor(uv.y * 150.0))) - 0.5) * 0.07 + (hash(vec2(tb, 1.7)) - 0.5) * 0.0025;
+        float sag = step(0.965, hash(vec2(floor(uT * 5.0), 5.3)));
+        float drop = step(0.994 - 0.03 * sag, hash(vec2(floor(uv.y * 200.0), tb))) * step(hash(vec2(tb, floor(uv.y * 200.0) + 0.5)), uv.x + 0.4);
         vec3 c = texture2D(map, uv).rgb * uGain;
         c = c / (1.0 + c) * 1.35;                                   /* the scene is linear light: bring it into range */
         c = pow(c, vec3(1.0 / 2.2));
         float l = dot(c, vec3(0.3, 0.59, 0.11));
         c = mix(vec3(l), c, 0.42) * vec3(1.03, 1.0, 0.93);            /* muted, a little warm */
         c *= 0.9 + 0.1 * sin(uv.y * 3.14159 * 400.0);                 /* scan lines */
-        c += (hash(uv * 480.0 + uT) - 0.5) * 0.05;
+        c *= 1.0 - 0.07 * smoothstep(0.16, 0.0, abs(fract(uv.y + uT * 0.11) - 0.5));        /* a hum bar rolling up */
+        c = c * (1.0 - 0.22 * sag) + (hash(uv * 480.0 + uT) - 0.5) * (0.085 + 0.22 * sag) + drop * 0.38;
         c *= 1.0 - 0.35 * dot(p, p) * 0.5;
         c *= smoothstep(0.0, -0.04, edge) * uOn;
         gl_FragColor = vec4(c, 1.0);

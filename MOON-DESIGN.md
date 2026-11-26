@@ -864,6 +864,34 @@ From his headset run of chapter 4 (into the LM):
 4. "Right after docking I reset the view, and ended up outside the spacecraft." The headset's reset moves its
    origin; the seat was set from the old one. Every seated chapter now seats you again by itself when that happens.
 
+### 12.19 The owner's notes on the ending and the samples (26 November 2026, Fable)
+
+After #143 and #144 (chapter 4 started a second time on the same page kept the LM's hatch shut from the first, so
+no tunnel was drawn: fixed by resetting that state when you start from the couch) he played chapter 6 to its end:
+"I love the ending", with these notes.
+1. "I waved with both arms up, and that did not show." The arms were kept and played back (now a test: the
+   stand-in suit's upper arms point up in the film's wave scene). They could not be seen: the rover's camera stayed
+   at its wide setting, and from 20 to 30 m the two of you were a few millimetres tall on the tube. The camera now
+   zooms in during the wave, as the real one could (a 6:1 zoom lens): wide for two seconds, then in until you both,
+   arms up, fill most of the picture. Also: an arm whose hand the headset loses sight of (above or behind the head)
+   keeps its last pose for two seconds instead of dropping at once (`armLost` in `main.js`).
+2. "A bit of explanation, or speak from Houston, commenting on the videos." Houston speaks over each scene of the
+   film (`film-pan`, `film-flag`, `film-rock`, `film-wave`, `film-liftoff`, `film-end`; cued from `enter(p)`).
+3. "When the LM took off, I think it left with some floor boards from the lower part." Two faults. The cut between
+   the stages was level with the horizon, while the LM stands a little tilted, so a wedge of the descent stage's
+   deck went up with the ascent stage: the cut is now made in the LM's own frame (`setClips`). And the four plume
+   deflectors, which stand on the descent stage but above the joint, went up too, their braces cut: they are their
+   own group (`userData.descentTop`) and stay. The ascent stage has its engine's bell (`userData.ascentOnly`).
+4. "The other astronaut did not help collecting rocks." He does now (`help()` in `surface-ops.js`): while the rover
+   stands at the station he fetches the rock furthest from you, carries it to the bags, and goes for another.
+5. More on the radio about the samples, "because the first time I store a rock, I can't see if it is stored":
+   the first one, twenty kilograms, half, eighty with twenty to go; a stowed rock is also said on the screen
+   whatever the messages' setting, with a thump and a tremor in the hand.
+6. "When within 10 meter of the rock site, the radio can tell me this is it." `samples-at` is now said within ten
+   metres of the field's rocks, on the rover or off it, and says you can step off.
+7. "The video at the end can get a small degree of noise and glitches." The tube's shader has torn bands of lines,
+   a hair of jitter, white drop-out lines, a rolling hum bar and now and then a sag into snow.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

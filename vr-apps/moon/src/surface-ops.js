@@ -41,10 +41,10 @@
  *   ops.button('a')                       A pressed; true if it was for the rover
  *   ops.driving, ops.seat                 seated on the rover (the page then places the rig from ops.eye and ops.yaw) */
 import * as THREE from 'three';
-import { makeFlag } from './flag.js?v=31';
-import { makeRover, ROVER } from './rover.js?v=31';
-import { makeSamples } from './samples.js?v=31';
-import { makeRecorder } from './finale.js?v=31';
+import { makeFlag } from './flag.js?v=32';
+import { makeRover, ROVER } from './rover.js?v=32';
+import { makeSamples } from './samples.js?v=32';
+import { makeRecorder } from './finale.js?v=32';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const G = 1.62;
@@ -71,7 +71,7 @@ export function makeSurfaceOps(o) {
   const dust = o.makeDust(o.moon); group.add(dust.points);
   /* ------------------------------------------------------------ the missions */
   const _b = new THREE.Vector3();
-  const smp = makeSamples({ moon: o.moon, rig: o.rig, get toast() { return o.toast; }, step: o.step, bag: () => rover.localToWorld(_b.copy(rover.userData.bag)) }); group.add(smp.group);
+  const smp = makeSamples({ moon: o.moon, rig: o.rig, get toast() { return o.toast; }, step: o.step, stowed: () => { if (o.buzz) o.buzz(0.7, 140); }, bag: () => rover.localToWorld(_b.copy(rover.userData.bag)) }); group.add(smp.group);
   const rec = makeRecorder(), station = site(-34, 82), lmAt = site(0, 0);
   /* the boulders that make station 1 a boulder field: there from the start, to be seen from the LM */
   smp.boulders(station.x, station.z);
@@ -136,7 +136,7 @@ export function makeSurfaceOps(o) {
   function setStage() {
     const d = Math.max(1, Math.hypot(R.x - lmAt.x, R.z - lmAt.z)), k = 6.4 / d, sx = -(R.z - lmAt.z) / d, sz = (R.x - lmAt.x) / d;
     F.wave.set(lmAt.x + (R.x - lmAt.x) * k, 0, lmAt.z + (R.z - lmAt.z) * k); F.wave.y = o.moon.heightAt(F.wave.x, F.wave.z);
-    rover.updateMatrixWorld(true); rover.userData.camera.getWorldPosition(F.cam); F.tv.copy(F.cam);
+    settle(0, true); rover.updateMatrixWorld(true); rover.userData.camera.getWorldPosition(F.cam); F.tv.copy(F.cam);       /* (the rover where it stands now) */
     F.me = [F.wave.x - sx * 0.8, F.wave.z - sz * 0.8]; F.him = [F.wave.x + sx * 0.8, F.wave.z + sz * 0.8];
     F.look.set(F.wave.x, F.wave.y + 1.25, F.wave.z);
     /* the camera on its mast turns to it */
@@ -155,6 +155,42 @@ export function makeSurfaceOps(o) {
   function pose(a) {
     o.ghost.pose(a, 0); o.lmp.pose(a, 20);
     if (a[42] >= 0) { flag.visible = true; flag.position.set(a[38], a[39], a[40]); flag.rotation.y = a[41]; flag.userData.set(a[42]); flag.userData.unfurl(a[43]); }
+  }
+  /* Your crewmate collects too (he stood and watched: owner's headset test). While the rover stands at the station
+   * he goes to a rock (the one furthest from you: the near ones are yours), bends to it, carries it to the bags and
+   * comes back for another. H.s: idle, go, lift, carry, drop. */
+  const H = { s: 'idle', r: null, t: 4, n: 0 };
+  function helpStop(L) {
+    if (H.s === 'idle') return;
+    if (H.r && H.r.state === 'his') { H.r.state = 'fall'; H.r.vy = 0; }
+    H.s = 'idle'; H.r = null; H.t = 3; if (L && L.S.phase === 'roam') L.command(null);
+  }
+  function help(dt, L, head) {
+    const can = st.step === 'samples' && !R.driving && !smp.done && L && L.on && L.S.phase === 'roam' && Math.hypot(R.x - station.x, R.z - station.z) < 32;
+    if (!can) return helpStop(L);
+    H.t -= dt;
+    if (H.s === 'idle') {
+      if (H.t > 0) return;
+      let best = null, bd = -1;
+      for (const r of smp.rocks) { if (r.state !== 'ground') continue; const d = head ? Math.hypot(r.mesh.position.x - head.x, r.mesh.position.z - head.z) : 9; if (d > bd) { bd = d; best = r; } }
+      if (!best || bd < 2.5) { H.t = 2; if (L.S.cmd) L.command(null); return; }
+      const rx = best.mesh.position.x, rz = best.mesh.position.z, dx = L.S.pos.x - rx, dz = L.S.pos.z - rz, d = Math.hypot(dx, dz) || 1;
+      H.r = best; H.s = 'go'; H.t = 30 + d; L.command({ x: rx + dx / d * 0.5, z: rz + dz / d * 0.5, act: 'work', hold: 1e9, face: [rx, rz] }); say('lmp-rock');
+    } else if (H.s === 'go' || H.s === 'lift') {
+      if (H.r.state !== 'ground') { H.r = null; return helpStop(L); }                        /* (you took it) */
+      if (H.s === 'go') { if (L.arrived) { H.s = 'lift'; H.t = 2.4; } else if (H.t <= 0) { H.r = null; return helpStop(L); } }      /* (or he cannot get there) */
+      else if (H.t <= 0) {
+        H.r.state = 'his'; H.s = 'carry'; H.t = 60;
+        const B = rover.localToWorld(_b.copy(rover.userData.bag)), bx = Math.sin(R.yaw), bz = Math.cos(R.yaw);       /* (behind the rover) */
+        L.command({ x: B.x + bx * 0.85, z: B.z + bz * 0.85, act: 'hold', hold: 1e9, face: [B.x, B.z] });
+      }
+    } else {
+      /* the rock in his right hand */
+      const yaw = L.S.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), p = H.r.mesh.position;
+      _w.set(L.S.pos.x + fx * 0.42 + Math.cos(yaw) * 0.24, L.S.pos.y + 1.12, L.S.pos.z + fz * 0.42 - Math.sin(yaw) * 0.24); p.lerp(_w, Math.min(1, dt * 8));
+      if (H.s === 'carry') { if (L.arrived) { H.s = 'drop'; H.t = 1.1; } else if (H.t <= 0) return helpStop(L); }
+      else if (H.t <= 0) { smp.stow(H.r, true); H.n++; if (o.step) o.step(0.35); H.r = null; H.s = 'idle'; H.t = 2.5; }      /* (he stands there a moment, then goes for the next) */
+    }
   }
   const roverAt = p => { R.x = p[0]; R.z = p[1]; R.yaw = p[2]; settle(0, true); };
   const flagAsLeft = () => { if (!F.flagUp) return; flag.visible = true; flag.position.copy(st.flagAt); flag.rotation.y = flagYaw; flag.userData.set(1); flag.userData.unfurl(1); flagShadow.mesh.visible = true; };
@@ -186,6 +222,7 @@ export function makeSurfaceOps(o) {
   /* a scene begins: the rover, the flag and the rocks as they were then */
   function enter(p) {
     F.snap = true; F.rockI = -1;
+    if (o.radio) o.radio.cue('film-' + p.k, true, Math.max(4, p.d - 2));          /* Houston, over the pictures */
     for (const q of smp.rocks) q.mesh.visible = q.state !== 'stowed';
     flagAsLeft();
     if (p.c) { roverAt(p.c.rover); F.cam.copy(p.c.cam); F.rover = true; }
@@ -218,7 +255,11 @@ export function makeSurfaceOps(o) {
       F.actors = true; o.lift(0, false);
       const a = rec.length > 1 ? rec.sample(Math.min(tp, rec.length), _f, SPEC) : null, yaw = Math.atan2(-(F.cam.x - F.wave.x), -(F.cam.z - F.wave.z));
       if (a) pose(a); else { o.ghost.stand(F.me[0], F.me[1], yaw); L.canned(F.him[0], F.him[1], yaw, t); }
-      F.lookTo.set(F.wave.x, F.wave.y + 1.25, F.wave.z); F.fov = 27;
+      /* The camera zooms in on you both, as the rover's could (a 6:1 zoom lens): wide for two seconds, then in until
+       * the two of you, arms up, fill most of the picture. (From 20 to 30 m at its wide setting you were a few
+       * millimetres tall on the tube, and a wave with both arms "did not show": owner's headset test.) */
+      const dc = Math.max(6, Math.hypot(F.cam.x - F.wave.x, F.cam.z - F.wave.z)), tight = 2 * Math.atan(1.7 / dc) * 180 / Math.PI;
+      F.lookTo.set(F.wave.x, F.wave.y + 1.3, F.wave.z); F.fov = 27 + (Math.min(27, tight) - 27) * smooth((tp - 2) / 3);
     } else {
       F.actors = false; const tl = tp - 2.2, alt = tl > 0 ? 0.5 * 1.75 * tl * tl : 0;
       if (tl > 0 && !F.burst2) { F.burst2 = true; burst(); }
@@ -227,9 +268,10 @@ export function makeSurfaceOps(o) {
     }
     if (F.snap) { F.snap = false; F.look.copy(F.lookTo); } else F.look.lerp(F.lookTo, Math.min(1, dt * rate));
     F.caption = clamp((t - (F.total - 2)) / 2, 0, 1); F.end = t > F.total + 1;
+    if (t > F.total - 5 && o.radio) o.radio.cue('film-end', true, 12);
   }
   const api = {
-    group, flag, rover, R, st, F, smp, rec, clips, tr, station,
+    group, flag, rover, R, st, F, smp, rec, clips, tr, station, H, pose, SPEC,
     get solids() { return smp.solids; },
     /* where you are to go now, if anywhere: { name, x, z } (the wrist panel's arrow, the rover's navigation display) */
     target() {
@@ -370,8 +412,13 @@ export function makeSurfaceOps(o) {
         if (R.driving) F.odo += Math.abs(R.v) * dt;
         if (F.odo > 30) { st.step = 'samples'; smp.spawn(station.x, station.z); say('samples-go'); if (o.radio) o.radio.setNext('next-samples'); o.toast.say('Station 1: the boulder field ahead of the LM. The wrist panel shows the way', 8); }
       } else if (st.step === 'samples') {
-        if (!R.driving && Math.hypot(R.x - station.x, R.z - station.z) < 18) say('samples-at');
+        /* at the field (within ten metres of its rocks), on the rover or off it: this is the place */
+        { const n = smp.nearest(R.x, R.z); if ((n && n.d < 10) || Math.hypot(R.x - station.x, R.z - station.z) < 12) say('samples-at'); }
+        /* how it is going, on the radio: the first one, twenty kilos, half, twenty to go */
+        if (smp.mine >= 1) say('samples-first');
+        if (smp.kg >= 20 && smp.n >= 2) say('samples-20');
         if (smp.kg >= 50) say('samples-half');
+        if (smp.kg >= 80 && !smp.done) say('samples-80');
         if (smp.done) { st.step = 'film-go'; say('samples-done'); if (o.radio) o.radio.setNext('next-film'); }
       } else if (st.step === 'film-go') {
         const d = Math.hypot(R.x - lmAt.x, R.z - lmAt.z);
@@ -459,6 +506,7 @@ export function makeSurfaceOps(o) {
       R.bakeT += dt;
       if (R.bakeT > 0.15 && (Math.hypot(R.x - R.bx, R.z - R.bz) > 0.03 || Math.abs(R.yaw - R.byaw) > 0.01 || R.bx > 1e8)) { R.bakeT = 0; R.bx = R.x; R.bz = R.z; R.byaw = R.yaw; roverShadow.bake(o.renderer, rover, o.sun); }
       roverShadow.drape(R.x, R.y, R.z);
+      help(dt, L, ctx.head);
       dust.update(dt); sparks.update(dt); smp.update(dt);
     }
   };

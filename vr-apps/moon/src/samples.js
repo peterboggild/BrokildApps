@@ -29,7 +29,7 @@ export function makeSamples(o) {
     g.computeVertexNormals(); return g;
   };
   const big = new THREE.Group(); group.add(big);
-  const api = { group, rocks, big, solids: [], kg: 0, target: 100, at: null,
+  const api = { group, rocks, big, solids: [], kg: 0, target: 100, at: null, n: 0, mine: 0,
     get done() { return api.kg >= api.target; },
     /* The boulders: half a dozen, from knee-high to taller than you (the real stations of this valley were at
      * boulders that had rolled down from the massifs). They stand there from the start, so the field can be seen
@@ -67,10 +67,15 @@ export function makeSamples(o) {
       if (!best) return false;
       best.state = 'held'; best.hand = hand; if (o.step) o.step(0.4); return true;
     },
-    stow(r) {
-      r.state = 'stowed'; r.mesh.visible = false; api.kg = Math.round((api.kg + r.kg) * 10) / 10;
-      if (o.step) o.step(0.7);
-      o.toast.say('Sample stowed: ' + r.kg.toFixed(1) + ' kg. ' + Math.min(api.kg, 999).toFixed(0) + ' of ' + api.target + ' kg', 4);
+    /* into the bags, weighed. Yours: you are told so (the rock is simply gone from your hand: owner's headset test),
+     * by a word on the screen, a thump and a tremor in the hand (o.stowed). his: your crewmate's (state 'his' while
+     * he carries it: surface-ops.js). */
+    stow(r, his = false) {
+      r.state = 'stowed'; r.mesh.visible = false; api.kg = Math.round((api.kg + r.kg) * 10) / 10; api.n++;
+      if (his) return;
+      api.mine++;
+      if (o.step) o.step(0.7); if (o.stowed) o.stowed(r);
+      o.toast.say('In the bag: ' + r.kg.toFixed(0) + ' kg. ' + Math.min(api.kg, 999).toFixed(0) + ' of ' + api.target + ' kg', 4, true);
     },
     release(hand) {
       for (const r of rocks) if (r.state === 'held' && r.hand === hand) {

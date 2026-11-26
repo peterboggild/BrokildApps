@@ -225,8 +225,8 @@
       "id": "sfg02",
       "t": null,
       "who": "LMP",
-      "text": "Here we are. Look at these. Pick one up with the tongs and drop it in the bags at the back.",
-      "dur": 4.46,
+      "text": "This is it, the boulder field. Step off any time you like. Pick a rock up with the tongs and drop it in the bags at the back.",
+      "dur": 6.09,
       "cue": "samples-at",
       "delay": null
     },
@@ -336,6 +336,96 @@
       "text": "I'm in. The ladder is yours. Come on up.",
       "dur": 2.57,
       "cue": "lmpin",
+      "delay": null
+    },
+    {
+      "id": "sfg15",
+      "t": null,
+      "who": "LMP",
+      "text": "That's the first one, safely in the bag.",
+      "dur": 2.36,
+      "cue": "samples-first",
+      "delay": null
+    },
+    {
+      "id": "sfg16",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. That's twenty kilos already.",
+      "dur": 3.65,
+      "cue": "samples-20",
+      "delay": null
+    },
+    {
+      "id": "sfg17",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Eighty kilos in the bags. Just twenty to go.",
+      "dur": 4.77,
+      "cue": "samples-80",
+      "delay": null
+    },
+    {
+      "id": "sfg18",
+      "t": null,
+      "who": "LMP",
+      "text": "I'll take the far ones. The near ones are yours.",
+      "dur": 2.78,
+      "cue": "lmp-rock",
+      "delay": null
+    },
+    {
+      "id": "sfv01",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. While you climb, this is what we saw down here. The valley of Taurus-Littrow.",
+      "dur": 6.51,
+      "cue": "film-pan",
+      "delay": null
+    },
+    {
+      "id": "sfv02",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "There goes the flag.",
+      "dur": 1.42,
+      "cue": "film-flag",
+      "delay": null
+    },
+    {
+      "id": "sfv03",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "And the geology. Nice work with the tongs.",
+      "dur": 2.93,
+      "cue": "film-rock",
+      "delay": null
+    },
+    {
+      "id": "sfv04",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "And there you both are, waving at the whole world.",
+      "dur": 3.0,
+      "cue": "film-wave",
+      "delay": null
+    },
+    {
+      "id": "sfv05",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "And lift-off, as the rover's camera saw it.",
+      "dur": 2.94,
+      "cue": "film-liftoff",
+      "delay": null
+    },
+    {
+      "id": "sfv06",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Godspeed, Challenger. We will see you at home.",
+      "dur": 3.27,
+      "cue": "film-end",
       "delay": null
     },
     {
