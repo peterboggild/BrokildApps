@@ -9,7 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { makeCrewLife } from './crew-life.js?v=36';
+import { makeCrewLife } from './crew-life.js?v=37';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
@@ -156,7 +156,7 @@ export function makeCabin() {
   ];
   /* where the displays sit (panel, centre x, y, width, height, metres on the panel): the panel keeps those places
    * clear, a plain framed field with no switch under or across a display (simplified from the real layout) */
-  const DISPLAYS = { dsky: [1, -0.27, -0.12, 0.15, 0.17], timer: [1, 0, 0.26, 0.13, 0.035], ball: [0, 0.05, 0.1, 0.128, 0.128] };
+  const DISPLAYS = { dsky: [1, -0.27, -0.12, 0.15, 0.17], timer: [1, 0, 0.255, 0.22, 0.06], ball: [0, 0.05, 0.1, 0.128, 0.128] };
   /* (the DSKY is no longer shown in the Command Module: the owner found it broke the panel; its place is panel again) */
   const keepOut = [DISPLAYS.timer, DISPLAYS.ball].map(([k, x, y, dw, dh]) => {
     const p = panels[k], m = 0.025, du = p.u1 - p.u0;
@@ -197,8 +197,12 @@ export function makeCabin() {
   const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.17), new THREE.MeshBasicMaterial({ map: dsky.texture, ...NO_STENCIL }));
   dm.position.set(DISPLAYS.dsky[1], DISPLAYS.dsky[2], 0.006);      /* not added: see DISPLAYS */
   const timer = makeTimer();
-  const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.035), new THREE.MeshBasicMaterial({ map: timer.texture, ...NO_STENCIL }));
-  tm.position.set(DISPLAYS.timer[1], DISPLAYS.timer[2], 0.006); panels[1].mesh.add(tm);
+  /* (in a bezel of its own, proud of the panel, so it reads as an instrument whatever is drawn round it; wide
+   * enough for the hours of a twelve-day flight: it could not show them, and sat across the controls: owner) */
+  const tmBezel = new THREE.Mesh(new THREE.BoxGeometry(0.215, 0.056, 0.012), new THREE.MeshLambertMaterial({ color: 0x1c1d1f, ...NO_STENCIL }));
+  tmBezel.position.set(DISPLAYS.timer[1], DISPLAYS.timer[2], 0.004); panels[1].mesh.add(tmBezel);
+  const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.192, 0.036), new THREE.MeshBasicMaterial({ map: timer.texture, ...NO_STENCIL }));
+  tm.position.set(DISPLAYS.timer[1], DISPLAYS.timer[2], 0.0108); panels[1].mesh.add(tm);
   /* the attitude indicator ("eight ball") on your panel: a sphere that turns with the spacecraft */
   const ballTex = makeBallTexture();
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 24), new THREE.MeshLambertMaterial({ map: ballTex, ...NO_STENCIL }));
@@ -777,17 +781,19 @@ export function makeDsky() {
 }
 
 export function makeTimer() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 72;
+  const c = document.createElement('canvas'); c.width = 384; c.height = 72;
   const x = c.getContext('2d'), texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
   let last = '';
+  /* the count to and from the launch in minutes and seconds; after an hour and forty minutes the mission's own
+   * clock, hours : minutes : seconds (three digits of hours: the flight is 301 hours long) */
   function draw(t) {
-    const neg = t < 0, a = Math.abs(t), m = Math.floor(a / 60), s = Math.floor(a % 60);
-    const str = (neg ? '-' : ' ') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    const neg = t < 0, a = Math.abs(t), sec = Math.floor(a % 60), two = n => String(n).padStart(2, '0');
+    const str = a < 6000 ? (neg ? '-' : ' ') + two(Math.floor(a / 60)) + ':' + two(sec) : String(Math.floor(a / 3600)).padStart(3, '0') + ':' + two(Math.floor(a % 3600 / 60)) + ':' + two(sec);
     if (str === last) return; last = str;
-    x.fillStyle = '#0b0b0b'; x.fillRect(0, 0, 256, 72);
+    x.fillStyle = '#0b0b0b'; x.fillRect(0, 0, 384, 72);
     x.font = '56px "Courier New", monospace'; x.fillStyle = '#ff5a3a'; x.textAlign = 'center';
-    x.shadowColor = '#ff3a1a'; x.shadowBlur = 8; x.fillText(str, 128, 56); x.shadowBlur = 0;
+    x.shadowColor = '#ff3a1a'; x.shadowBlur = 8; x.fillText(str, 192, 56, 360); x.shadowBlur = 0;
     texture.needsUpdate = true;
   }
   draw(0);
