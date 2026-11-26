@@ -9,25 +9,25 @@
 import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks, makeRail } from './extras.js?v=5';
-import { makeLMModel } from './vehicle.js?v=31';
-import { PAD_DROP } from './descent-space.js?v=31';
-import { makeLMShadow } from './lm-shadow.js?v=31';
+import { makeLMModel } from './vehicle.js?v=32';
+import { PAD_DROP } from './descent-space.js?v=32';
+import { makeLMShadow } from './lm-shadow.js?v=32';
 import { makePrints } from './prints.js?v=4';
 import { makeSuitSound } from './sound.js?v=3';
 import { makeGround } from './ground.js?v=3';
-import { makeControllers, createHand } from './hands.js?v=31';
-import { makeWrist, makeToast, makeCard } from './wrist.js?v=31';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=31';
-import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=31';
-import { makeLMP, makeFigureShadow, makeDust } from './lmp.js?v=31';
-import { makeSurfaceOps } from './surface-ops.js?v=31';
-import { makeConsole } from './finale.js?v=31';
-import { makeMoonRadio } from './moon-radio.js?v=31';
-import { LM } from './lm-model.js?v=31';
-import { makeEgress } from './egress.js?v=31';
-import { settleLM } from './lm-model.js?v=31';
-import { settings, applyCommon } from './settings.js?v=31';
-import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=31';
+import { makeControllers, createHand } from './hands.js?v=32';
+import { makeWrist, makeToast, makeCard } from './wrist.js?v=32';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=32';
+import { makeEVASuit, suitEnvironment, makeHelmetView } from './eva-suit.js?v=32';
+import { makeLMP, makeFigureShadow, makeDust } from './lmp.js?v=32';
+import { makeSurfaceOps } from './surface-ops.js?v=32';
+import { makeConsole } from './finale.js?v=32';
+import { makeMoonRadio } from './moon-radio.js?v=32';
+import { LM } from './lm-model.js?v=32';
+import { makeEgress } from './egress.js?v=32';
+import { settleLM } from './lm-model.js?v=32';
+import { settings, applyCommon } from './settings.js?v=32';
+import { continueLink, autoEnter, saveProgress, loadProgress } from './progress.js?v=32';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -142,12 +142,16 @@ function collide() {
 }
 /* the whole suit's arms to where your hands are (two bones: the elbow bends down, out and back) */
 const _iT = new THREE.Vector3(), _id = new THREE.Vector3(), _ie = new THREE.Vector3(), _iu = new THREE.Vector3(), _if = new THREE.Vector3(), _ix = new THREE.Vector3(), _iy = new THREE.Vector3(), _iz = new THREE.Vector3(), _im = new THREE.Matrix4();
+/* (a hand the headset has lost sight of, above or behind your head, keeps its last pose for two seconds rather than
+ * dropping to your side at once: a wave with the arms right up must not be lost from the film) */
+const armLost = { left: 9, right: 9 };
 function ghostArms() {
   const J = meGhost.userData.joints, waist = meGhost.userData.waist, A = 0.29, B = 0.36;
   meGhost.updateMatrixWorld(true);
   for (const [h, arm, elbow, sd] of [['left', J.armL, J.elbowL, -1], ['right', J.armR, J.elbowR, 1]]) {
     const p = renderer.xr.isPresenting ? EH[h].pos : null;
-    if (!p) { arm.rotation.set(0.35, 0, sd * 0.3); elbow.rotation.set(0.6, 0, 0); continue; }
+    if (!p) { armLost[h] += frameDt; if (armLost[h] > 2) { arm.rotation.set(0.35, 0, sd * 0.3); elbow.rotation.set(0.6, 0, 0); } continue; }
+    armLost[h] = 0;
     _iT.copy(p); rig.localToWorld(_iT); waist.worldToLocal(_iT);
     _id.subVectors(_iT, arm.position); const L = Math.max(0.12, Math.min(A + B - 0.01, _id.length())); _id.normalize();
     const al = Math.acos(Math.max(-1, Math.min(1, (A * A + L * L - B * B) / (2 * A * L))));
@@ -246,24 +250,36 @@ const clipAsc = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), clipDesc = new T
  * the ascent stage's, which runs off down-Sun as it climbs) */
 let shAsc = null, shDesc = null, lmSplit = false;
 const shadowVis = v => { lmShadow.mesh.visible = v && !lmSplit; if (shAsc) shAsc.mesh.visible = shDesc.mesh.visible = v && lmSplit; };
+/* The cut between the stages, in the LM's own frame: it stands a little tilted on the ground, and a level cut took a
+ * wedge of the descent stage's deck up with the ascent stage (the "floor boards" in the film: owner's headset test). */
+const _cn = new THREE.Vector3(), _cp = new THREE.Vector3(), _cq = new THREE.Vector3();
+function setClips() {
+  lm.updateMatrixWorld(true);
+  _cn.set(0, 1, 0).transformDirection(lmDescent.matrixWorld);
+  clipDesc.setFromNormalAndCoplanarPoint(_cq.copy(_cn).negate(), lmDescent.localToWorld(_cp.set(0, LM.AS_Y - 0.01, 0)));
+  clipAsc.setFromNormalAndCoplanarPoint(_cn, lmModel.localToWorld(_cp.set(0, LM.AS_Y - 0.01, 0)));
+}
 function liftModel(alt) {
   if (!lmDescent) {
-    lmBaseY = lmModel.position.y; const yJoint = lmBaseY + LM.AS_Y - 0.01;
+    lmBaseY = lmModel.position.y;
     lmDescent = makeLMModel(renderer); lmDescent.rotation.order = 'YXZ'; lmDescent.rotation.copy(lmModel.rotation); lmDescent.position.copy(lmModel.position); lm.add(lmDescent);
-    renderer.localClippingEnabled = true; clipDesc.constant = yJoint;
+    renderer.localClippingEnabled = true;
     /* the legs, the ladder and the porch with its rails (the model's 'deployed' group) are the descent stage's, whole:
      * they stay with the copy (their materials its own, uncut) and are not drawn with the ascent stage */
-    lmDescent.userData.deployed.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
-    lmDescent.traverse(o => { if (o.isMesh && o.parent !== lmDescent.userData.deployed) o.material.clippingPlanes = [clipDesc]; });
-    lmModel.traverse(o => { if (o.isMesh) o.material.clippingPlanes = [clipAsc]; });
-    lmModel.userData.deployed.visible = false;
+    /* (and so are the plume deflectors that stand on its deck, above the joint; the ascent engine's bell, below it, is
+     * the ascent stage's, whole) */
+    const whole = (model, groups) => { for (const g of groups) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.userData.whole = true; } }); };
+    whole(lmDescent, [lmDescent.userData.deployed, lmDescent.userData.descentTop]); whole(lmModel, [lmModel.userData.ascentOnly]);
+    lmDescent.traverse(o => { if (o.isMesh && !o.userData.whole) o.material.clippingPlanes = [clipDesc]; });
+    lmModel.traverse(o => { if (o.isMesh && !o.userData.whole) o.material.clippingPlanes = [clipAsc]; });
+    lmModel.userData.deployed.visible = false; lmModel.userData.descentTop.visible = false; lmDescent.userData.ascentOnly.visible = false;
     /* each stage's own silhouette, drawn once, here, while the ascent stage still stands on the other */
-    clipAsc.constant = -yJoint; lmModel.position.y = lmBaseY;
+    lmModel.position.y = lmBaseY; setClips();
     shDesc = makeLMShadow(moon); shAsc = makeLMShadow(moon); lm.add(shDesc.mesh, shAsc.mesh);
     shDesc.bake(renderer, lmDescent, moon.shared.uSun.value, { clip: [clipDesc], read: false });
     shAsc.bake(renderer, lmModel, moon.shared.uSun.value, { clip: [clipAsc], read: false, nx: 12, ny: 52 });
   }
-  lmModel.position.y = lmBaseY + alt; lmc.group.position.y = lmBaseY + alt; clipAsc.constant = -(lmBaseY + LM.AS_Y - 0.01 + alt);
+  lmModel.position.y = lmBaseY + alt; lmc.group.position.y = lmBaseY + alt; setClips();
   lmSplit = alt > 0.004; shadowVis(true); if (lmSplit) shAsc.lift(alt);
 }
 function filmPass(show) {
@@ -814,7 +830,7 @@ async function start() {
         clearOf: (x, z, body) => clearOf(x, z, body), step: k => suit.step(k),
         /* the rover through the suit: heard (sound.js) and felt (the controllers: the left hand is on its handle) */
         drive: (v, thr) => { suit.drive(v, thr); roverBuzz = Math.min(1, Math.abs(v) / 3.6) * 0.16 + Math.min(1, Math.abs(thr)) * 0.06; },
-        bump: k => { suit.bump(k); buzz(0.35 + 0.4 * Math.min(1, k), 70); },
+        bump: k => { suit.bump(k); buzz(0.35 + 0.4 * Math.min(1, k), 70); }, buzz: (k, ms) => buzz(k, ms),
         track: (x, z, dx, dz) => prints.track(x, z, dx, dz), trackLen: 0.5,
         inCabin: () => egress.active && egress.E.stage === 'cabin',
         cabin: () => { lmc.lmp.visible = true; lmc.setSuitUp(1); },
@@ -888,7 +904,7 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 start().catch(e => { console.error(e); if ($('err')) { $('err').textContent = 'Could not start: ' + e.message; } });
 
 /* test hooks */
-window.__moon = { S, setView, afterFrame: null, filmPass: () => filmPass(lastShow), filmRT, get shadows() { return { split: lmSplit, asc: !!shAsc && shAsc.mesh.visible, desc: !!shDesc && shDesc.mesh.visible, whole: !!lmShadow && lmShadow.mesh.visible }; }, get lmShadow() { return lmShadow; }, get ghost() { return meGhost; }, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, get ops() { return ops; }, get finale() { return finaleOn; }, con, get lmDescent() { return lmDescent; }, clipAsc, clipDesc, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
+window.__moon = { S, setView, afterFrame: null, filmPass: () => filmPass(lastShow), filmRT, lift: a => liftModel(a), get shadows() { return { split: lmSplit, asc: !!shAsc && shAsc.mesh.visible, desc: !!shDesc && shDesc.mesh.visible, whole: !!lmShadow && lmShadow.mesh.visible }; }, get lmShadow() { return lmShadow; }, get ghost() { return meGhost; }, get egress() { return egress; }, get lmc() { return lmc; }, get lmp() { return lmp; }, get refl() { return reflCount; }, radio: mradio, atLadder, get ops() { return ops; }, get finale() { return finaleOn; }, con, get lmDescent() { return lmDescent; }, get lmModel() { return lmModel; }, clipAsc, clipDesc, clearOf(x, z) { const p = clearOf(x, z); return [p.x, p.z]; }, helm, get me() { return me; }, get lm() { return lmModel; }, hands, EH, get toast() { return toast; }, get moon() { return moon; }, renderer, camera, rig,
   setSun(deg) { S.sunOffset = deg; moon.setSunOffset(deg); },
   look(yaw, pitch) { S.yaw = yaw; S.pitch = pitch; },
   stand(x, z, headingDeg) { S.pos.set(x, 0, z); if (headingDeg !== undefined) S.heading = headingDeg * Math.PI / 180; },

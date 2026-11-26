@@ -210,9 +210,20 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     o.S.pos.set(bag.x + 0.7, 0, bag.z); await frame(); await frame(); await frame();
     for (let k = 0; k < 8; k++) { hand(bag.x, bag.y + 0.15, bag.z); await frame(); }
     c.updateButtonValue('squeeze', 0); await frame(); await frame();
-    return { held, kg: o.ops.smp.kg, rows: o.ops.status().length };
+    return { held, kg: o.ops.smp.kg, rows: o.ops.status().length, mine: o.ops.smp.mine, said: o.toast.text };
   });
-  ok('a sample: lifted with a grip, let go at the rover, weighed', smp.held && smp.kg > 5 && smp.rows === 2, JSON.stringify(smp));
+  ok('a sample: lifted with a grip, let go at the rover, weighed; you are told it is in the bag', smp.held && smp.kg > 5 && smp.rows === 2 && smp.mine === 1 && /In the bag/.test(smp.said), JSON.stringify(smp));
+  /* your crewmate collects too: he fetches a rock (not yours) and stows it; the radio keeps the count */
+  /* (he rode out with you: the test moved the rover without him, so he is set beside it) */
+  await p.evaluate(() => { const o = __moon, R = o.ops.R, L = o.lmp.S; o.S.pos.set(R.x + 1.5, 0, R.z + 1.5); L.pos.set(R.x - 2.5, o.moon.heightAt(R.x - 2.5, R.z + 2), R.z + 2); L.rate = 4; });
+  const seenH = {};
+  for (let k = 0; k < 900; k++) {
+    const h = await p.evaluate(() => ({ s: __moon.ops.H.s, n: __moon.ops.H.n })); seenH[h.s] = true;
+    if (h.n >= 1) break;
+    await p.waitForTimeout(250);
+  }
+  const helped = await p.evaluate(() => { const o = __moon, s = o.ops.smp; return { n: s.n, mine: s.mine, kg: s.kg, his: o.ops.H.n, first: !!o.ops.st.said['samples-first'], at: !!o.ops.st.said['samples-at'], twenty: !!o.ops.st.said['samples-20'], lines: ['samples-first', 'samples-20', 'samples-80', 'lmp-rock', 'film-pan', 'film-wave', 'film-end'].filter(c => !o.radio.lines || o.radio.lines.some(l => l.cue === c)).length }; });
+  ok('your crewmate fetches rocks too, and the radio keeps count', seenH.go && seenH.carry && helped.his >= 1 && helped.n === helped.mine + helped.his && helped.kg > smp.kg && helped.first && helped.at && helped.twenty === (helped.kg >= 20), Object.keys(seenH).join(' ') + ' ' + JSON.stringify(helped));
   /* the film: the rover parked before the LM, he goes to stand for it, you stand by him: nine seconds are kept */
   await p.evaluate(() => { const o = __moon, R = o.ops.R, v = o.lm.localToWorld(new o.rig.position.constructor(4, 0, 26)); o.ops.jump('film-go'); R.x = v.x; R.z = v.z; R.yaw = Math.atan2(-(o.lm.position.x - v.x), -(o.lm.position.z - v.z)); o.S.pos.set(v.x + 2.5, 0, v.z + 2.5); o.lmp.S.rate = 4; });
   await p.waitForFunction(() => __moon.ops.st.step === 'film-pose' && __moon.lmp.arrived, null, { timeout: 600000 });
@@ -221,7 +232,10 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await frames(6);
   const idle = await p.evaluate(() => ({ step: __moon.ops.st.step, n: __moon.ops.rec.frames.length, a: __moon.ops.button('a') }));
   await p.waitForFunction(() => __moon.ops.st.step === 'film-rec', null, { timeout: 600000 });
+  /* both arms up for the camera (owner: "I waved with both arms up, and that did not show") */
+  await p.evaluate(() => { const hd = __dev.position; __dev.controllers.left.position.set(hd.x - 0.3, hd.y + 0.45, hd.z - 0.1); __dev.controllers.right.position.set(hd.x + 0.3, hd.y + 0.45, hd.z - 0.1); });
   await p.waitForFunction(() => __moon.ops.st.step === 'load', null, { timeout: 600000 });
+  await p.evaluate(() => { __dev.controllers.left.position.set(-0.25, 1.0, -0.3); __dev.controllers.right.position.set(0.25, 1.0, -0.3); });
   const kept = await p.evaluate(() => { const r = __moon.ops.rec, a = r.sample(r.length / 2, new Float32Array(48), { yaw: [3, 23, 41], quat: [5, 10], hold: [42, 44] });
     return { n: r.frames.length, len: +r.length.toFixed(1), q: +Math.hypot(a[5], a[6], a[7], a[8]).toFixed(3), legs: +a[15].toFixed(2), him: +a[27].toFixed(2) }; });
   ok('the film: nothing is kept until you say so (A); then the count, and twelve seconds of you both', idle.step === 'film-pose' && idle.n === 0 && idle.a && kept.n > 20 && kept.len > 10 && Math.abs(kept.q - 1) < 0.01, JSON.stringify(idle) + ' ' + JSON.stringify(kept));
@@ -277,10 +291,23 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok("the film's sky and far ground are drawn", skyA === 255, 'alpha ' + skyA);
   await p.waitForFunction(() => __moon.ops.F.parts && __moon.ops.F.part === 'wave' && __moon.ops.F.on === 1, null, { timeout: 900000 });
   const parts = await p.evaluate(() => __moon.ops.F.parts.map(q => q.k + ':' + q.d.toFixed(0)));
+  /* the wave in the film: your stand-in's arms are up, as yours were; Houston talks over the pictures */
+  await p.waitForFunction(() => { const F = __moon.ops.F; return F.part !== 'wave' || F.tf > F.cur.t0 + 6; }, null, { timeout: 900000 });
+  const waved = await p.evaluate(() => new Promise(r => { __moon.afterFrame = () => { const g = __moon.ghost, J = g.userData.joints, up = []; g.updateMatrixWorld(true);
+    for (const k of ['armL', 'armR']) { const e = J[k].matrixWorld.elements; up.push(+(-e[5] / Math.hypot(e[4], e[5], e[6])).toFixed(2)); }
+    r({ part: __moon.ops.F.part, up, said: ['film-pan', 'film-wave'].map(c => __moon.radio.heard ? __moon.radio.heard(c) : null) }); }; }));
+  ok('the film shows both your arms up, as you held them', waved.part === 'wave' && waved.up.every(v => v > 0.7), JSON.stringify(waved));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-film-wave.png') });
   const whole = await p.evaluate(() => __moon.shadows);
   await p.waitForFunction(() => __moon.ops.F.part === 'liftoff' && __moon.ops.F.on === 1, null, { timeout: 900000 });
   await p.waitForFunction(() => __moon.shadows.split, null, { timeout: 900000 });
   const two = await p.evaluate(() => __moon.shadows);
+  /* the stages part cleanly: the cut follows the LM's own tilt, the plume deflectors stay on the descent stage, the
+   * ascent stage has its engine's bell */
+  const cut = await p.evaluate(() => { const o = __moon, up = new o.rig.position.constructor(0, 1, 0).transformDirection(o.lmDescent.matrixWorld);
+    return { asc: +o.clipAsc.normal.dot(up).toFixed(4), desc: +o.clipDesc.normal.dot(up).toFixed(4), tilt: +up.y.toFixed(4), stays: o.lmDescent.userData.descentTop.visible && !o.lmModel.userData.descentTop.visible, bell: !o.lmDescent.userData.ascentOnly.visible }; });
+  ok("the stages part cleanly: the cut along the LM's own deck, the deflectors left behind", cut.asc > 0.9999 && cut.desc < -0.9999 && cut.stays && cut.bell, JSON.stringify(cut));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'egress-film-liftoff.png') });
   ok("the film's scenes in order; the LM's shadow whole while it stands, in two once the ascent stage is off", parts[0].startsWith('pan') && parts.some(q => q.startsWith('wave:12')) && parts[parts.length - 1].startsWith('liftoff') && whole.whole && !whole.split && two.split && two.asc && two.desc && !two.whole, JSON.stringify(parts) + ' ' + JSON.stringify(whole) + ' ' + JSON.stringify(two));
   const e5 = await eyes2();
   ok('the finale: the console and its film, both eyes drawn', e5.every(v => v > 4 && v < 250), e5.map(v => v.toFixed(0)).join(' / '));

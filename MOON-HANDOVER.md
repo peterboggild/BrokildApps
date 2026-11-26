@@ -18,10 +18,11 @@ assistant can only test on the flat screen and in an emulator.
 
 ## 2. Where it stands
 
-Live on main after PR #142 (the rover's sound, tracks and navigation; messages as a setting; triggers take hold),
-with PR #143 (entering the LM: voices, hard dock seen from outside, the panels, the view reset) open at the time
-of writing. All moon modules carry `?v=31` (`prints.js` its own `?v=4`); `index.html` and `surface.html` load
-`src/main.js?v=24`. Check `git log` for what has landed since.
+Live on main after PR #144 (#143: entering the LM: voices, hard dock seen from outside, the panels, the view
+reset; #144: the tunnel when chapter 4 is started twice on one page), with PR #145 (the owner's notes on the
+ending and the samples, 12.19 of `MOON-DESIGN.md`) open at the time of writing. All moon modules carry `?v=32`
+(`prints.js` its own `?v=4`, `lm.js` `?v=33` in `lm.html`); `index.html` and `surface.html` load
+`src/main.js?v=25`. Check `git log` for what has landed since.
 
 | Chapter | Page | State |
 |---|---|---|
@@ -41,7 +42,8 @@ trip back."
 
 The owner has driven the rover and planted the flag in the headset ("fantastic work on the rover and flag
 experience") and entered the LM in chapter 4; his notes from those runs are sections 12.17 and 12.18 of
-`MOON-DESIGN.md`. Not yet judged by him: the film and finale of #140, and the changes of #142 and #143.
+`MOON-DESIGN.md`. He has since played chapter 6 to its end ("I love the ending") and seen the tunnel right on a
+fresh load; his notes are 12.19. Not yet judged by him: the panels and the view reset of #143, and #145.
 
 ### To check in the headset (not yet answered)
 
@@ -132,6 +134,10 @@ ids start with `sf`. Run `pwsh -File tools/tts.ps1 surface.json`, then `git chec
   looked right. Anything drawn into a texture in more than one pass must not be multisampled, and must be checked
   in the XR emulator, not only flat.
 - A thing placed from `camera.matrixWorld` inside `frame()` uses last frame's pose; place it in `render()`.
+- Clipping planes are in world space. The LM stands tilted on the ground: a plane meant to cut it along its own
+  deck must be made from its world matrix (`setClips` in `main.js`), not from a height.
+- State set on the way through a chapter must be reset where the chapter is started again on the same page
+  (`readOptions` in `lm.js`): a fresh load hides such faults from the tests.
 - `Object.assign` copies a getter's value once; use `Object.defineProperty` for live values.
 - In XR read the head from `camera.matrixWorld` after `renderer.xr.updateCamera(camera)`.
 
@@ -178,7 +184,8 @@ node test/chain.test.cjs                           # 5
 
 ## 8. What comes next
 
-Waiting for: his headset verdict on #136 to #140.
+Waiting for: his headset verdict on #143 (panels, view reset) and #145. On 26 November he asked: "are you up for
+finishing the adventure, and taking me home?" The journey home is the next work, after #145.
 
 **The journey home** (he said "Later", then asked for an estimate on 26 November). The estimate given: about six
 pull requests of the size of #136 to #139, two or three long sessions, with a headset round between them.

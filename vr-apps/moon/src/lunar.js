@@ -14,22 +14,22 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=31';
+import { state as ascentState } from './ascent.js?v=32';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=31';
-import { makeCabin } from './cabin.js?v=31';
-import { makeLaunchSound } from './launch-sound.js?v=31';
-import { makeRadio, combineRadios } from './radio.js?v=31';
-import { makeClock } from './clock.js?v=31';
-import { makeChatter } from './chatter.js?v=31';
-import { handOnCrew } from './crew-life.js?v=31';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=31';
-import { createHand, makeControllers } from './hands.js?v=31';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=31';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=31';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=31';
-import { makeFloaters } from './floaters.js?v=31';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=32';
+import { makeCabin } from './cabin.js?v=32';
+import { makeLaunchSound } from './launch-sound.js?v=32';
+import { makeRadio, combineRadios } from './radio.js?v=32';
+import { makeClock } from './clock.js?v=32';
+import { makeChatter } from './chatter.js?v=32';
+import { handOnCrew } from './crew-life.js?v=32';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=32';
+import { createHand, makeControllers } from './hands.js?v=32';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=32';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=32';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=32';
+import { makeFloaters } from './floaters.js?v=32';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

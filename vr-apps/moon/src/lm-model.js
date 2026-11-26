@@ -117,7 +117,7 @@ export function makeLM(env) {
   const glass = Std({ color: 0x05070a, metalness: 0.9, roughness: 0.05, envMapIntensity: 1.4 });
   const white = Std({ color: 0xe9e9e4, metalness: 0.1, roughness: 0.7, envMapIntensity: 0.3 });
   const { DS_Y0, DS_TOP, AS_Y, APOTHEM: A, FOOT_R, FOOT_Y, DRUM_R, DRUM_Y, FRONT, HATCH, PORCH } = LM;
-  const body = new Parts(), deployed = new Parts(), folded = new Parts(), probes = new Parts();
+  const body = new Parts(), deployed = new Parts(), folded = new Parts(), probes = new Parts(), stays = new Parts(), goes = new Parts();
 
   /* ================================================================ descent stage */
   const FW = 2 * A * Math.tan(Math.PI / 8), DH = DS_TOP - DS_Y0, DM = (DS_TOP + DS_Y0) / 2;
@@ -255,10 +255,18 @@ export function makeLM(env) {
     body.box(dark, 0.22, 0.22, 0.22, q.x, q.y, q.z);
     for (const [dx, dy, dz, rx, rz] of [[0, 1, 0, 0, 0], [0, -1, 0, Math.PI, 0], [sx, 0, 0, 0, -sx * Math.PI / 2], [0, 0, sz, sz * Math.PI / 2, 0]])
       body.add(new THREE.CylinderGeometry(0.035, 0.075, 0.17, 12, 1, true), aluD, q.x + dx * 0.19, q.y + dy * 0.19, q.z + dz * 0.19, rx, 0, rz);
+    /* (the deflectors stand on the descent stage and stay on it when the ascent stage leaves: they are above the
+     * joint, so they are their own group, userData.descentTop; they went up with the ascent stage, their braces cut
+     * through: owner's headset test) */
     const dfl = V(sx * 1.5, 2.86, -0.12 + sz * 1.48);
-    body.box(amber, 0.5, 0.025, 0.5, dfl.x, dfl.y, dfl.z, -sz * 0.5, 0, sx * 0.5);
-    body.rod(alu, dfl, V(sx * 1.3, DS_TOP, -0.12 + sz * 1.15), 0.018, 6); body.rod(alu, dfl, V(sx * 1.75, DS_TOP, -0.12 + sz * 1.0), 0.018, 6);
+    stays.box(amber, 0.5, 0.025, 0.5, dfl.x, dfl.y, dfl.z, -sz * 0.5, 0, sx * 0.5);
+    stays.rod(alu, dfl, V(sx * 1.3, DS_TOP, -0.12 + sz * 1.15), 0.018, 6); stays.rod(alu, dfl, V(sx * 1.75, DS_TOP, -0.12 + sz * 1.0), 0.018, 6);
   }
+  /* the ascent engine's bell under the cabin: it sits in a well in the descent stage's deck, unseen until the ascent
+   * stage lifts off (below the joint, so its own group, userData.ascentOnly) */
+  goes.add(new THREE.CylinderGeometry(0.17, 0.4, 0.44, 24, 1, true), darkD, 0, AS_Y - 0.2, 0.05);
+  goes.add(new THREE.TorusGeometry(0.4, 0.012, 6, 24), alu, 0, AS_Y - 0.42, 0.05, Math.PI / 2);
+  goes.add(new THREE.CylinderGeometry(0.42, 0.42, 0.03, 24), dark, 0, AS_Y + 0.005, 0.05);
   /* the docking tunnel and drogue (the top stays at 4.75) */
   body.add(new THREE.CylinderGeometry(0.42, 0.45, 0.45, 24, 1, true), alu, 0, 4.525, 0);          /* open: the cabin's hatch is under it */
   body.add(new THREE.ConeGeometry(0.42, 0.18, 24, 1, true), darkD, 0, LM.TOP - 0.05, 0, Math.PI, 0, 0);
@@ -290,6 +298,7 @@ export function makeLM(env) {
   g.add(dep, fol, prb); dep.visible = false; prb.visible = false;
   let legs = false, landed = false;
   const apply = () => { fol.visible = !legs; dep.visible = legs; prb.visible = legs && !landed; };
+  { const a = stays.into(new THREE.Group()), b = goes.into(new THREE.Group()); g.add(a, b); g.userData.descentTop = a; g.userData.ascentOnly = b; }
   g.userData.deployed = dep;                      /* the legs, the ladder, the porch and its rails: all of the descent stage */
   g.userData.setLegs = on => { legs = on; apply(); };
   g.userData.setLanded = on => { landed = on; apply(); };

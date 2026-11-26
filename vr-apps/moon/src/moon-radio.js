@@ -16,7 +16,7 @@
  *   const mr = makeMoonRadio({ toast, level: () => 0..1, onLMP: () => {} });
  *   mr.init()                 on a click or entering VR (browsers allow sound only then)
  *   mr.update(dt, { ptt, quiet, lmpOut })      every frame */
-import { makeRadio } from './radio.js?v=31';
+import { makeRadio } from './radio.js?v=32';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const NAME = { CAPCOM: 'Houston', LMP: 'Lunar Module Pilot' };
@@ -72,7 +72,7 @@ export function makeMoonRadio(o = {}) {
   Object.assign(api, {
     init,
     /* the line for something that happens, once (sub: false where the page shows its own words) */
-    cue(name, sub = true) { if (once.has(name)) return; once.add(name); push(name, { sub, keep: 20 }); },
+    cue(name, sub = true, keep = 20) { if (once.has(name)) return; once.add(name); push(name, { sub, keep }); },
     /* you walked into him (not too often) */
     bump() { if (T - bumpAt < 25) return; bumpAt = T; push('bump', { keep: 3 }); },
     /* what comes next: Houston says it once it applies (after a pause), and on request */
