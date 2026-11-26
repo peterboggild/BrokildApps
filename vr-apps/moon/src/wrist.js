@@ -10,7 +10,7 @@
  * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
  * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
 import * as THREE from 'three';
-import { settings, DEFS } from './settings.js?v=29';
+import { settings, DEFS } from './settings.js?v=30';
 
 export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
   return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -100,24 +100,38 @@ export function makeWrist(keys = Object.keys(DEFS)) {
 }
 
 /* A short message in front of you for a few seconds: why the clock stopped, or why it will not run faster. Add
- * toast.mesh to the camera's parent (the head); show it only in the cabin pass. */
+ * toast.mesh to the camera's parent (the head); show it only in the cabin pass.
+ *
+ * Messages are a setting ('Messages on screen'), off unless you turn them on (the owner found them distracting):
+ * hints and the radio's words in text are then not shown. say(text, secs, true) is for the few things you must be
+ * told whatever the setting (why a trigger did nothing, that the camera is recording). Long messages go on two or
+ * three lines at their natural width (they were squeezed on to one, hard to read). */
 export function makeToast() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 128;
+  const CW = 1024, CH = 224, LH = 50;
+  const c = document.createElement('canvas'); c.width = CW; c.height = CH;
   const g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.06), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.52 * CH / CW), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
   mesh.renderOrder = 1001; mesh.visible = false;
-  const T = { mesh, k: 0, left: 0, text: '',
-    say(s, secs = 3) {
-      T.left = secs; if (s === T.text) return; T.text = s;
-      g.clearRect(0, 0, 1024, 128); g.fillStyle = 'rgba(8,9,10,0.82)'; g.beginPath(); g.roundRect(4, 4, 1016, 120, 26); g.fill();
-      g.fillStyle = '#f0e6c8'; g.font = 'bold 40px system-ui, Segoe UI, Arial, sans-serif'; g.textAlign = 'center'; g.fillText(s, 512, 78, 980);
+  const T = { mesh, k: 0, left: 0, text: '', lines: 0, shown: 0, skipped: 0,
+    say(s, secs = 3, must = false) {
+      if (!must && !settings.get('text')) { T.skipped++; return; }
+      T.left = secs; if (s === T.text) return; T.text = s; T.shown++;
+      g.font = 'bold 38px system-ui, Segoe UI, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      /* broken into lines that fit, as evenly as they will go */
+      const words = String(s).split(' '), total = g.measureText(s).width, n = Math.min(3, Math.max(1, Math.ceil(total / 900))), want = total / n + 30, lines = [];
+      let cur = '';
+      for (const w of words) { const t = cur ? cur + ' ' + w : w; if (cur && g.measureText(t).width > want && lines.length < n - 1) { lines.push(cur); cur = w; } else cur = t; }
+      lines.push(cur); T.lines = lines.length;
+      const wide = Math.min(CW - 8, Math.max(...lines.map(l => g.measureText(l).width)) + 70), high = lines.length * LH + 34, y0 = (CH - high) / 2;
+      g.clearRect(0, 0, CW, CH); g.fillStyle = 'rgba(8,9,10,0.82)'; g.beginPath(); g.roundRect((CW - wide) / 2, y0, wide, high, 24); g.fill();
+      g.fillStyle = '#f0e6c8'; lines.forEach((l, i) => g.fillText(l, CW / 2, y0 + 17 + LH * (i + 0.5), CW - 40));
       tex.needsUpdate = true;
     },
     /* every frame: hold it 0.9 m ahead of your eyes, a little low */
     update(dt, camera) {
       T.left -= dt; T.k += ((T.left > 0 ? 1 : 0) - T.k) * Math.min(1, dt * 6);
       mesh.material.opacity = T.k;
-      mesh.position.set(0, -0.12, -0.9).applyQuaternion(camera.quaternion).add(camera.position); mesh.quaternion.copy(camera.quaternion);
+      mesh.position.set(0, -0.14, -0.9).applyQuaternion(camera.quaternion).add(camera.position); mesh.quaternion.copy(camera.quaternion);
     }
   };
   return T;

@@ -15,21 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=29';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=29';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=29';
-import { settleLM } from './lm-model.js?v=29';
-import { makeLMShadow } from './lm-shadow.js?v=29';
-import { makeLaunchSound } from './launch-sound.js?v=29';
-import { makeRadio, combineRadios } from './radio.js?v=29';
-import { makeClock } from './clock.js?v=29';
-import { makeChatter } from './chatter.js?v=29';
-import { handOnCrew } from './crew-life.js?v=29';
-import { makeVehicle } from './vehicle.js?v=29';
-import { createHand, makeControllers } from './hands.js?v=29';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=29';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=29';
-import { settings, applyCommon, holdsFor } from './settings.js?v=29';
+import { GETL } from './lunar-space.js?v=30';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=30';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=30';
+import { settleLM } from './lm-model.js?v=30';
+import { makeLMShadow } from './lm-shadow.js?v=30';
+import { makeLaunchSound } from './launch-sound.js?v=30';
+import { makeRadio, combineRadios } from './radio.js?v=30';
+import { makeClock } from './clock.js?v=30';
+import { makeChatter } from './chatter.js?v=30';
+import { handOnCrew } from './crew-life.js?v=30';
+import { makeVehicle } from './vehicle.js?v=30';
+import { createHand, makeControllers } from './hands.js?v=30';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=30';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=30';
+import { settings, applyCommon, holdsFor } from './settings.js?v=30';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -137,7 +137,7 @@ let cur = null, padH = 15000;
 /* the wrist panel (X), the messages */
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
-const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
+const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
 const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
@@ -182,8 +182,8 @@ renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.
 const LANDING = [[GETD.hg - 60, GETD.land + 60, 'the landing']], LANDING_MAJOR = [[GETD.lg - 30, GETD.land + 60, 'the landing']];
 const clock = makeClock({ holds: () => holdsFor(LANDING, LANDING_MAJOR), lines: () => radio ? radio.lines : [], warps: [1, 2, 4, 10], cap: 10, toast });
 const warpOk = () => S.mode === 'table' && S.landed < 0;
-function cycleWarp() { if (!warpOk()) { S.warp = 1; toast.say('Real time while you fly'); return; } clock.faster(S); }
-function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
+function cycleWarp() { if (!warpOk()) { S.warp = 1; toast.say('Real time while you fly', 3, true); return; } clock.faster(S); }
+function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
 /* on to the next chapter: the page changes while still in VR, and the next page enters VR by itself where the browser
  * allows it (progress.js autoEnter); a break: out of VR, to this page (Continue will find the place) */
 function nextChapter(href) { location.href = href; }
@@ -423,7 +423,7 @@ function frame(now) {
   }
   /* the clock */
   if (S.running && !S.still && !S.ended && S.landed < 0) {
-    if (!warpOk() && S.warp > 1) { S.warp = 1; toast.say('Real time while you fly'); }
+    if (!warpOk() && S.warp > 1) { S.warp = 1; toast.say('Real time while you fly', 3, true); }
     const ddt = dt * S.warp;
     if (S.mode === 'table') { S.t = clock.advance(S, dt); if (D.contact() && S.t >= D.contact()) S.t = D.contact(); }
     else { step(ddt); S.t = cur.t; }
@@ -510,7 +510,7 @@ async function enterVR() {
   common.all();
   card.show({ title: 'Chapter 5', sub: 'The descent' }, 6);
   session.addEventListener('selectstart', () => sound.init());          /* sound needs a press when VR was entered by itself */
-  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 7500);
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6, true), 7500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');

@@ -1,4 +1,6 @@
-/* Bootprints: the Apollo overshoe's ribbed sole pressed into the regolith.
+/* Bootprints: the Apollo overshoe's ribbed sole pressed into the regolith. And the rover's wheel tracks: the same
+ * kind of thing, a strip half a metre long for every half metre a wheel rolls (prints.track), the wire-mesh
+ * wheel's shallow trough with the chevrons of its treads across it.
  *
  * One instanced mesh of small quads laid on the ground (one draw call for all of them). Each quad is shaded by the
  * terrain's own shader with the print's relief on top and the shadows its walls and ribs cast at the low Sun
@@ -56,22 +58,64 @@ function printTexture() {
   return t;
 }
 
-export function makePrints(moon) {
+const TW = 0.32, TL = 0.5;               /* a stretch of wheel track: metres across and along */
+const TMAX = 3000;                        /* stretches kept (in each batch): some 700 m of driving */
+
+function trackTexture() {
+  const nx = 64, ny = 128, h = new Float32Array(nx * ny), a = new Float32Array(nx * ny);
+  let seed = 23;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = ((i + 0.5) / nx - 0.5) * TW, y = ((j + 0.5) / ny - 0.5) * TL;
+    const half = 0.115, edge = half - Math.abs(x);                          /* the wheel is 23 cm wide */
+    let z;
+    if (edge > 0) {
+      const wall = Math.min(1, edge / 0.02);
+      /* the chevrons: six to the stretch, so one stretch runs on into the next */
+      const s = (((y + Math.abs(x) * 0.9) / (TL / 6)) % 1 + 1) % 1;
+      const rib = Math.min(1, Math.max(0, (s - 0.2) / 0.12)) * Math.min(1, Math.max(0, (0.62 - s) / 0.12));
+      z = -0.011 * wall * wall * (3 - 2 * wall) + 0.0035 * rib * Math.min(1, edge / 0.03) + 0.0008 * (rnd() - 0.5);
+      a[j * nx + i] = 1;
+    } else {
+      const o = -edge;
+      z = 0.003 * Math.exp(-Math.pow(o / 0.014, 2)) * (0.7 + 0.6 * rnd());   /* soil pushed up along the edges */
+      const f = Math.min(1, o / 0.04);
+      a[j * nx + i] = 1 - f * f * (3 - 2 * f);
+    }
+    h[j * nx + i] = z;
+  }
+  const d = new Uint8Array(nx * ny * 4), px = TW / nx, py = TL / ny;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const hx = (h[j * nx + Math.min(nx - 1, i + 1)] - h[j * nx + Math.max(0, i - 1)]) / (2 * px);
+    const hy = (h[((j + 1) % ny) * nx + i] - h[((j + ny - 1) % ny) * nx + i]) / (2 * py);       /* (it tiles along) */
+    const n = Math.hypot(hx, hy, 1), k = (j * nx + i) * 4;
+    d[k] = Math.round((-hx / n * 0.5 + 0.5) * 255);
+    d[k + 1] = Math.round((-hy / n * 0.5 + 0.5) * 255);
+    d[k + 2] = Math.round(Math.min(1, Math.max(0, (h[j * nx + i] + 0.025) / 0.037)) * 255);
+    d[k + 3] = Math.round(a[j * nx + i] * 255);
+  }
+  const t = new THREE.DataTexture(d, nx, ny, THREE.RGBAFormat);
+  t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true;
+  return t;
+}
+
+/* marks pressed into the ground, all of one kind: quads W x L with the relief ptex, at most MAX (the oldest reused) */
+function makeMarks(moon, group, ptex, W, L, MAX) {
   const geo = new THREE.PlaneGeometry(W, L);
   geo.rotateX(-Math.PI / 2);                       /* lies in x-z; the toe (uv.y = 1) towards -z */
-  const ptex = printTexture(), size = new THREE.Vector2(W, L);
+  const size = new THREE.Vector2(W, L);
   /* two batches: prints on the baked ground by the lander (L6), and prints on the generated ground elsewhere */
   const mesh = new THREE.InstancedMesh(geo, moon.printMaterial(ptex, size), MAX);
   const geoG = geo.clone(), uvAB = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4);
   geoG.setAttribute('aUvAB', uvAB);
   const meshG = new THREE.InstancedMesh(geoG, moon.printGroundMaterial(ptex, size), MAX);
-  const group = new THREE.Group();
   for (const q of [mesh, meshG]) { q.count = 0; q.frustumCulled = false; q.renderOrder = 20; group.add(q); }
   const next = [0, 0], half6 = moon.l6.half - 0.6, ab = [0, 0, 0, 0];
   const m = new THREE.Matrix4(), up = new THREE.Vector3(), fw = new THREE.Vector3(), x = new THREE.Vector3(), z = new THREE.Vector3();
   /* one print at (px, pz), toe towards (dx, dz); side -1 left foot, +1 right foot */
   function add(px, pz, dx, dz, side) {
-    const e = 0.15, h = moon.heightAt(px, pz);
+    const e = Math.max(0.15, L * 0.45), h = moon.heightAt(px, pz);
     up.set(moon.heightAt(px - e, pz) - moon.heightAt(px + e, pz), 2 * e, moon.heightAt(px, pz - e) - moon.heightAt(px, pz + e)).normalize();
     fw.set(dx, 0, dz).normalize(); fw.addScaledVector(up, -fw.dot(up)).normalize();
     z.copy(fw).negate();
@@ -84,6 +128,15 @@ export function makePrints(moon) {
     q.count = Math.max(q.count, next[w] === 0 ? MAX : next[w]);
     q.instanceMatrix.needsUpdate = true;
   }
+  return { add, get count() { return mesh.count + meshG.count; } };
+}
+
+export function makePrints(moon) {
+  const group = new THREE.Group();
+  const boots = makeMarks(moon, group, printTexture(), W, L, MAX), tracks = makeMarks(moon, group, trackTexture(), TW, TL, TMAX);
+  const add = boots.add;
+  /* a stretch of wheel track centred on (px, pz), running along (dx, dz) */
+  const track = (px, pz, dx, dz) => tracks.add(px, pz, dx, dz, 1);
   /* a walked line of prints from a to b (for the trail already there when you arrive) */
   function trail(ax, az, bx, bz, stride = 0.82) {
     const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz), ux = dx / d, uz = dz / d;
@@ -94,5 +147,5 @@ export function makePrints(moon) {
       add(ax + ux * s - uz * side * 0.11, az + uz * s + ux * side * 0.11, ux - uz * wob, uz + ux * wob, side);
     }
   }
-  return { group, add, trail, get count() { return mesh.count + meshG.count; } };
+  return { group, add, trail, track, TRACK: TL, get count() { return boots.count; }, get tracks() { return tracks.count; } };
 }
