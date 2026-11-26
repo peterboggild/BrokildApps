@@ -14,24 +14,24 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=35';
+import { state as ascentState } from './ascent.js?v=36';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=35';
-import { makeCabin } from './cabin.js?v=35';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=35';
-import { LM } from './lm-model.js?v=35';
+import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=36';
+import { makeCabin } from './cabin.js?v=36';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=36';
+import { LM } from './lm-model.js?v=36';
 const AS_Y = LM.AS_Y;
-import { makeLaunchSound } from './launch-sound.js?v=35';
-import { makeRadio, combineRadios } from './radio.js?v=35';
-import { makeClock } from './clock.js?v=35';
-import { makeChatter } from './chatter.js?v=35';
-import { handOnCrew } from './crew-life.js?v=35';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=35';
-import { createHand, makeControllers } from './hands.js?v=35';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=35';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=35';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=35';
+import { makeLaunchSound } from './launch-sound.js?v=36';
+import { makeRadio, combineRadios } from './radio.js?v=36';
+import { makeClock } from './clock.js?v=36';
+import { makeChatter } from './chatter.js?v=36';
+import { handOnCrew } from './crew-life.js?v=36';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=36';
+import { createHand, makeControllers } from './hands.js?v=36';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=36';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=36';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=36';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

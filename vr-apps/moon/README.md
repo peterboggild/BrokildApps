@@ -684,3 +684,11 @@ In your couch in the Command Module: Challenger's ascent stage is cast off; two 
 engine burns for home; Earthrise, and the Moon falling away. `src/leaving.js` was made from `src/lunar.js` (chapter 3
 run the other way); the flight is `src/leaving-space.js`. Voices: `tools/script/leaving.json` (`lv01` to `lv17`).
 Pictures: `tools/shot-leaving.cjs "t=842600&out&od=40" out.png`. Test: `test/leaving.test.cjs`.
+
+## Chapter 10: the coast home (`homeward.html`)
+
+In your couch in the Command Module, the Earth growing ahead; at GET 254:54 the walk outside, hand over hand along
+the rail to the instrument bay in the Service Module's side for the film cassette. `src/homeward.js` was made from
+`src/orbit.js` (chapter 2 run the other way); the flight is `src/home-space.js`. Voices: `tools/script/homeward.json`
+(`hw01` to `hw13`). Pictures: `tools/shot-homeward.cjs "eva=3.2&off=5" out.png` (`eva`: metres along the rail;
+`off`: metres off the hull). Test: `test/homeward.test.cjs`.

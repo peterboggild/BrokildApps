@@ -1,0 +1,113 @@
+{
+  "about": "Radio and intercom for chapter 10: the coast home and the walk outside. Time lines hang on the chapter's start (GET 250:00), the walk (GET 254:54) and the chapter's end; the hatch opening, going out, reaching the instrument bay, taking the cassette and coming in are cued by what happens. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "CMP": "intercom",
+    "CAPCOM": "houston",
+    "LMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "hw01",
+      "t": 900030,
+      "who": "CAPCOM",
+      "text": "America, Houston. You are sixteen hours out and right down the middle of the corridor. Three hundred thousand kilometres to go.",
+      "dur": 7.58
+    },
+    {
+      "id": "hw02",
+      "t": 900300,
+      "who": "LMP",
+      "text": "Look back there. That little thing is where we were walking.",
+      "dur": 2.74
+    },
+    {
+      "id": "hw03",
+      "t": 917550,
+      "who": "CAPCOM",
+      "text": "America, Houston. You are go for the walk outside. Take your time out there.",
+      "dur": 5.12
+    },
+    {
+      "id": "hw04",
+      "t": 917600,
+      "who": "CMP",
+      "text": "Cabin pressure coming down. Suits are holding. Everything loose is tied down.",
+      "dur": 4.45
+    },
+    {
+      "id": "hw05",
+      "t": null,
+      "who": "CMP",
+      "text": "Hatch is open. Out you go. The rail is on your right, all the way down to the bay.",
+      "dur": 4.44,
+      "cue": "hatch",
+      "delay": 0.5
+    },
+    {
+      "id": "hw06",
+      "t": null,
+      "who": "LMP",
+      "text": "I've got your umbilical. Oh, man. Look at that. The Earth and the Moon, both at once.",
+      "dur": 5.07,
+      "cue": "out",
+      "delay": 2
+    },
+    {
+      "id": "hw07",
+      "t": null,
+      "who": "CMP",
+      "text": "That's the instrument bay. The cassette is on top of the mapping camera, the white drum. Pull the pin and lift it out.",
+      "dur": 5.87,
+      "cue": "bay",
+      "delay": 0.5
+    },
+    {
+      "id": "hw08",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. We see you have the cassette. Beautiful. Bring it on home.",
+      "dur": 5.1,
+      "cue": "got",
+      "delay": 0.3
+    },
+    {
+      "id": "hw09",
+      "t": null,
+      "who": "CMP",
+      "text": "He's in. Film is stowed. Closing the hatch.",
+      "dur": 2.8,
+      "cue": "in",
+      "delay": 1
+    },
+    {
+      "id": "hw10",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. Nice work out there. That is the farthest from home anyone has ever gone for a walk.",
+      "dur": 6.51,
+      "cue": "in",
+      "delay": 7
+    },
+    {
+      "id": "hw11",
+      "t": 1004040,
+      "who": "CAPCOM",
+      "text": "America, Houston. Half-way home. The Earth is a good deal bigger down here than it looks to you.",
+      "dur": 5.8
+    },
+    {
+      "id": "hw12",
+      "t": 1077485,
+      "who": "CMP",
+      "text": "Thirty thousand miles. She's really coming up now.",
+      "dur": 3.03
+    },
+    {
+      "id": "hw13",
+      "t": 1080785,
+      "who": "CAPCOM",
+      "text": "America, Houston. Your entry corridor is good. Time to stow the cabin and strap in.",
+      "dur": 5.91
+    }
+  ]
+}

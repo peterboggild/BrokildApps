@@ -958,6 +958,29 @@ Chapter 9, `leaving.html` (`src/leaving.js`, `src/leaving-space.js`, `tools/scri
 - Not there yet: the two days of orbital science are only time passing; the Earth is a thin crescent at that date
   and small in the window.
 
+### 12.23 The journey home, part 4: the coast home and the walk outside (26 November 2026, Fable)
+
+First a miss of mine: the Brokild VR page (`vr-apps/index.html`) has its own Moon card with a button for every
+chapter, and it stopped at chapter 6 while chapters 7 to 9 went live; the owner could not reach them from it
+(#150). A new chapter goes in three places: `vr-apps/moon/index.html`, the card on `vr-apps/index.html`, and
+`sitemap.xml` with the list in `tools/sync-site.js`.
+
+Chapter 10, `homeward.html` (`src/homeward.js`, `src/home-space.js`, `tools/script/homeward.json`,
+`test/homeward.test.cjs`), is chapter 2 run the other way, and was made from `orbit.js`.
+- `home-space.js`: chapter 2's ellipse flown backwards (the mirrored time, the velocity turned round), timed to
+  Apollo 17's entry. GET 250:00, 300,000 km out, to 25,000 km up, 80 minutes before the entry.
+- The Command and Service Modules alone; passive thermal control's slow roll, as on the way out.
+- The walk outside at GET 254:54 (Apollo 17's was the Command Module Pilot's; the owner asked for it: "Deep space
+  walk, yes"). Fast forward drops to real time 100 s before; the hatch is opened and the clock waits. A, a grip or
+  the left stick takes you out, through black. `RAIL`: from the hatch down the cone and along the Service Module
+  to the instrument bay (`bay`, a twelfth of the way round, clear of the thruster quad under the hatch); you float
+  0.8 m off the hull, facing it, your head towards the nose (`placeEVA`). A grip holds the rail and you move the
+  other way from your hand; the stick moves you; A goes by itself. At the bay a grip by the cassette takes it (A
+  does it for you); back at the hatch with it, through black, you are in your couch. For the walk the ship is held
+  still with the hatch's side in the sunlight.
+- Not there yet: no suit, helmet or umbilical is drawn on you (your hands are the cabin's); the hatch does not
+  show as open from outside; one cassette of the real three; the Moon's pull is not in the flight.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and
