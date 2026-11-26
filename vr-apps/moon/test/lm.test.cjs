@@ -112,6 +112,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   /* the end */
   const end = await p.evaluate(async () => { __lm.S.running = true; __lm.setTime(__lm.END - 3); await new Promise(r => setTimeout(r, 6000)); return { ended: __lm.S.ended, t: __lm.S.t }; });
   ok('the chapter ends', end.ended, JSON.stringify(end));
+  /* started again from the couch on the same page: the tunnel is there again, the hatch open, the ships at the
+   * tunnel's spacing (the hatch stayed shut from the first time: you floated to the LM through open space) */
+  await p.evaluate(() => { document.getElementById('start').value = '384000'; __lm.readOptions(); __lm.S.running = true; __lm.beginCrawl(); });
+  await frames(4);
+  const again = await p.evaluate(() => ({ mode: __lm.S.mode, shut: __lm.S.hatchShut, hardK: __lm.S.hardK, tunnel: __lm.tunnel.visible, out: __lm.OUT.on, off: __lm.radio.lines.filter(l => l.off).length }));
+  ok('started again from the couch: the tunnel is drawn, the hatch open', again.mode === 'crawl' && !again.shut && again.hardK === 0 && again.tunnel && !again.out && again.off === 0, JSON.stringify(again));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'lm-again.png') });
   ok('no errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   console.log(fails ? `${fails} FAILED` : 'all passed');
