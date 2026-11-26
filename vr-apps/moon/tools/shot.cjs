@@ -12,7 +12,7 @@ const { chromium } = require('playwright-core');
     const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
     p.on('pageerror', e => console.log('PAGE ERROR', e.message));
     p.on('console', m => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) console.log('CONSOLE', m.text()); });
-    await p.goto('http://127.0.0.1:8765/vr-apps/moon/?still&shot&' + args[k]);
+    await p.goto('http://127.0.0.1:8765/vr-apps/moon/moon.html?still&shot&' + args[k]);
     await p.waitForFunction(() => window.__moon && __moon.S.ready, null, { timeout: 240000 });
     await p.waitForFunction(() => !__moon.ground.busy && !__moon.teleporting, null, { timeout: 120000 });
     await p.evaluate(() => new Promise(r => { const s = __moon.S.frames; const t = () => (__moon.S.frames >= s + 4 ? r() : setTimeout(t, 50)); t(); }));

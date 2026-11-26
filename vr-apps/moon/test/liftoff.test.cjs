@@ -67,8 +67,9 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok('ignition: straight up, the descent stage left behind', up.h > 20 && up.h < 80 && up.yUp > 0.995 && up.a > 3 && left.cue && Math.abs(left.down[1] - left.land[1]) < 0.01, JSON.stringify(up) + ' ' + JSON.stringify(left));
   /* the pitch-over: face down, the windows to the Moon */
   await p.waitForFunction(() => __liftoff.S.t > __liftoff.GETA.lift + 32, null, { timeout: 600000 });
-  const over = await pose();
+  const over = await pose(), told = await p.evaluate(() => ({ ff: !!__liftoff.S.cues.ff, text: __liftoff.toast.text }));
   ok('the pitch-over: about 50 degrees over, the windows turned down to the Moon', over.yUp > 0.5 && over.yUp < 0.78 && over.zUp < -0.6 && over.zFwd > 0.4 && !!(await p.evaluate(() => __liftoff.S.cues.pitch)), JSON.stringify(over));
+  ok('thirty seconds after lift-off you are told that fast forward is open', told.ff && /Fast forward enabled \(B\)/.test(told.text), JSON.stringify(told));
   const e1 = await eyes();
   ok('in the ascent: both eyes drawn', e1.every(v => v > 4 && v < 250), e1.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'liftoff-pitch.png') });
@@ -77,10 +78,10 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const w0 = await p.evaluate(() => __liftoff.S.warp);
   await p.waitForFunction(() => __liftoff.S.t > __liftoff.GETA.lift - 18, null, { timeout: 600000 });
   const held = { before: w0, at: await p.evaluate(() => __liftoff.S.warp) };
-  await p.evaluate(() => { const o = __liftoff; o.restart(o.GETA.lift + 150); o.S.running = true; o.clock.faster(o.S); o.clock.faster(o.S); });
+  await p.evaluate(() => { const o = __liftoff; o.restart(o.GETA.lift + 150); o.S.running = true; o.clock.faster(o.S); });
   const f0 = await p.evaluate(() => __liftoff.S.t); await frames(8);
   const fast = await p.evaluate(t0 => ({ warp: __liftoff.S.warp, went: +(__liftoff.S.t - t0).toFixed(1) }), f0);
-  ok('fast forward drops to real time as the lift-off comes up; the long burn can be run faster', held.before > 1 && held.at === 1 && fast.warp > 1 && fast.went > 0.5, JSON.stringify({ held, fast }));
+  ok('fast forward drops to real time as the lift-off comes up; in the long burn one press of B is ten times', held.at === 1 && fast.warp === 10 && fast.went > 0.5, JSON.stringify({ held, fast }));
   /* the cut-off: in orbit */
   await p.evaluate(() => { const o = __liftoff; o.restart(o.GETA.insert - 6); o.S.running = true; });
   await p.waitForFunction(() => __liftoff.S.t > __liftoff.GETA.insert + 3, null, { timeout: 600000 });
