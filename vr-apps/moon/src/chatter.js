@@ -7,7 +7,7 @@
  *   chat.update(dt, { crew: ['CMP', 'LMP'], where: ['any', 'space', 'earth'], quiet: true });   every frame
  *   chat.touch('LMP');                                    your hand on him: one of his answers (not too often)
  * chat.radio plays them (radio.js): talking(who) and level(who) for the faces. */
-import { makeRadio } from './radio.js?v=30';
+import { makeRadio } from './radio.js?v=31';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 

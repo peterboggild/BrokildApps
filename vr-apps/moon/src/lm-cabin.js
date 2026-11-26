@@ -8,10 +8,10 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=30';
-import { makeEVASuit } from './eva-suit.js?v=30';
-import { makeCrewLife } from './crew-life.js?v=30';
-import { LM } from './lm-model.js?v=30';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=31';
+import { makeEVASuit } from './eva-suit.js?v=31';
+import { makeCrewLife } from './crew-life.js?v=31';
+import { LM } from './lm-model.js?v=31';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,
@@ -112,16 +112,22 @@ export function makeLMCabin(opts = {}) {
     panels.push({ mesh: m, w, h });
     return m;
   };
-  /* just under the windows and leaning back to face your eyes (lower and more upright they were "at the knees",
-   * seen at a grazing angle: owner's headset test) */
+  /* The flight panels hang from the wall just under the windows and slope out towards you, their faces turned up
+   * to a standing man's eyes, like the top of a console. (They were turned the other way, a sign wrong: their
+   * faces looked down at your knees and could not be read at all: owner's headset test. Flat on the wall they
+   * would be seen almost edge on from where you stand, 35 cm from it and 60 cm above them.) PT: how far the face
+   * is turned up from upright; the top edge is on the wall at TOP. */
   panel.texture.anisotropy = 16;
-  const PY = FLOOR + 1.05, PZ = FRONT - 0.12, PT = -0.45;
+  const PT = 0.72, TOP = FLOOR + 1.10, PH = 0.36;
+  const PY = TOP - PH / 2 * Math.cos(PT), PZ = FRONT - 0.03 - PH / 2 * Math.sin(PT);
   const p1 = panelAt(0.00, 0.22, 0.62, 0.36, 0.42, PY, PZ, PT, Math.PI);
   const p2 = panelAt(0.22, 0.44, 0.62, 0.36, -0.42, PY, PZ, PT, Math.PI);
   const p3 = panelAt(0.44, 0.54, 0.18, 0.36, 0, PY, PZ + 0.004, PT, Math.PI);          /* between the two, clear of the hatch below */
-  panelAt(0.60, 0.80, 0.42, 0.62, HALF - 0.06, FLOOR + 0.95, 0.8, -0.6, -Math.PI / 2);
-  panelAt(0.80, 1.00, 0.42, 0.62, -HALF + 0.06, FLOOR + 0.95, 0.8, -0.6, Math.PI / 2);
-  /* the side panels are the sloping tops of consoles standing against the walls, not plates in the air */
+  /* the side panels: flat on the side walls beside each station, at the height of your shoulders and eyes, upright
+   * (they were lower and turned in their own plane, like a picture hung askew: owner's headset test) */
+  panelAt(0.60, 0.80, 0.42, 0.62, HALF - 0.058, FLOOR + 1.34, 0.8, 0, -Math.PI / 2);
+  panelAt(0.80, 1.00, 0.42, 0.62, -HALF + 0.058, FLOOR + 1.34, 0.8, 0, Math.PI / 2);
+  /* under each, a console standing against the wall */
   /* (one cabinet under each, its top below the panel's lower edge; a second box behind the panel hid it: owner's headset test) */
   for (const sx of [-1, 1]) put(new THREE.BoxGeometry(0.26, 0.64, 0.66), dark, sx * (HALF - 0.13), FLOOR + 0.32, 0.8);
   /* the DSKY on the centre console, an attitude ball on each flight panel */

@@ -15,21 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=30';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=30';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=30';
-import { settleLM } from './lm-model.js?v=30';
-import { makeLMShadow } from './lm-shadow.js?v=30';
-import { makeLaunchSound } from './launch-sound.js?v=30';
-import { makeRadio, combineRadios } from './radio.js?v=30';
-import { makeClock } from './clock.js?v=30';
-import { makeChatter } from './chatter.js?v=30';
-import { handOnCrew } from './crew-life.js?v=30';
-import { makeVehicle } from './vehicle.js?v=30';
-import { createHand, makeControllers } from './hands.js?v=30';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=30';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=30';
-import { settings, applyCommon, holdsFor } from './settings.js?v=30';
+import { GETL } from './lunar-space.js?v=31';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=31';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=31';
+import { settleLM } from './lm-model.js?v=31';
+import { makeLMShadow } from './lm-shadow.js?v=31';
+import { makeLaunchSound } from './launch-sound.js?v=31';
+import { makeRadio, combineRadios } from './radio.js?v=31';
+import { makeClock } from './clock.js?v=31';
+import { makeChatter } from './chatter.js?v=31';
+import { handOnCrew } from './crew-life.js?v=31';
+import { makeVehicle } from './vehicle.js?v=31';
+import { createHand, makeControllers } from './hands.js?v=31';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=31';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=31';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=31';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -235,7 +235,7 @@ function readControllers(now) {
   }
 }
 /* standing at your station (only turned and moved over the floor; your own height stays) */
-const SEAT = { pending: 0, done: false };
+const SEAT = { pending: 0, done: false }, recentred = watchRecentre(renderer, camera);
 const _e = new THREE.Euler();
 function seat() {
   _e.setFromQuaternion(camera.quaternion, 'YXZ');
@@ -369,6 +369,7 @@ function render() {
   scene.updateMatrixWorld(true);
   if (renderer.xr.isPresenting) {
     renderer.xr.updateCamera(camera);
+    if (recentred() && SEAT.done && !SEAT.pending && true) SEAT.pending = 1;     /* the headset's own "reset view": seated again where you belong */
     if (SEAT.pending && ++SEAT.pending > 4) { seat(); SEAT.pending = 0; scene.updateMatrixWorld(true); renderer.xr.updateCamera(camera); }
   }
   _cam.setFromMatrixPosition(camera.matrixWorld);

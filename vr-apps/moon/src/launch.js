@@ -12,20 +12,20 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=30';
-import { makeOutside } from './earth.js?v=30';
-import { makeCabin } from './cabin.js?v=30';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=30';
-import { makeRadio, combineRadios } from './radio.js?v=30';
-import { makeClock } from './clock.js?v=30';
-import { makeChatter } from './chatter.js?v=30';
-import { handOnCrew } from './crew-life.js?v=30';
-import { makePad, ARM, WR } from './pad.js?v=30';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=30';
-import { createHand, makeControllers } from './hands.js?v=30';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=30';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=30';
-import { settings, applyCommon, holdsFor } from './settings.js?v=30';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=31';
+import { makeOutside } from './earth.js?v=31';
+import { makeCabin } from './cabin.js?v=31';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=31';
+import { makeRadio, combineRadios } from './radio.js?v=31';
+import { makeClock } from './clock.js?v=31';
+import { makeChatter } from './chatter.js?v=31';
+import { handOnCrew } from './crew-life.js?v=31';
+import { makePad, ARM, WR } from './pad.js?v=31';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=31';
+import { createHand, makeControllers } from './hands.js?v=31';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=31';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=31';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=31';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -223,7 +223,7 @@ function seatAfterBoarding() {
  * `head` (the parent of the camera and the controllers) is moved and turned so that your eyes, as they are now,
  * are at the Commander's eye point looking at the panel. Done when the session starts, and again whenever a
  * thumbstick is pressed. */
-const SEAT = { pending: 0, done: false };
+const SEAT = { pending: 0, done: false }, recentred = watchRecentre(renderer, camera);
 const _e = new THREE.Euler();
 function seat() {
   /* after renderer.xr.updateCamera, camera.position and .quaternion are the headset's pose in `head`'s frame */
@@ -231,7 +231,7 @@ function seat() {
   const yaw = _e.y, c = Math.cos(-yaw), s = Math.sin(-yaw), p = camera.position;
   head.rotation.set(0, -yaw, 0);
   head.position.set(-(c * p.x + s * p.z), -p.y, -(-s * p.x + c * p.z));
-  SEAT.done = true;
+  SEAT.done = true; SEAT.n = (SEAT.n || 0) + 1;
 }
 
 /* ---------------------------------------------------------------- rendering */
@@ -245,6 +245,7 @@ function render() {
   scene.updateMatrixWorld(true);
   if (renderer.xr.isPresenting) {
     renderer.xr.updateCamera(camera);
+    if (recentred() && SEAT.done && !SEAT.pending && S.mode === 'seated') SEAT.pending = 1;     /* the headset's own "reset view" */
     if (SEAT.pending && camera.position.lengthSq() + Math.abs(camera.quaternion.w - 1) > 0) {
       /* wait a few frames for a real pose, then seat and apply at once */
       if (++SEAT.pending > 4) { seat(); SEAT.pending = 0; scene.updateMatrixWorld(true); renderer.xr.updateCamera(camera); }

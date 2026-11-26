@@ -18,8 +18,10 @@ assistant can only test on the flat screen and in an emulator.
 
 ## 2. Where it stands
 
-Live on main at `38da761` (PR #140). All moon modules carry `?v=29`; `index.html` and `surface.html` load
-`src/main.js?v=22`.
+Live on main after PR #142 (the rover's sound, tracks and navigation; messages as a setting; triggers take hold),
+with PR #143 (entering the LM: voices, hard dock seen from outside, the panels, the view reset) open at the time
+of writing. All moon modules carry `?v=31` (`prints.js` its own `?v=4`); `index.html` and `surface.html` load
+`src/main.js?v=24`. Check `git log` for what has landed since.
 
 | Chapter | Page | State |
 |---|---|---|
@@ -37,8 +39,9 @@ you follow, lift-off, and at 50 m the view goes to a console in Houston that pla
 a rock, the wave, the lift-off) and ends with "You completed the first part of the Apollo 17 mission. Have a safe
 trip back."
 
-The owner's last word on #136 to #139 is the list of questions that led to #140. His headset verdict on #136 to
-#140 is still to come.
+The owner has driven the rover and planted the flag in the headset ("fantastic work on the rover and flag
+experience") and entered the LM in chapter 4; his notes from those runs are sections 12.17 and 12.18 of
+`MOON-DESIGN.md`. Not yet judged by him: the film and finale of #140, and the changes of #142 and #143.
 
 ### To check in the headset (not yet answered)
 
@@ -84,8 +87,13 @@ These are standing rules. They came from him, in his words where quoted.
 - **His email and project details are private**: never in requests to outside services.
 - **Do not work round a permission or safety denial.**
 
-Comfort and control decisions he made: the upper triggers teleport, except within 10 m of the LM where they grip
-the ladder ("Move further away from lunar lander to teleport"); the "Moon Walk" hopping gait is on by default and
+**Messages on screen are off by default** (a setting in every chapter): he finds them distracting. A new message
+must earn `toast.say(text, secs, true)` (shown whatever the setting) by being an answer to the player's own
+button or something the player cannot do without; otherwise it is a hint and stays off.
+
+Comfort and control decisions he made: the pistol triggers take hold like the grips whenever something is in
+reach, and jump only when 10 m clear of the LM, the rover, the flag and the crewmate (nearer: "Cannot teleport
+close to other objects or astronauts"); the "Moon Walk" hopping gait is on by default and
 switchable in the settings' comfort section; the film is redrawn motion, not video ("You decide"; decided in
 12.16).
 

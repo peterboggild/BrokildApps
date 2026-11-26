@@ -98,7 +98,9 @@ beyond. You sit upright; the cabin is turned round you so the main display conso
   the launch suit: white, with the red and blue hose connectors and hoses, wrist rings, gloves, the flag on the
   shoulder, and the clear bubble helmet over the communications cap.
 - **Seating in VR**: the headset's own origin is wherever the Quest was last recentred, so the couch is brought to
-  you when the session starts (`seat()` in `src/launch.js`); a thumbstick press re-seats you.
+  you when the session starts (`seat()` in `src/launch.js`); a thumbstick press re-seats you. The headset's own "reset view" does the same by
+  itself in every seated chapter and at your station in the LM (`watchRecentre` in `settings.js`: the reference
+  space reports it, or the pose jumps): you stay where you belong, not where the new origin would put you.
 - **The cover**: until the escape tower is jettisoned (T+3:18) the boost protective cover blinds every window except
   a 20 cm hole over the hatch window; then the windows open onto a sky already going black.
 - **Outside** (`src/earth.js`, `src/sky-worker.js`): the sky and the air in front of the ground by single
