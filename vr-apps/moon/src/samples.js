@@ -35,7 +35,7 @@ export function makeSamples(o) {
         const a = rnd() * Math.PI * 2, d = 2.5 + rnd() * 7.5, rx = x + Math.cos(a) * d, rz = z + Math.sin(a) * d;
         m.position.set(rx, o.moon.heightAt(rx, rz) + m.scale.y * 0.55, rz); group.add(m);
         /* (a rock of this size, at 3 g/cm3, a little flattened: 9 to 17 kg) */
-        rocks.push({ mesh: m, kg: Math.round((9 + (r - 0.09) / 0.07 * 8) * 10) / 10, state: 'ground', hand: null, vy: 0 });
+        rocks.push({ mesh: m, kg: Math.round((9 + (r - 0.09) / 0.07 * 8) * 10) / 10, state: 'ground', hand: null, vy: 0, home: m.position.clone() });
       }
     },
     grab(hand) {

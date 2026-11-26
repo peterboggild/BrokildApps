@@ -2,7 +2,9 @@
  * along the ground away from the Sun and draped over the terrain each frame. Stage 0's terrain shader casts no
  * shadows of things standing on it; this is the one that matters (the descending crews used it as their last
  * altitude cue, and it is in every photograph of an LM on the Moon).
- * update(x, z, h, sun): the point under the LM, the height of its footpads over the ground there, the Sun (unit). */
+ * update(x, z, h, sun): the point under the LM, the height of its footpads over the ground there, the Sun (unit).
+ * bake(renderer, model, sun, { clip: [planes], read: false, nx, ny }): the model's own silhouette (a part of it only,
+ * cut by the planes; read: false keeps no copy for lit()). lift(alt): the shadow of the same thing alt metres up. */
 import * as THREE from 'three';
 
 export function makeLMShadow(moon) {
@@ -40,7 +42,7 @@ export function makeLMShadow(moon) {
     if (i < 0 || j < 0 || i >= SZ || j >= SZ) return 1;
     return 1 - pix[(j * SZ + i) * 4 + 1] / 255;
   }
-  function bake(renderer, model, sun) {
+  function bake(renderer, model, sun, opt = {}) {
     const rt = baked ? baked.rt : new THREE.WebGLRenderTarget(SZ, SZ, { samples: 4 });
     const sh = new THREE.Vector3(-sun.x, 0, -sun.z).normalize(), el = Math.asin(sun.y);
     const upP = new THREE.Vector3(sh.x * Math.sin(el), Math.cos(el), sh.z * Math.sin(el));
@@ -51,6 +53,7 @@ export function makeLMShadow(moon) {
     const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     /* the model alone, in white on black */
     const sc = new THREE.Scene(); sc.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    if (opt.clip) sc.overrideMaterial.clippingPlanes = opt.clip;
     const parent = model.parent, at = parent ? parent.children.indexOf(model) : -1;
     const prev = renderer.getRenderTarget(), xr = renderer.xr.enabled, cc = new THREE.Color(), ca = renderer.getClearAlpha(); renderer.getClearColor(cc);
     sc.add(model);
@@ -58,14 +61,21 @@ export function makeLMShadow(moon) {
     renderer.render(sc, cam);
     renderer.setRenderTarget(prev); renderer.setClearColor(cc, ca); renderer.xr.enabled = xr;
     /* the silhouette, kept on this side too: lit(point) asks whether the Sun reaches a point (lmp.js, your own suit) */
-    try { pix = pix || new Uint8Array(SZ * SZ * 4); renderer.readRenderTargetPixels(rt, 0, 0, SZ, SZ, pix); cosEl = Math.cos(el); } catch (e) { pix = null; }
+    if (opt.read !== false) try { pix = pix || new Uint8Array(SZ * SZ * 4); renderer.readRenderTargetPixels(rt, 0, 0, SZ, SZ, pix); cosEl = Math.cos(el); } catch (e) { pix = null; }
     if (parent) { parent.add(model); parent.children.splice(at, 0, parent.children.pop()); }
     sc.overrideMaterial.dispose();
-    if (!baked) { NX = 20; NY = 88; geo.dispose(); geo = new THREE.PlaneGeometry(1, 1, NX, NY); mesh.geometry = geo; mesh.material.alphaMap = rt.texture; mesh.material.needsUpdate = true; }
-    baked = { rt, R, right, sh, sinEl: Math.sin(el) };
-    const pos = geo.attributes.position;
+    if (!baked) { NX = opt.nx || 20; NY = opt.ny || 88; geo.dispose(); geo = new THREE.PlaneGeometry(1, 1, NX, NY); mesh.geometry = geo; mesh.material.alphaMap = rt.texture; mesh.material.needsUpdate = true; }
+    baked = { rt, R, right, sh, sinEl: Math.sin(el), tanEl: Math.tan(el), alt: -1 };
+    lift(0);
+  }
+  /* laid out on the ground: of the thing where it was drawn (alt 0), or of the same thing alt metres up (the ascent
+   * stage after lift-off: a point alt higher throws its shadow alt / tan(elevation) further down-Sun) */
+  function lift(alt = 0) {
+    if (!baked || Math.abs(alt - baked.alt) < 0.002) return;
+    baked.alt = alt;
+    const { R, right, sh } = baked, off = alt / Math.max(0.05, baked.tanEl), pos = geo.attributes.position;
     for (let j = 0; j <= NY; j++) for (let i = 0; i <= NX; i++) {
-      const u = (i / NX - 0.5) * 2 * HALF, v = (W1 - j / NY * (W1 - W0)) / baked.sinEl;
+      const u = (i / NX - 0.5) * 2 * HALF, v = (W1 - j / NY * (W1 - W0)) / baked.sinEl + off;
       const x = R.x + right.x * u + sh.x * v, z = R.z + right.z * u + sh.z * v;
       pos.setXYZ(j * (NX + 1) + i, x, moon.heightAt(x, z) + 0.07, z);
     }
@@ -85,5 +95,5 @@ export function makeLMShadow(moon) {
     pos.needsUpdate = true; geo.computeBoundingSphere();
     mesh.material.opacity = opacity;
   }
-  return { mesh, update, bake, lit };
+  return { mesh, update, bake, lit, lift };
 }

@@ -14,11 +14,21 @@
  * 1. Samples: drive to station 1, the boulder field ahead of the LM; lift rocks with the tongs (a grip with your
  *    hand over one) and drop them in the bags at the back of the rover, until there are 100 kg.
  * 2. The film: park the rover 20 to 30 m from the LM and step off. The camera is turned on the LM; he goes to stand
- *    before it and calls you; stand by him and wave. Nine seconds are kept (how you both moved, not pictures).
- * 3. Home: take the sample bag from the back of the rover (a grip there), climb the ladder with it, into the cabin.
- *    He follows, the hatch shuts, Houston gives the go, the count, and the ascent stage lifts off.
- * 4. At 50 m the view goes dark, and the film is played back (finale.js, the page draws it): the two of you waving,
- *    then the lift-off as the rover's camera saw it, with the camera's operator a second and a half behind, as he was.
+ *    before it and calls you; stand by him. When you are ready, A (or a word on the radio: X held and let go): a
+ *    count of three, then twelve seconds are kept, with the seconds left shown, and a clear cut at the end.
+ * 3. Home: take the sample bag from the back of the rover (a grip there). He goes up first (the Commander was the
+ *    last one on the Moon): to the footpad, up the ladder, in over the porch; the ladder is yours when he is in.
+ *    Climb it with the bag, into the cabin; the hatch shuts, Houston gives the go, the count, and the lift-off.
+ * 4. At 50 m the view goes dark, and the film is played back (finale.js, the page draws it): the valley, the flag
+ *    going up, a rock lifted and stowed, the two of you waving, then the lift-off as the rover's camera saw it, with
+ *    the camera's operator a second and a half behind, as he was.
+ *
+ * What the film is made of: not pictures but motion. Thirty times a second, 48 numbers: where your suit stood, its
+ * turn and height, both arms and elbows as your hands had them, the legs and the waist (a crouch, a jump, a stride),
+ * his place and whole pose, the flag (where, how far in, how far out), the rock in your hand. The flag's and the
+ * rock's scenes are kept as they happen (the last 12 and 9 seconds of each); the wave when you say so. Played back,
+ * the same scene is drawn again from a camera's place, blended between the kept frames: what the camera would have
+ * seen, movement for movement.
  *
  *   const ops = makeSurfaceOps({ moon, renderer, sun, env, model, lmp, radio, toast, hands, rig, camera, S, clearOf,
  *                                step(strength), makeShadow, makeDust });
@@ -28,10 +38,10 @@
  *   ops.button('a')                       A pressed; true if it was for the rover
  *   ops.driving, ops.seat                 seated on the rover (the page then places the rig from ops.eye and ops.yaw) */
 import * as THREE from 'three';
-import { makeFlag } from './flag.js?v=28';
-import { makeRover, ROVER } from './rover.js?v=28';
-import { makeSamples } from './samples.js?v=28';
-import { makeRecorder } from './finale.js?v=28';
+import { makeFlag } from './flag.js?v=29';
+import { makeRover, ROVER } from './rover.js?v=29';
+import { makeSamples } from './samples.js?v=29';
+import { makeRecorder } from './finale.js?v=29';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const G = 1.62;
@@ -59,9 +69,15 @@ export function makeSurfaceOps(o) {
   const _b = new THREE.Vector3();
   const smp = makeSamples({ moon: o.moon, rig: o.rig, get toast() { return o.toast; }, step: o.step, bag: () => rover.localToWorld(_b.copy(rover.userData.bag)) }); group.add(smp.group);
   const rec = makeRecorder(), station = site(-34, 82), lmAt = site(0, 0);
+  /* what is kept for the film (see the top): 48 numbers a frame; you 0, he 20, the flag 38, the rock 44 */
+  const NF = 48, SPEC = { yaw: [3, 23, 41], quat: [5, 10], hold: [42, 44] }, REC = 12;
+  const clips = { flag: { rec: makeRecorder(12), on: 0 }, rock: { rec: makeRecorder(9), on: 0 }, wave: { rec } };
+  const _a = new Float32Array(NF), _f = new Float32Array(NF), smooth = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); };
   const sparks = o.makeDust(o.moon); sparks.points.material.color.set(0xd8b060); sparks.points.material.size = 0.06; group.add(sparks.points);
   const F = { odo: 0, bag: false, recT: 0, alt: 0, vel: 0, tf: 0, wave: new THREE.Vector3(), me: null, finale: false, actors: false, part: 'wave', on: 0, caption: 0, end: false, fade: 0, hatch: 0,
-    cam: new THREE.Vector3(), look: new THREE.Vector3(), lookTo: new THREE.Vector3(), fov: 28, burst2: false };
+    cam: new THREE.Vector3(), look: new THREE.Vector3(), lookTo: new THREE.Vector3(), fov: 28, burst2: false,
+    tv: new THREE.Vector3(), panCam: new THREE.Vector3(), clock: 0, rover: false, parts: null, cur: null, total: 0, snap: false, rockI: -1, flagUp: false, home: null,
+    canGo: false, go: false, tx: false, promptT: 0, n: -1 };
   const p0 = site(-7.6, 4.6);
   const R = { x: p0.x, z: p0.z, y: p0.y, yaw: yawLM + 2.2, v: 0, steer: 0, pitch: 0, roll: 0, bounce: 0, bv: 0, gy: p0.y, spin: 0, driving: false, bakeT: 9, bx: 1e9, bz: 0, byaw: 0, off: 0, dustT: 0 };
   const eye = new THREE.Vector3();
@@ -112,32 +128,102 @@ export function makeSurfaceOps(o) {
   function setStage() {
     const d = Math.max(1, Math.hypot(R.x - lmAt.x, R.z - lmAt.z)), k = 6.4 / d, sx = -(R.z - lmAt.z) / d, sz = (R.x - lmAt.x) / d;
     F.wave.set(lmAt.x + (R.x - lmAt.x) * k, 0, lmAt.z + (R.z - lmAt.z) * k); F.wave.y = o.moon.heightAt(F.wave.x, F.wave.z);
-    rover.updateMatrixWorld(true); rover.userData.camera.getWorldPosition(F.cam);
+    rover.updateMatrixWorld(true); rover.userData.camera.getWorldPosition(F.cam); F.tv.copy(F.cam);
     F.me = [F.wave.x - sx * 0.8, F.wave.z - sz * 0.8]; F.him = [F.wave.x + sx * 0.8, F.wave.z + sz * 0.8];
     F.look.set(F.wave.x, F.wave.y + 1.25, F.wave.z);
     /* the camera on its mast turns to it */
     const lx = F.wave.x - F.cam.x, lz = F.wave.z - F.cam.z; rover.userData.pan.rotation.y = Math.atan2(-lx, -lz) - R.yaw;
   }
   /* the film, played back: the wave as it was kept (or a stand-in, if none was), then the lift-off */
+  /* one frame of it kept: you, he, the flag, the rock in your hand */
+  function keep(r) {
+    o.ghost.snap(_a, 0); o.lmp.snapshot(_a, 20);
+    _a[38] = flag.position.x; _a[39] = flag.position.y; _a[40] = flag.position.z; _a[41] = flag.rotation.y; _a[42] = flag.visible ? flag.userData.planted : -1; _a[43] = st.unfurl;
+    const i = smp.rocks.findIndex(q => q.state === 'held'); _a[44] = i;
+    if (i >= 0) smp.rocks[i].mesh.position.toArray(_a, 45); else _a[45] = _a[46] = _a[47] = 0;
+    r.add(F.clock, _a);
+  }
+  /* and set again */
+  function pose(a) {
+    o.ghost.pose(a, 0); o.lmp.pose(a, 20);
+    if (a[42] >= 0) { flag.visible = true; flag.position.set(a[38], a[39], a[40]); flag.rotation.y = a[41]; flag.userData.set(a[42]); flag.userData.unfurl(a[43]); }
+  }
+  const roverAt = p => { R.x = p[0]; R.z = p[1]; R.yaw = p[2]; settle(0, true); };
+  const flagAsLeft = () => { if (!F.flagUp) return; flag.visible = true; flag.position.copy(st.flagAt); flag.rotation.y = flagYaw; flag.userData.set(1); flag.userData.unfurl(1); flagShadow.mesh.visible = true; };
+  /* the film's scenes, in the order they happened, and where each is seen from: the valley (a slow turn that ends on
+   * the LM), the flag (from beyond it, the LM behind), the rock (from the side the Sun is on, you and the rover both
+   * in the picture), the wave and the lift-off (the rover's own camera) */
+  function plan() {
+    const parts = [{ k: 'pan', d: 9 }], cf = clips.flag, cr = clips.rock, up = 1.5;
+    if (cf.on && cf.rec.length > 1.5) {
+      const dx = st.flagAt.x - lmAt.x, dz = st.flagAt.z - lmAt.z, d = Math.hypot(dx, dz) || 1;
+      cf.cam = new THREE.Vector3(st.flagAt.x + dx / d * 6.5, 0, st.flagAt.z + dz / d * 6.5); cf.cam.y = o.moon.heightAt(cf.cam.x, cf.cam.z) + up;
+      parts.push({ k: 'flag', d: cf.rec.length, c: cf });
+    }
+    if (cr.on === 3 && cr.rec.length > 1.5) {
+      const a0 = cr.rec.frames[0].data, B = rover.userData.bag.clone().applyAxisAngle(_w.set(0, 1, 0), cr.rover[2]); B.x += cr.rover[0]; B.z += cr.rover[1];
+      let dx = -(B.z - a0[2]), dz = B.x - a0[0]; const d = Math.hypot(dx, dz);
+      if (d < 0.5) { dx = 1; dz = 0; } else { dx /= d; dz /= d; }
+      if (dx * o.sun.x + dz * o.sun.z < 0) { dx = -dx; dz = -dz; }
+      const far = Math.max(5, d * 0.8 + 3.5);
+      cr.cam = new THREE.Vector3((B.x + a0[0]) / 2 + dx * far, 0, (B.z + a0[2]) / 2 + dz * far); cr.cam.y = o.moon.heightAt(cr.cam.x, cr.cam.z) + up;
+      cr.bag = B;
+      parts.push({ k: 'rock', d: cr.rec.length, c: cr });
+    }
+    parts.push({ k: 'wave', d: (rec.length > 1 ? rec.length : 8) + 0.6 }, { k: 'liftoff', d: 17 });
+    let t = 1.0; for (const p of parts) { p.t0 = t; t += p.d; }
+    F.parts = parts; F.total = t; F.home = [R.x, R.z, R.yaw]; F.flagUp = flag.visible && st.planted >= 1 && st.unfurl >= 1;
+    site(26, 58, F.panCam); F.panCam.y += 1.9;
+  }
+  /* a scene begins: the rover, the flag and the rocks as they were then */
+  function enter(p) {
+    F.snap = true; F.rockI = -1;
+    for (const q of smp.rocks) q.mesh.visible = q.state !== 'stowed';
+    flagAsLeft();
+    if (p.c) { roverAt(p.c.rover); F.cam.copy(p.c.cam); F.rover = true; }
+    else { roverAt(F.home); F.rover = p.k === 'pan'; F.cam.copy(p.k === 'pan' ? F.panCam : F.tv); }   /* (the camera stands on the rover: it is not in its own picture) */
+    if (p.k === 'rock') smp.rocks.forEach((q, n) => { q.mesh.visible = !p.c.gone[n]; if (q.mesh.visible) q.mesh.position.copy(q.home); });
+  }
   function film(dt) {
-    F.tf += dt; const t = F.tf, W = rec.length > 1 ? rec.length : 8, L = o.lmp;
-    F.on = clamp((t - 1.2) / 1.5, 0, 1); o.fade(clamp(1 - t / 1.2, 0, 1));
-    if (t < W + 1) {
-      F.part = 'wave'; F.actors = true; o.lift(0, false);
-      const a = rec.length > 1 ? rec.at(Math.min(t, W)) : null, yaw = Math.atan2(-(F.cam.x - F.wave.x), -(F.cam.z - F.wave.z));
-      if (a) { o.ghost.pose(a, 0); L.pose(a, 15); } else { o.ghost.stand(F.me[0], F.me[1], yaw); L.canned(F.him[0], F.him[1], yaw, t); }
+    if (!F.parts) plan();
+    F.tf += dt; const t = F.tf, L = o.lmp;
+    let p = F.parts[F.parts.length - 1]; for (const q of F.parts) if (t < q.t0 + q.d) { p = q; break; }
+    const tp = clamp(t - p.t0, 0, p.d), last = p.k === 'liftoff';
+    /* the tube warms up; and a blink of black at every cut */
+    F.on = Math.min(clamp((t - 1.2) / 1.5, 0, 1), clamp(Math.min(tp, last ? 9 : p.d - tp) / 0.2, 0, 1)); o.fade(clamp(1 - t / 1.2, 0, 1));
+    if (p !== F.cur) { F.cur = p; enter(p); }
+    F.part = p.k; let rate = 6;
+    if (p.k === 'pan') {
+      F.actors = false; o.lift(0, false);
+      const k = smooth(tp / (p.d - 1.5)), dx = lmAt.x - F.cam.x, dz = lmAt.z - F.cam.z, d = Math.hypot(dx, dz), a = Math.atan2(dx, dz) - 1.9 * (1 - k);
+      F.lookTo.set(F.cam.x + Math.sin(a) * d, o.model.position.y + 3.3 + 7 * (1 - k), F.cam.z + Math.cos(a) * d); F.fov = 44; rate = 30;
+    } else if (p.c) {
+      F.actors = true; o.lift(0, false);
+      const a = p.c.rec.sample(tp, _f, SPEC); pose(a);
+      if (p.k === 'flag') { flagShadow.mesh.visible = false; F.lookTo.set(st.flagAt.x, st.flagAt.y + 1.35, st.flagAt.z); F.fov = 36; }
+      else {
+        const i = Math.round(a[44]);
+        if (i >= 0) { F.rockI = i; smp.rocks[i].mesh.visible = true; smp.rocks[i].mesh.position.fromArray(a, 45); } else if (F.rockI >= 0) smp.rocks[F.rockI].mesh.visible = false;
+        F.lookTo.set((a[0] + p.c.bag.x) / 2, a[1] + 1.0, (a[2] + p.c.bag.z) / 2); F.fov = 40; rate = 2.5;
+      }
+    } else if (p.k === 'wave') {
+      F.actors = true; o.lift(0, false);
+      const a = rec.length > 1 ? rec.sample(Math.min(tp, rec.length), _f, SPEC) : null, yaw = Math.atan2(-(F.cam.x - F.wave.x), -(F.cam.z - F.wave.z));
+      if (a) pose(a); else { o.ghost.stand(F.me[0], F.me[1], yaw); L.canned(F.him[0], F.him[1], yaw, t); }
       F.lookTo.set(F.wave.x, F.wave.y + 1.25, F.wave.z); F.fov = 27;
     } else {
-      F.part = 'liftoff'; F.actors = false; const tl = t - (W + 1) - 2.2, alt = tl > 0 ? 0.5 * 1.75 * tl * tl : 0;
+      F.actors = false; const tl = tp - 2.2, alt = tl > 0 ? 0.5 * 1.75 * tl * tl : 0;
       if (tl > 0 && !F.burst2) { F.burst2 = true; burst(); }
-      o.lift(alt, false); F.lookTo.set(lmAt.x, o.model.position.y + 3.3, lmAt.z); F.fov = 36;
+      /* the man at the camera's controls sees it all 1.3 light-seconds late, and leads as best he can */
+      o.lift(alt, false); F.lookTo.set(lmAt.x, o.model.position.y + 3.3, lmAt.z); F.fov = 36; rate = 1.5;
     }
-    /* the man at the camera's controls sees it all 1.3 light-seconds late, and leads as best he can */
-    F.look.lerp(F.lookTo, Math.min(1, dt * (F.part === 'wave' ? 6 : 1.5)));
-    F.caption = clamp((t - (W + 1 + 15)) / 2, 0, 1); F.end = t > W + 1 + 18;
+    if (F.snap) { F.snap = false; F.look.copy(F.lookTo); } else F.look.lerp(F.lookTo, Math.min(1, dt * rate));
+    F.caption = clamp((t - (F.total - 2)) / 2, 0, 1); F.end = t > F.total + 1;
   }
   const api = {
-    group, flag, rover, R, st, F, smp, rec,
+    group, flag, rover, R, st, F, smp, rec, clips,
+    /* the ladder is yours (he is not on his way up it) */
+    get ladderFree() { return !(o.lmp && o.lmp.boarding); },
     rate: 1,
     /* for the wrist panel: where you are with the missions */
     status() {
@@ -148,7 +234,9 @@ export function makeSurfaceOps(o) {
         rows.push(['Samples', smp.kg.toFixed(0) + ' of ' + smp.target + ' kg'], [n && tx === n ? 'Nearest rock' : 'Station 1', d.toFixed(0) + ' m ' + (Math.abs(turn) < 0.5 ? 'ahead' : Math.abs(turn) > 2.6 ? 'behind you' : turn > 0 ? 'to your right' : 'to your left')]);
       }
       if (st.step === 'film-go') rows.push(['The rover', 'park it 20-30 m from the LM']);
-      if (st.step === 'load') rows.push(['Sample bag', F.bag ? 'with you: up the ladder' : 'at the back of the rover']);
+      if (st.step === 'film-pose') rows.push(['The camera', F.canGo ? 'A when you are ready' : 'stand by your crewmate']);
+      if (st.step === 'film-count' || st.step === 'film-rec') rows.push(['The camera', st.step === 'film-rec' ? 'recording: ' + Math.max(0, Math.ceil(REC - st.t)) + ' s left' : 'stand by']);
+      if (st.step === 'load') rows.push(['Sample bag', !F.bag ? 'at the back of the rover' : o.lmp && o.lmp.boarding ? 'with you: he goes up first' : 'with you: up the ladder']);
       return rows;
     },
     /* a test's short cut to a later step */
@@ -175,7 +263,12 @@ export function makeSurfaceOps(o) {
       if (st.step === 'samples' && (hw ? smp.grab(hand) : smp.key(headGround))) return true;
       if (st.step === 'load' && !F.bag && headGround) {
         rover.localToWorld(_w.copy(rover.userData.bag));
-        if (Math.hypot(headGround.x - _w.x, headGround.z - _w.z) < 1.8) { F.bag = true; if (o.step) o.step(0.6); o.toast.say('You have the sample bag. Up the ladder with it, into the cabin', 7); return true; }
+        if (Math.hypot(headGround.x - _w.x, headGround.z - _w.z) < 1.8) {
+          F.bag = true; if (o.step) o.step(0.6);
+          /* he goes up first: the Commander was the last one on the Moon */
+          if (o.lmp && o.lmp.on) { o.lmp.climb(); say('lmp-up'); }
+          o.toast.say('You have the sample bag. Your crewmate goes up first; then up the ladder with it', 8); return true;
+        }
       }
       if (['rover', 'free', 'samples', 'film-go', 'film-pose', 'load'].includes(st.step)) {
         seatWorld('driver', _w, 0);
@@ -191,6 +284,8 @@ export function makeSurfaceOps(o) {
       o.toast.say('The left stick drives: forward, back, and steers. A, standing still, to step off', 7);
     },
     button(name) {
+      /* ready for the camera */
+      if (name === 'a' && !R.driving && st.step === 'film-pose' && F.canGo) { F.go = true; return true; }
       if (name !== 'a' || !R.driving) return false;
       if (Math.abs(R.v) > 0.3) { o.toast.say('Stop first', 2); return true; }
       R.driving = false; R.v = 0;
@@ -204,6 +299,14 @@ export function makeSurfaceOps(o) {
     update(dt, ctx = {}) {
       dt *= api.rate; st.t += dt;
       const L = o.lmp, down = !!L && L.on && L.S.phase === 'roam';
+      /* ---- kept for the film as it happens: the flag going up, a rock lifted and stowed (30 frames a second) */
+      F.clock += dt; F.recT -= dt; const tick = F.recT <= 0; if (tick) F.recT = Math.max(0, F.recT + 1 / 30);
+      const cf = clips.flag, cr = clips.rock, held = smp.rocks.some(q => q.state === 'held');
+      if (cf.on === 0 && st.step === 'flag-plant' && st.holding) { cf.on = 1; cf.rover = [R.x, R.z, R.yaw]; }
+      if (cf.on === 1) { if (tick) keep(cf.rec); if ((st.step === 'flag-up' && st.t > 5) || !['flag-plant', 'flag-up'].includes(st.step)) cf.on = 2; }
+      if (cr.on === 0 && held) { cr.on = 1; cr.rec.clear(); cr.rover = [R.x, R.z, R.yaw]; cr.gone = smp.rocks.map(q => q.state === 'stowed'); cr.kg = smp.kg; }
+      else if (cr.on === 1) { if (tick) keep(cr.rec); if (!held) { if (smp.kg > cr.kg) { cr.on = 2; cr.t = 1.6; } else cr.on = 0; } }
+      else if (cr.on === 2) { if (tick) keep(cr.rec); cr.t -= dt; if (cr.t <= 0) cr.on = 3; }
       /* ---- the flag's story */
       if (st.step === 'wait') {
         if (ctx.walking && down) st.wait += dt;
@@ -242,19 +345,36 @@ export function makeSurfaceOps(o) {
         if (!R.driving && d > 11 && d < 48) {
           /* the camera is turned on the LM; he goes to stand before it and calls you */
           st.step = 'film-pose'; setStage();
-          L.command({ x: F.him[0], z: F.him[1], act: 'wave', hold: 1e9, face: [F.cam.x, F.cam.z] });
+          L.command({ x: F.him[0], z: F.him[1], act: 'look', hold: 1e9, face: [F.cam.x, F.cam.z] });
           say('film-here'); if (o.radio) o.radio.setNext('next-wave');
         } else if (!R.driving && !st.said.far) { st.said.far = true; o.toast.say(d >= 48 ? 'Park the rover nearer the Lunar Module (20 to 30 m), then step off' : 'Park the rover further from the Lunar Module (20 to 30 m), then step off', 6); }
         else if (R.driving) st.said.far = false;
       } else if (st.step === 'film-pose') {
-        if (L.arrived && ctx.head && Math.hypot(ctx.head.x - F.me[0], ctx.head.z - F.me[1]) < 2.4) { st.step = 'film-rec'; st.t = 0; F.recT = 0; rec.clear(); say('film-rec'); o.toast.say('The camera is on you both: face the rover and wave', 8); }
+        /* nothing is kept until you say so: A, or a word on the radio (X held and let go) */
+        F.canGo = L.arrived && !!ctx.head && Math.hypot(ctx.head.x - F.me[0], ctx.head.z - F.me[1]) < 2.4;
+        const tx = !!(o.radio && o.radio.transmitting);
+        if (F.canGo) {
+          say('film-ready'); F.promptT -= dt;
+          if (F.promptT <= 0) { F.promptT = 10; o.toast.say('Ready for the camera? Press A (or hold X and say so)', 9); }
+          if (F.tx && !tx) F.go = true;
+          if (F.go) { st.step = 'film-count'; st.t = 0; F.n = 4; }
+        } else F.promptT = 0;
+        F.tx = tx; F.go = false;
+      } else if (st.step === 'film-count') {
+        const n = 3 - Math.floor(st.t);
+        if (n !== F.n && n > 0) { F.n = n; o.toast.say('Recording in ' + n, 1.2); if (o.step) o.step(0.25); }
+        if (st.t >= 3) {
+          st.step = 'film-rec'; st.t = 0; F.n = -1; rec.clear(); say('film-rec');
+          L.command({ x: F.him[0], z: F.him[1], act: 'wave', hold: 1e9, face: [F.cam.x, F.cam.z] });
+        }
       } else if (st.step === 'film-rec') {
-        F.recT -= dt;
-        if (F.recT <= 0) { F.recT = 1 / 15; const a = new Float32Array(33); o.ghost.snap(a, 0); L.snapshot(a, 15); rec.add(st.t, a); }
-        if (st.t > 9) { st.step = 'load'; L.command(null); say('load-go'); if (o.radio) o.radio.setNext('next-load'); }
+        if (tick) keep(rec);
+        const left = Math.max(0, Math.ceil(REC - st.t));
+        if (left !== F.n) { F.n = left; o.toast.say('\u25CF REC   ' + left + ' s left: face the rover and wave', 1.3); }
+        if (st.t > REC) { st.step = 'load'; L.command(null); o.toast.say('Cut. ' + REC + ' seconds of film are kept', 5); if (o.step) o.step(0.5); say('load-go'); if (o.radio) o.radio.setNext('next-load'); }
       } else if (st.step === 'load') {
         if (o.inCabin()) {
-          if (F.bag) { st.step = 'aboard'; st.t = 0; L.board(); o.cabin(); }
+          if (F.bag) { st.step = 'aboard'; st.t = 0; if (!L.aboard) L.board(); o.cabin(); }
           else if (!st.said.nobag) { st.said.nobag = true; o.toast.say('The samples are still on the rover: take the bag from its back and bring it up', 7); }
         } else st.said.nobag = false;
       } else if (st.step === 'aboard') {

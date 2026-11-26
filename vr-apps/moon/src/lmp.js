@@ -15,10 +15,12 @@
  *   scene.add(lmp.fig, lmp.extras);          the figure must be a direct child of the scene (its shadow is drawn from it)
  *   lmp.reset()          in the cabin still (the cabin's own figure shows)
  *   lmp.startOutside()   already down, moving about
+ *   lmp.climb()          back to the LM, up the ladder and in through the hatch (before you: you were the last
+ *                        one on the Moon); lmp.boarding while he is at it, lmp.aboard when he is in
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=28';
-import { LM } from './lm-model.js?v=28';
+import { makeEVASuit } from './eva-suit.js?v=29';
+import { LM } from './lm-model.js?v=29';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -122,7 +124,7 @@ export function makeLMP(o) {
 
   const cur = { ...STAND }, tgt = { ...STAND };
   const S = { phase: 'cabin', t: 0, rate: 1, pos: new THREE.Vector3(), yaw: 0, zc: 0, a: 2, vy: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
-    mode: 'act', act: 'look', actT: 0, actD: 6, spot: 0, cmd: null, arrived: false, anchor: null, target: new THREE.Vector3(), speed: 0, u: 0, lead: 1, waved: 0, lit: 1, bakeT: 1, cyc: 0, falls: 0 };
+    mode: 'act', act: 'look', actT: 0, actD: 6, spot: 0, cmd: null, arrived: false, anchor: null, boarding: false, home: false, route: [], target: new THREE.Vector3(), speed: 0, u: 0, lead: 1, waved: 0, lit: 1, bakeT: 1, cyc: 0, falls: 0 };
   const set = (p) => { for (const k of KEYS) tgt[k] = p[k] ?? STAND[k]; };
   const M = new THREE.Matrix4(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), V = (x, y, z) => new THREE.Vector3(x, y, z);
   const toWorld = v => v.applyMatrix4(M);
@@ -157,6 +159,14 @@ export function makeLMP(o) {
     let i = S.spot; for (let n = 0; n < 8 && (i === S.spot || i === avoid); n++) i = Math.floor(Math.random() * SPOTS.length);
     S.spot = i; spotWorld(i, S.target); S.mode = 'go';
   }
+  /* the next stretch of his way back to the ladder */
+  const _m = new THREE.Matrix4();
+  function leg() {
+    const [x, z] = S.route.shift(); toWorld(_v.set(x, 0, z));
+    const c = { x: _v.x, z: _v.z, act: 'look', hold: 1e9 };
+    if (!S.route.length) { toWorld(_w.set(0, 0, 0)); c.face = [_w.x, _w.z]; }
+    api.command(c);
+  }
   function begin(phase) {
     o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
     S.phase = phase; S.t = 0; S.speed = 0; S.u = 0; S.bakeT = 1;
@@ -166,7 +176,7 @@ export function makeLMP(o) {
     fig, extras, mats, S,
     get on() { return S.phase !== 'cabin'; },
     /* in the cabin still, in his suit by the hatch (the cabin's own figure) */
-    reset() { begin('cabin'); fig.visible = false; if (o.cabinLmp) o.cabinLmp.visible = true; },
+    reset() { begin('cabin'); S.home = false; S.boarding = false; fig.visible = false; if (o.cabinLmp) o.cabinLmp.visible = true; },
     /* already down and about (chapter 6 started on the ground) */
     startOutside() {
       begin('roam'); if (o.cabinLmp) o.cabinLmp.visible = false;
@@ -187,7 +197,21 @@ export function makeLMP(o) {
       const p = { ...STAND, arx: 2.5, arz: 0.35 + 0.3 * Math.sin(t * 5), er: 0.35 }; KEYS.forEach((k, i) => { a[4 + i] = p[k]; }); api.pose(a, 0);
     },
     /* into the cabin after you (the cabin's own figure takes over) */
-    board() { S.phase = 'cabin'; S.t = -1e9; S.cmd = null; fig.visible = false; },
+    board() { S.phase = 'cabin'; S.t = -1e9; S.cmd = null; S.home = true; S.boarding = false; fig.visible = false; },
+    /* back to the LM and up: round to the front if he is behind it, to the footpad, a jump for the lowest rung, up
+     * the ladder, over the porch on his knees and in through the hatch */
+    climb() {
+      if (S.home || S.boarding) return;
+      if (S.phase !== 'roam') { api.board(); return; }
+      o.model.updateMatrixWorld(true); M.copy(o.model.matrixWorld);
+      const p = _v.copy(S.pos).applyMatrix4(_m.copy(M).invert());
+      S.boarding = true; S.anchor = null; S.route = [];
+      if (p.z < 3.5) S.route.push([(p.x >= 0 ? 1 : -1) * 7.5, 6]);
+      S.route.push([0, LM.FOOT_R + 1.5]);
+      leg();
+    },
+    get boarding() { return S.boarding; },
+    get aboard() { return S.home; },
     /* told what to do (surface-ops.js): go to (x, z), then act ('hold': stand holding something out at his right;
      * 'salute': facing face[x, z]) for hold seconds; null: as he pleases again. arrived: he is there */
     command(c) { S.cmd = c; S.arrived = false; if (c && S.phase === 'roam') { S.target.set(c.x, 0, c.z); S.mode = 'go'; } else if (!c && S.phase === 'roam' && S.mode === 'act') { S.actT = 1e9; } },
@@ -204,6 +228,7 @@ export function makeLMP(o) {
       const real = dt; dt *= S.rate; S.t += dt;
       const yawLM = o.model.rotation.y, pl = ctx.player;
       if (S.phase === 'cabin') {
+        if (S.home) return;                                       /* in again, to stay */
         /* he follows a little after you are down */
         if (!ctx.walking) S.t = 0;
         else if (S.t > 7) {
@@ -260,7 +285,50 @@ export function makeLMP(o) {
       } else if (S.phase === 'ride') {
         /* seated: the knees up, the hands on his lap, looking about a little */
         set({ wx: -0.02, wy: 0.25 * Math.sin(S.t * 0.37), alx: 0.75, arx: 0.75, alz: 0.12, arz: 0.12, el: 1.0, er: 1.0, ll: 1.45, lr: 1.45, kl: -1.35, kr: -1.35 });
-      } else if (S.phase === 'roam') roam(dt, pl);
+      } else if (S.phase === 'roam') {
+        roam(dt, pl);
+        /* on his way back in: stretch by stretch, then square to the ladder and onto the footpad */
+        if (S.boarding && S.arrived) {
+          if (S.route.length) leg();
+          else if (S.u < 0.05 && (Math.abs(wrap(yawLM - S.yaw)) < 0.2 || S.actT > 4)) { begin('hopon'); S.yaw = yawLM; S.from.copy(S.pos); toWorld(S.to.set(0, LM.FOOT_Y + 0.02, LM.FOOT_R - 0.05)); }
+        }
+      } else if (S.phase === 'hopon') {
+        /* one hop up onto the footpad */
+        const k = clamp(S.t / 1.0, 0, 1);
+        S.pos.lerpVectors(S.from, S.to, k); S.pos.y += 0.3 * 4 * k * (1 - k);
+        set({ wx: -0.15, alx: 0.6, arx: 0.6, alz: 0.5, arz: 0.5, ll: 0.25, lr: -0.1, kl: -0.4, kr: -0.5 });
+        if (k >= 1) { S.pos.copy(S.to); footfall(1, 1.0); S.phase = 'jumpup'; S.t = 0; S.from.copy(S.pos); toWorld(ladderAt(ladder().length - 1, S.to)); }
+      } else if (S.phase === 'jumpup') {
+        /* the knees bend; then the jump for the lowest rung, the hands up for the rails (it hangs well clear of the pad) */
+        const c = Math.sin(Math.PI * clamp(S.t / 0.9, 0, 1)), k = smooth(clamp((S.t - 0.9) / 1.1, 0, 1));
+        S.pos.lerpVectors(S.from, S.to, k);
+        if (S.t < 0.9) set({ wx: -0.08 - 0.25 * c, alx: 1.2, arx: 1.2, alz: 0.15, arz: 0.15, ll: 0.1 + 0.45 * c, lr: 0.1 + 0.45 * c, kl: -0.16 - 0.8 * c, kr: -0.16 - 0.8 * c, dy: -0.12 * c });
+        else set({ lean: -0.38 * k, wx: -0.1, alx: 1.6, arx: 1.6, alz: 0.12, arz: 0.12, el: 0.4, er: 0.4, ll: 0.3, lr: 0.3, kl: -0.5, kr: -0.5 });
+        if (S.t >= 2.0) { S.phase = 'up'; S.a = ladder().length - 1; }
+      } else if (S.phase === 'up') {
+        /* up the rungs, a hand and a foot at a time */
+        S.a -= 0.85 * dt; const sw = Math.sin(Math.PI * S.a);
+        toWorld(ladderAt(Math.max(2, S.a), S.pos));
+        set({ lean: -0.38, wx: -0.05, alx: 1.15 + 0.2 * sw, arx: 1.15 - 0.2 * sw, alz: 0.12, arz: 0.12, el: 0.5, er: 0.5, ll: 0.45 + 0.35 * sw, lr: 0.45 - 0.35 * sw, kl: -0.55 - 0.35 * sw, kr: -0.55 + 0.35 * sw });
+        if (S.a <= 2) { S.phase = 'unmount'; S.t = 0; S.from.copy(S.pos); toWorld(S.to.set(0, LM.PORCH.y + 0.02 + 0.5 - 0.94, LM.PORCH.z1 - 0.3)); }
+      } else if (S.phase === 'unmount') {
+        /* off the ladder's top onto the porch: down on his hands and knees, the legs drawn up after him */
+        const k = 1 - smooth(S.t / 3);
+        S.pos.lerpVectors(S.to, S.from, k);
+        set({ lean: -0.38 * k, wx: -1.45 + 1.4 * k, alx: 1.45 - 0.3 * k, arx: 1.45 - 0.3 * k, alz: 0.12, arz: 0.12, el: 0.3 + 0.2 * k, er: 0.3 + 0.2 * k, ll: -0.55 + 1.0 * k, lr: -0.55 + 0.8 * k, kl: -0.95 + 0.4 * k, kr: -0.95 + 0.2 * k });
+        if (S.t >= 3) { S.phase = 'crawlin'; S.zc = LM.PORCH.z1 - 0.3; S.cyc = 0; }
+      } else if (S.phase === 'crawlin') {
+        /* along the porch and in over the sill, head first */
+        S.zc -= 0.3 * dt; S.cyc += dt * 4.2;
+        const fy = S.zc < LM.FRONT ? 2.45 : LM.PORCH.y + 0.02, sw = Math.sin(S.cyc);
+        set({ wx: -1.45, alx: 1.45 + 0.22 * sw, arx: 1.45 - 0.22 * sw, alz: 0.1, arz: 0.1, el: 0.3, er: 0.3, ll: -0.55 - 0.14 * sw, lr: -0.55 + 0.14 * sw, kl: -0.95 + 0.14 * sw, kr: -0.95 - 0.14 * sw });
+        _v.set(0, fy + 0.5 - 0.94, S.zc); toWorld(_v); S.pos.lerp(_v, Math.min(1, dt * 6));
+        if (S.zc <= 0.8) {
+          api.board(); if (o.cabinLmp) o.cabinLmp.visible = true;
+          if (o.voice) o.voice('lmpin');
+          return;
+        }
+      }
       apply(dt, false);
       /* in the LM's shadow only the ground's glow lights him */
       const want = o.shade ? (o.shade(_v.copy(fig.position).setY(fig.position.y + 0.4)) + o.shade(_v.setY(fig.position.y + 1.1)) + o.shade(_v.setY(fig.position.y + 1.8))) / 3 : 1;
