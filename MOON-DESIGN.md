@@ -939,6 +939,25 @@ chapter 4 run the other way, and was made from `lm.js`.
 - Not there yet: the sample boxes are spoken of, not seen; the LMP does not follow you up; the CMP's voice comes
   over the intercom from the start.
 
+### 12.22 The journey home, part 3: leaving the Moon (26 November 2026, Fable)
+
+Chapter 9, `leaving.html` (`src/leaving.js`, `src/leaving-space.js`, `tools/script/leaving.json`,
+`test/leaving.test.cjs`), is chapter 3 run the other way, and was made from `lunar.js`.
+- You sit in your couch in the Command Module. Challenger (the ascent stage alone, the model cut at the joint) is
+  cast off at Apollo 17's time, GET 191:18:31, and drifts away along the docking axis (`lmAt`).
+- `leaving-space.js`: chapter 8's circular orbit, timed so that the middle of the burn is at the middle of the far
+  side; transearth injection at GET 234:02:09, 144 s along the motion, scaled for the real gain of 928 m/s
+  (`conic` and `burn` are now exported from `lunar-space.js`); then the hyperbola away, 1.1 km/s left at a distance.
+  The signal is lost 21 minutes before the burn and comes back 10 minutes after it; both are worked out, and the
+  lines about them are cued by what happens, not timed.
+- Attitude: in orbit as chapter 3; for the burn the nose along the motion; then your window on the place where the
+  Earth comes up; four minutes after the signal's return, on the Moon, which falls away to a disc 22 degrees
+  across at the chapter's end, 90 minutes after the burn.
+- Fast forward to ten thousand times for the two days between; real time (ten times at most) while Challenger
+  goes, at the loss of signal, round the burn and at Earthrise.
+- Not there yet: the two days of orbital science are only time passing; the Earth is a thin crescent at that date
+  and small in the window.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

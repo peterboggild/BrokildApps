@@ -14,24 +14,24 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=34';
+import { state as ascentState } from './ascent.js?v=35';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=34';
-import { makeCabin } from './cabin.js?v=34';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=34';
-import { LM } from './lm-model.js?v=34';
+import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=35';
+import { makeCabin } from './cabin.js?v=35';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=35';
+import { LM } from './lm-model.js?v=35';
 const AS_Y = LM.AS_Y;
-import { makeLaunchSound } from './launch-sound.js?v=34';
-import { makeRadio, combineRadios } from './radio.js?v=34';
-import { makeClock } from './clock.js?v=34';
-import { makeChatter } from './chatter.js?v=34';
-import { handOnCrew } from './crew-life.js?v=34';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=34';
-import { createHand, makeControllers } from './hands.js?v=34';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=34';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=34';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=34';
+import { makeLaunchSound } from './launch-sound.js?v=35';
+import { makeRadio, combineRadios } from './radio.js?v=35';
+import { makeClock } from './clock.js?v=35';
+import { makeChatter } from './chatter.js?v=35';
+import { handOnCrew } from './crew-life.js?v=35';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=35';
+import { createHand, makeControllers } from './hands.js?v=35';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=35';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=35';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=35';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -39,7 +39,7 @@ const $ = id => document.getElementById(id);
 const BASE = new URL('../assets/moon/', import.meta.url).href;
 
 const START = 185 * 3600 + 30 * 60, DOCK = 187 * 3600 + 37 * 60 + 15, OPEN = DOCK + 40;       /* the tunnel is opened from above */
-const NEXT = 'index.html';                   /* (leaving the Moon is the next chapter to be built) */
+const NEXT = 'leaving.html';
 const WARPS = [1, 10, 100, 1000];
 const HOLD_ALL = [[DOCK - 420, DOCK + 45, 'the docking']];
 const holds = () => holdsFor(HOLD_ALL, HOLD_ALL);
@@ -135,7 +135,7 @@ function info() {
   return { chapter: 'Chapter 8 \u00b7 The rendezvous', now: phase(S.t), next: S.ended ? null : S.t >= OPEN ? (S.mode === 'cm' ? null : ['go up to America (the clock waits)', NaN]) : nextOf(ev, S.t),
     after: 'leaving the Moon', get: S.t, warp: S.warp,
     rows: [['America', S.t >= DOCK ? 'docked' : fmtDist(RANGE) + ' ahead'], ['Above the Moon', fmtDist(w.alt)], ['Speed', fmtSpeed(w.speed)], ['Radio', w.hidden ? 'behind the Moon (LOS)' : 'in touch with Houston'], ['Fast forward', settings.text('ff')]],
-    alert: S.ended ? 'End of chapter 8.  A: back to the chapters' : null,
+    alert: S.ended ? 'End of chapter 8.  A: on to chapter 9' : null,
     keys: S.mode === 'lm' && S.t < OPEN ? [['A', 'slower (hold: real time)'], ['B', 'faster'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']]
       : S.mode === 'cm' ? [['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']]
       : [['grip', 'pull yourself along'], ['L stick', 'forward: float along'], ['A', 'float through by itself'], ['L stick', 'press: panel, settings']], fps: S.fps };
@@ -464,7 +464,7 @@ function frame(now) {
   if (S.running && !S.still && !S.ended) {
     if (S.t >= OPEN) S.warp = 1;
     S.t = clock.advance(S, dt);
-    if (S.mode === 'cm' && S.seatedAt >= 0 && S.t > S.seatedAt + 26) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 8', sub: 'Docked, and home in America. Leaving the Moon comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
+    if (S.mode === 'cm' && S.seatedAt >= 0 && S.t > S.seatedAt + 26) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 8', sub: 'Docked, and home in America', a: 'Continue: chapter 9, Leaving the Moon', b: 'Take a break' }); saveProgress('leaving.html', null, 0, true); }
   }
   /* the tunnel is open and you are still standing there: say what to do (and again every twenty seconds); the stick
    * sets you off too */
@@ -532,7 +532,7 @@ function frame(now) {
   { const r = combineRadios(radio, chat && chat.radio); cabin.update(now / 1000, { viewer: camera, radio: r }); lmc.update(now / 1000, { viewer: camera, radio: r }); }
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, (S.mode === 'lm' || S.mode === 'leaving') && !OUT.on ? 1.62 : 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 8. A (N on this screen): back to the chapters.' : S.mode === 'lm' && S.t >= OPEN ? 'Up through the tunnel to America: F on this screen (arrow keys to float yourself).' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 8. A (N on this screen) goes on to chapter 9, leaving the Moon.' : S.mode === 'lm' && S.t >= OPEN ? 'Up through the tunnel to America: F on this screen (arrow keys to float yourself).' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);

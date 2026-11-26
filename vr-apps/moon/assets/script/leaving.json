@@ -1,0 +1,145 @@
+{
+  "about": "Radio and intercom for chapter 9: leaving the Moon. Time lines hang on Apollo 17's jettison (GET 191:18:31) and transearth injection (GET 234:02:09); the jettison, the last loss of signal, the burn's start and end and the signal's return are cued by what happens (leaving-space.js works the times out). t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "CMP": "intercom",
+    "LMP": "intercom",
+    "CAPCOM": "houston"
+  },
+  "lines": [
+    {
+      "id": "lv01",
+      "t": 688611,
+      "who": "CAPCOM",
+      "text": "America, Houston. You are go to jettison Challenger. She did everything we asked of her.",
+      "dur": 5.8
+    },
+    {
+      "id": "lv02",
+      "t": 688697,
+      "who": "CMP",
+      "text": "Ten seconds. Tunnel is vented, hatch is locked.",
+      "dur": 3.09
+    },
+    {
+      "id": "lv03",
+      "t": null,
+      "who": "CMP",
+      "text": "Jettison. There she goes.",
+      "dur": 1.75,
+      "cue": "jett",
+      "delay": 0.4
+    },
+    {
+      "id": "lv04",
+      "t": null,
+      "who": "LMP",
+      "text": "Goodbye, Challenger. And thank you.",
+      "dur": 2.4,
+      "cue": "jett",
+      "delay": 6
+    },
+    {
+      "id": "lv05",
+      "t": 688771,
+      "who": "CAPCOM",
+      "text": "America, Houston. We will fly her down into the mountains by Taurus-Littrow for the seismometers. She has one more job to do.",
+      "dur": 8.07
+    },
+    {
+      "id": "lv06",
+      "t": 841029,
+      "who": "CAPCOM",
+      "text": "America, Houston. Coming up on your last loss of signal. You are go for transearth injection. See you on the other side.",
+      "dur": 7.76
+    },
+    {
+      "id": "lv07",
+      "t": null,
+      "who": "CMP",
+      "text": "And there goes Houston. Just the three of us and the Moon.",
+      "dur": 2.92,
+      "cue": "los",
+      "delay": 1
+    },
+    {
+      "id": "lv08",
+      "t": 842289,
+      "who": "CMP",
+      "text": "Four minutes. Coming round to burn attitude. Nose first this time.",
+      "dur": 4.0
+    },
+    {
+      "id": "lv09",
+      "t": 842497,
+      "who": "CMP",
+      "text": "Thirty seconds. Everybody strapped in.",
+      "dur": 2.48
+    },
+    {
+      "id": "lv10",
+      "t": 842523,
+      "who": "CMP",
+      "text": "Five. Four. Three. Two. One.",
+      "dur": 2.85
+    },
+    {
+      "id": "lv11",
+      "t": null,
+      "who": "CMP",
+      "text": "Ignition. Thrust is good. We are on our way home.",
+      "dur": 3.16,
+      "cue": "tei",
+      "delay": 0.2
+    },
+    {
+      "id": "lv12",
+      "t": 842599,
+      "who": "LMP",
+      "text": "One minute. Look at that Moon go by.",
+      "dur": 2.09
+    },
+    {
+      "id": "lv13",
+      "t": null,
+      "who": "CMP",
+      "text": "Shutdown. Right on the numbers.",
+      "dur": 2.02,
+      "cue": "teiEnd",
+      "delay": 0.3
+    },
+    {
+      "id": "lv14",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. How did it go?",
+      "dur": 2.79,
+      "cue": "aos",
+      "delay": 2
+    },
+    {
+      "id": "lv15",
+      "t": null,
+      "who": "CMP",
+      "text": "Houston, America. The burn was on time. We are coming home.",
+      "dur": 3.93,
+      "cue": "aos",
+      "delay": 7
+    },
+    {
+      "id": "lv16",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Roger, America. That is the best news we have had all week.",
+      "dur": 4.03,
+      "cue": "aos",
+      "delay": 14
+    },
+    {
+      "id": "lv17",
+      "t": 845673,
+      "who": "LMP",
+      "text": "There's the whole Moon in one window. We were down there.",
+      "dur": 2.69
+    }
+  ]
+}

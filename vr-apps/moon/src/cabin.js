@@ -9,7 +9,7 @@
  * Everything here writes the stencil, so the world outside is only drawn through the window openings. */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { makeCrewLife } from './crew-life.js?v=34';
+import { makeCrewLife } from './crew-life.js?v=35';
 
 const NO_STENCIL = {};
 export const CABIN_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
