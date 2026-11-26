@@ -6,9 +6,9 @@
  *
  * URL: ?slide=1..12  ?shot  ?yaw= &pitch= */
 import * as THREE from 'three';
-import { SLIDES, W, H } from './briefing-slides.js?v=30';
-import { makeVehicle } from './vehicle.js?v=30';
-import { createHand, makeControllers } from './hands.js?v=30';
+import { SLIDES, W, H } from './briefing-slides.js?v=31';
+import { makeVehicle } from './vehicle.js?v=31';
+import { createHand, makeControllers } from './hands.js?v=31';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

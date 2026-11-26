@@ -47,6 +47,26 @@ export function applyCommon(renderer, sound) {
   return { all() { for (const k of ['hz', 'fov', 'voices']) apply(k); } };
 }
 
+/* The headset's own "reset view" puts its origin under you: the pose you are given jumps, and a seat that was set
+ * from the old origin leaves you somewhere else (outside the spacecraft: owner's headset test). Call the returned
+ * function once a frame in VR: it is true when that has just happened (the reference space says so, or the pose
+ * jumps further than a head moves in one frame); the chapter then seats you again where you belong. */
+export function watchRecentre(renderer, camera) {
+  let bound = null, flag = false, have = false, lx = 0, ly = 0, lz = 0, lyaw = 0;
+  return () => {
+    const rs = renderer.xr.getReferenceSpace && renderer.xr.getReferenceSpace();
+    if (rs && rs !== bound && rs.addEventListener) { bound = rs; rs.addEventListener('reset', () => { flag = true; }); }
+    const p = camera.position, q = camera.quaternion, yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.x * q.x + q.y * q.y));
+    let hit = flag; flag = false;
+    if (have) {
+      const d = Math.hypot(p.x - lx, p.y - ly, p.z - lz), dy = Math.abs(Math.atan2(Math.sin(yaw - lyaw), Math.cos(yaw - lyaw)));
+      if (d > 0.4 || dy > 1.0) hit = true;
+    }
+    lx = p.x; ly = p.y; lz = p.z; lyaw = yaw; have = p.lengthSq() > 0;
+    return hit;
+  };
+}
+
 /* the stretches the clock will not fast-forward across, by the fast-forward setting: every event, the major ones, or
  * none. Each is [from, to, name] (GET); inside one the clock runs at real time (or at most x10 where a chapter says so) */
 export function holdsFor(all, major) { const m = val.ff; return m === 'free' ? [] : m === 'major' ? major : all; }

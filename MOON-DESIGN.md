@@ -843,6 +843,27 @@ While that was being built he added four more, all done in the same change:
 - The pistol triggers grip and work things whenever you are close to something; they teleport only when more than
   10 m from everything; in between, "Cannot teleport close to other objects or astronauts".
 
+### 12.18 The owner's notes on entering the LM (26 November 2026, Fable)
+
+From his headset run of chapter 4 (into the LM):
+1. "My co-astronaut in the LM did not note that I was there, he was still telling me to drag myself via the
+   tunnel", and voices clashing right as he got in. The tunnel's three lines are timed, and went on playing after
+   an early arrival, over the welcome. Now they are dropped on arrival (`radio.drop`), the welcome waits for
+   whoever is speaking (`radio.busyFor`), and the crew's own remarks wait 18 s.
+2. "The LM and command module are connected via 1 inch thick rod, not a tunnel ... barely connected." While you
+   are in the tunnel the ships are drawn the probe's length apart (0.47 m), because the tunnel inside is drawn to
+   that spacing; from outside only the probe's rod then joined them. Once the hatches are shut (or you look from
+   outside) they are drawn in to hard dock, ring on ring, the probe gone (`spacing(k)` in `lm.js`).
+3. "The panels are impossible to read. The one in front is tilted downwards facing my knees, and the sidepanel
+   looks like a rectangular panel angled 20 degrees for no reason." Both were mistakes in the turning: the flight
+   panels' tilt had the wrong sign, and the side panels were turned in their own plane. The flight panels now hang
+   from the wall under the windows with their faces turned up to a standing man's eyes; the side panels are flat
+   on the side walls, upright, at shoulder and eye height. He asked for the front panel "at least mounted flat on
+   wall": flat it would be seen almost edge on from where you stand (35 cm from the wall, 60 cm above it), so it
+   slopes towards the eyes instead; to be judged in the headset.
+4. "Right after docking I reset the view, and ended up outside the spacecraft." The headset's reset moves its
+   origin; the seat was set from the old one. Every seated chapter now seats you again by itself when that happens.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

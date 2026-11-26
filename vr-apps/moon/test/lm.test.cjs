@@ -71,6 +71,20 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   const e1 = await eyes();
   ok('in the LM: both eyes drawn', e1.every(v => v > 4 && v < 250), e1.map(v => v.toFixed(0)).join(' / '));
   if (outDir) await p.screenshot({ path: path.join(outDir, 'lm-cabin.png') });
+  /* you are through: the lines that tell you to come through are off */
+  ok('in the LM nobody tells you to come through any more', await p.evaluate(() => __lm.radio.lines.filter(l => l.off).map(l => l.id).join()) === 'q01,q02,q03');
+  /* the headset's own "reset view" (its origin moves under you): you stay at your station beside the Lunar Module Pilot */
+  const st = () => p.evaluate(() => new Promise(r => { __lm.afterFrame = () => { const v = __lm.camera.position.clone().setFromMatrixPosition(__lm.camera.matrixWorld); __lm.lmc.group.worldToLocal(v); r([v.x, v.y, v.z].map(x => +x.toFixed(2))); }; }));
+  const at0 = await st(), n0 = await p.evaluate(() => __lm.SEAT.n);
+  await p.evaluate(() => { __dev.position.set(0.9, 1.5, 0.7); __dev.quaternion.set(0, Math.sin(0.5), 0, Math.cos(0.5)); });
+  await p.waitForFunction(n => __lm.SEAT.n > n && __lm.SEAT.pending === 0, n0, { timeout: 120000 });
+  await frames(3);
+  const at1 = await st();
+  ok('a view reset leaves you at your station in the LM', Math.hypot(at1[0] - at0[0], at1[2] - at0[2]) < 0.05 && Math.abs(at1[1] - at0[1]) < 0.05 && Math.abs(at1[0] - 0.45) < 0.1, JSON.stringify([at0, at1]));
+  /* the tunnel closed off: the two ships are drawn in, ring on ring */
+  await p.evaluate(() => { __lm.S.arrivedAt -= 30; });
+  await p.waitForFunction(() => __lm.S.hardK === 1, null, { timeout: 300000 });
+  ok('with the hatches shut the two ships are hard docked', await p.evaluate(() => __lm.S.hatchShut && __lm.S.hardK === 1));
   /* undocking: the CSM backs away overhead, then comes round in front, nose towards you */
   const und = await p.evaluate(async () => {
     const O = __lm, V = O.camera.position.constructor;

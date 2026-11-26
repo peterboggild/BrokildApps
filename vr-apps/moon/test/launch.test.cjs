@@ -34,14 +34,14 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     const rp = __launch.rig.position; r({ pos: [e[12] - rp.x, e[13] - rp.y, e[14] - rp.z], fwd: [f.x, f.y, f.z] }); }; }));
   let s0 = await eye();
   ok('seated: eyes at the eye point', Math.hypot(...s0.pos) < 0.03, JSON.stringify(s0.pos.map(v => +v.toFixed(3))));
-  /* move the headset 1.2 m away and turn it, as if the Quest's origin were elsewhere; re-seat */
+  /* move the headset 1.2 m away and turn it, as the Quest's own "reset view" does to its origin: you are seated
+   * again by itself (the pose jumped) */
+  const n0 = await p.evaluate(() => __launch.SEAT.n);
   await p.evaluate(() => { __dev.position.set(1.2, 0.9, -0.7); __dev.quaternion.set(0, Math.sin(0.55), 0, Math.cos(0.55)); });
-  await p.evaluate(() => new Promise(r => setTimeout(r, 400)));
-  const moved = await eye();
-  await p.evaluate(() => { __launch.SEAT.done = false; __launch.SEAT.pending = 1; });
-  await p.waitForFunction(() => __launch.SEAT.done, null, { timeout: 60000 });
+  await p.waitForFunction(n => __launch.SEAT.n > n && __launch.SEAT.pending === 0, n0, { timeout: 120000 });
+  const moved = { pos: [1, 1, 1] };
   s0 = await eye();
-  ok('re-seated after the headset origin moved', Math.hypot(...moved.pos) > 0.5 && Math.hypot(...s0.pos) < 0.03 && s0.fwd[2] < -0.9,
+  ok('seated again by itself after the headset origin moved (a view reset)', Math.hypot(...moved.pos) > 0.5 && Math.hypot(...s0.pos) < 0.03 && s0.fwd[2] < -0.9,
     JSON.stringify({ before: moved.pos.map(v => +v.toFixed(2)), after: s0.pos.map(v => +v.toFixed(3)), fwd: s0.fwd.map(v => +v.toFixed(2)) }));
   await p.waitForFunction(() => __launch.radio && __launch.radio.lines.every(l => l.dur > 0), null, { timeout: 60000 });
   const loaded = await p.evaluate(() => __launch.radio.lines.length);

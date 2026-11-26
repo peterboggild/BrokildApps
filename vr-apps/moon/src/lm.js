@@ -15,22 +15,22 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?lm (start standing in the LM)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=30';
+import { state as ascentState } from './ascent.js?v=31';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=30';
-import { makeCabin } from './cabin.js?v=30';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=30';
-import { makeLaunchSound } from './launch-sound.js?v=30';
-import { makeRadio, combineRadios } from './radio.js?v=30';
-import { makeClock } from './clock.js?v=30';
-import { makeChatter } from './chatter.js?v=30';
-import { handOnCrew } from './crew-life.js?v=30';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=30';
-import { createHand, makeControllers } from './hands.js?v=30';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=30';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=30';
-import { settings, applyCommon, holdsFor } from './settings.js?v=30';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=31';
+import { makeCabin } from './cabin.js?v=31';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=31';
+import { makeLaunchSound } from './launch-sound.js?v=31';
+import { makeRadio, combineRadios } from './radio.js?v=31';
+import { makeClock } from './clock.js?v=31';
+import { makeChatter } from './chatter.js?v=31';
+import { handOnCrew } from './crew-life.js?v=31';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=31';
+import { createHand, makeControllers } from './hands.js?v=31';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=31';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=31';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=31';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -64,7 +64,7 @@ rig.add(head); head.add(camera); scene.add(rig);
 addEventListener('resize', () => { if (renderer.xr.isPresenting) return; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
 const S = { t: num('t', START), running: false, warp: 1, still: Q.has('still'), yaw: num('yaw', 0), pitch: num('pitch', 0),
-  fps: 0, calls: 0, tris: 0, frames: 0, ready: false, ended: false, mode: 'cm', auto: false, arrivedAt: -1, hatchShut: false, held: false };
+  fps: 0, calls: 0, tris: 0, frames: 0, ready: false, ended: false, mode: 'cm', auto: false, arrivedAt: -1, hatchShut: false, held: false, hardK: 0 };
 
 /* ---------------------------------------------------------------- the two spacecraft and their insides */
 const vehicle = makeVehicle(renderer);
@@ -187,7 +187,7 @@ function readControllers(now) {
 
 /* seated in the couch (the couch brought to you, as launch.js), or standing in the LM (only turned and moved
  * across the floor: your own height stays) */
-const SEAT = { pending: 0, done: false };
+const SEAT = { pending: 0, done: false }, recentred = watchRecentre(renderer, camera);
 const _e = new THREE.Euler();
 function seat() {
   _e.setFromQuaternion(camera.quaternion, 'YXZ');
@@ -196,7 +196,7 @@ function seat() {
   /* (in the LM your eyes are put at standing eye height, level with the Lunar Module Pilot's, whatever your own height
    * or whether you sit: owner's headset test) */
   head.position.set(-(c * p.x + s * p.z), S.mode === 'lm' ? 1.6 - p.y : -p.y, -(-s * p.x + c * p.z));
-  SEAT.done = true;
+  SEAT.done = true; SEAT.n = (SEAT.n || 0) + 1;
 }
 
 /* ---------------------------------------------------------------- floating through the tunnel */
@@ -260,8 +260,11 @@ function enterLM(now = false) {
   S.mode = 'lm'; S.auto = false; S.arrivedAt = S.t; body.set(0, 0, 0); vel.set(0, 0, 0);
   cabin.group.visible = false;
   if (renderer.xr.isPresenting) SEAT.pending = 1;
-  if (now) { S.hatchShut = S.t > START + 600; }
-  else if (radio) radio.cue('arrive');
+  if (now) { S.hatchShut = S.t > START + 600; if (S.hatchShut) { S.hardK = 1; spacing(1); } }
+  /* you are through: nobody tells you to come through any more (owner's headset test: they still did), and the
+   * welcome waits for whoever is speaking, so that two do not talk at once */
+  if (radio && radio.drop) radio.drop(['q01', 'q02', 'q03']);
+  if (!now && radio) radio.cue('arrive', radio.busyFor ? radio.busyFor() : 0);
 }
 
 /* ---------------------------------------------------------------- the two ships' places */
@@ -292,13 +295,21 @@ function place(w, dt, snap) {
   const [rel, turn] = csmRel(S.t, _rel);
   /* CSM = LM . T(rel) . T(pivot) . Rx(turn) . T(-pivot) . D^-1 */
   CSMworld.copy(LMworld).multiply(_m.makeTranslation(rel.x, rel.y, rel.z)).multiply(_m.makeTranslation(PIVOT.x, PIVOT.y, PIVOT.z))
-    .multiply(_m.makeRotationX(turn)).multiply(_m.makeTranslation(-PIVOT.x, -PIVOT.y, -PIVOT.z)).multiply(Dinv);
+    .multiply(_m.makeRotationX(turn)).multiply(_m.makeTranslation(-PIVOT.x, -PIVOT.y, -PIVOT.z)).multiply(spaced ? DinvNow : Dinv);
   CSMworld.decompose(vehicle.group.position, vehicle.group.quaternion, _s);
   vehicle.lights.position.copy(_p);
   cabinWorld.multiplyMatrices(CSMworld, C); cabinInv.copy(cabinWorld).invert();
   cabinHolder.matrix.copy(cabinWorld);
   lmc.group.matrix.copy(LMworld);
   return rel.length();
+}
+/* how far apart the two ships are drawn while docked: 0 the probe's length apart (the tunnel's spacing), 1 hard
+ * docked, ring on ring, the probe drawn in */
+const DinvNow = new THREE.Matrix4(); let spaced = false;
+function spacing(k) {
+  const md = new THREE.Matrix4(); vehicle.csmInSivb(vehicle.DOCK_DIST - k * (vehicle.DOCK_DIST - vehicle.HARD_DIST), Math.PI, md);
+  DinvNow.copy(md).invert().multiply(vehicle.LM_REST).invert(); spaced = k > 0;
+  vehicle.setProbe(1 - k);
 }
 const standM = new THREE.Matrix4();
 function placeRig() {
@@ -374,6 +385,7 @@ function render() {
   scene.updateMatrixWorld(true);
   if (renderer.xr.isPresenting) {
     renderer.xr.updateCamera(camera);
+    if (recentred() && SEAT.done && !SEAT.pending && S.mode !== 'crawl' && S.mode !== 'arriving') SEAT.pending = 1;     /* the headset's own "reset view": seated again where you belong */
     if (SEAT.pending && ++SEAT.pending > 4) { seat(); SEAT.pending = 0; scene.updateMatrixWorld(true); renderer.xr.updateCamera(camera); }
   }
   _cam.setFromMatrixPosition(camera.matrixWorld);
@@ -433,7 +445,13 @@ function frame(now) {
   /* the arrival: through black, standing at your station */
   if (S.mode === 'arriving' && FADE.k > 0.92) { enterLM(); FADE.target = 0; }
   /* the LM's hatch shut behind you, the tunnel closed off (the CMP refits the drogue and his hatch) */
-  if (S.mode === 'lm' && !S.hatchShut && S.t > S.arrivedAt + 25) { S.hatchShut = true; sound.thump(0.3, 0.2, 900); }
+  if (S.mode === 'lm' && !S.hatchShut && (S.t > S.arrivedAt + 25 || OUT.want)) { S.hatchShut = true; sound.thump(0.3, 0.2, 900); }
+  /* The two ships as they are, ring on ring, once the tunnel is closed off and no longer drawn. (While you are in
+   * it they stand apart by the probe's length, 0.47 m: the inside of the CM and its outside do not match, and the
+   * tunnel is drawn to that spacing; seen from outside they then hung together by the probe's rod alone: owner's
+   * headset test.) Drawn in over a few seconds; at once if you look from outside. */
+  { const want = S.mode === 'lm' && S.hatchShut ? 1 : 0, k = OUT.on && want ? 1 : S.hardK + Math.max(-dt / 4, Math.min(dt / 4, want - S.hardK));
+    if (k !== S.hardK) { S.hardK = k; spacing(k); } }
   lmc.setHatchOpen(!S.hatchShut);
   lmc.setBody(S.mode === 'lm' && settings.get('body'));
   w = L.where(S.t);
@@ -472,7 +490,7 @@ function frame(now) {
     lastDsky = now;
   }
   if (radio && S.running) radio.update(S.t, S.warp);
-  if (chat) chat.update(dt, { crew: S.mode === 'lm' ? ['LMP'] : ['CMP'], where: S.mode === 'lm' ? ['any', 'lm', 'moon'] : ['any', 'space'], quiet: S.running && !S.ended && !OUT.on && !clock.inHold(S.t) && !(radio && radio.current(S.t)) });
+  if (chat) chat.update(dt, { crew: S.mode === 'lm' ? ['LMP'] : ['CMP'], where: S.mode === 'lm' ? ['any', 'lm', 'moon'] : ['any', 'space'], quiet: S.running && !S.ended && !OUT.on && !clock.inHold(S.t) && !(radio && radio.current(S.t)) && !(S.mode === 'lm' && S.t < S.arrivedAt + 18) && !(radio && radio.busyFor && radio.busyFor() > 0) });
   updateOutside(dt);
   updateHands(dt);
   { const r = combineRadios(radio, chat && chat.radio); cabin.update(now / 1000, { viewer: camera, radio: r }); lmc.update(now / 1000, { viewer: camera, radio: r }); }

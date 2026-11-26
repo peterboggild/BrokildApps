@@ -71,7 +71,7 @@ export async function makeRadio(ctx, out, scriptUrl) {
   /* every frame: start the lines that are due; with time running fast, skip what has gone by */
   function update(t, warp) {
     for (const l of lines) {
-      if (typeof l.t !== 'number') continue;            /* cued lines play on events, not at a mission time */
+      if (typeof l.t !== 'number' || l.off) continue;   /* cued lines play on events, not at a mission time; off: no longer apply */
       if (t < l.t) { l.played = false; continue; }
       if (l.played) continue;
       l.played = true;
@@ -82,9 +82,13 @@ export async function makeRadio(ctx, out, scriptUrl) {
   }
   /* the lines for an event (boarding, the White Room, seated), each after its delay */
   let speaking = null;
-  function cue(name) {
-    for (const l of lines) if (l.cue === name) setTimeout(() => { play(l, 0); speaking = { l, until: performance.now() + (l.dur + 0.5) * 1000 }; }, (l.delay || 0) * 1000);
+  function cue(name, wait = 0) {
+    for (const l of lines) if (l.cue === name) setTimeout(() => { play(l, 0); speaking = { l, until: performance.now() + (l.dur + 0.5) * 1000 }; }, ((l.delay || 0) + wait) * 1000);
   }
+  /* timed lines that no longer apply (what they speak of has happened already) */
+  function drop(ids) { for (const l of lines) if (ids.includes(l.id)) l.off = true; }
+  /* seconds until whoever is speaking now has finished (0: nobody is) */
+  function busyFor() { let s = 0; if (ctx) for (const k in active) { const a = active[k]; if (a && a.to > ctx.currentTime) s = Math.max(s, a.to - ctx.currentTime); } return s; }
   /* one line, by its id, now (the crew's own remarks: chatter.js) */
   function say(id) {
     const l = lines.find(x => x.id === id); if (!l || !l.buf) return null;
@@ -104,7 +108,7 @@ export async function makeRadio(ctx, out, scriptUrl) {
     m.a.getFloatTimeDomainData(m.buf); let e = 0; for (let i = 0; i < m.buf.length; i++) e += m.buf[i] * m.buf[i];
     return Math.sqrt(e / m.buf.length);
   }
-  return { update, current, cue, say, lines, talking, level };
+  return { update, current, cue, say, lines, talking, level, drop, busyFor };
 }
 
 /* several radios as one, for the crew's faces: who is talking on any of them, and how loud */
