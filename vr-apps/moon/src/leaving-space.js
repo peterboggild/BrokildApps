@@ -9,7 +9,7 @@
  *   as chapter 3's burns are, its thrust scaled for the real gain of 928 m/s.
  * - After it: the hyperbola away from the Moon, two-body, exact at any time warp.
  * GET = ground elapsed time, seconds from the launch from Earth. */
-import { MU_M, conic, burn } from './lunar-space.js?v=38';
+import { MU_M, conic, burn } from './lunar-space.js?v=39';
 
 export const GETT = { jett: 191 * 3600 + 18 * 60 + 31, tei: 234 * 3600 + 2 * 60 + 9, burn: 144 };
 GETT.teiEnd = GETT.tei + GETT.burn;

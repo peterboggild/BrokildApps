@@ -1005,6 +1005,39 @@ Chapter 10, `homeward.html` (`src/homeward.js`, `src/home-space.js`, `tools/scri
    and pushes a floating thing out of them, turning its speed back. It is the shared module, so every chapter with
    the cabin has it.
 
+### 12.25 The journey home, parts 5 and 6: the entry and the splashdown (26-27 November 2026, Fable)
+
+The owner, going to bed: "see if you can take us all the way home ... Be careful about small mistakes like the 'stick
+not working'." And for the entry: "Make sure the plasma looks good and the crew notice the temperature increase.
+It's a tense moment." Chapters 11 and 12 are one module on two pages (`document.body.dataset.chapter`):
+`entry.html` and `splash.html`, `src/entry.js`, `src/entry-space.js`, `tools/script/entry.json` and `splash.json`,
+`test/entry.test.cjs` (both chapters; a third argument 11 or 12 runs one).
+
+- `entry-space.js` works the flight out step by step: the interface 122 km up at 11.0 km/s, 6.5 degrees down; the
+  capsule's drag and a lift a third of it, rolled up to pull out, down when it would climb out of the air again,
+  then holding a gentle descent. It gives 6.7 g at 82 s, a glide near 55 km, the drogues at 7.3 km after 554 s, the
+  mains at 3.2 km, the sea at 8.5 m/s after 964 s (Apollo 17: 801 s; the glide here is longer). The place is
+  chosen for the light: the Sun 8 degrees up and ahead at the interface, 30 degrees up at the splash (a morning
+  landing, as it was). The Earth's turning is left out.
+- The fire (`fire`, `sparks`): a shell of additive light round the capsule, drawn out into a tail down the wake,
+  streamers running from the shield's rim towards the nose, rose, then orange, then nearly white with the heat
+  (`w.heat`: the square root of the air's density times the speed cubed, scaled to its peak). From your couch you
+  look back up the wake through it. Sparks of char go by. Two lamps in the cabin flicker in its colour.
+- The load: the cabin shakes, the roar follows the load, you are pressed back a centimetre and a half for every g,
+  and above four g your sight greys (the veil, to 0.42 at the peak).
+- The crew notice the heat: lines cued by what the capsule feels (the glow, 0.05 g, the fire, two, four and six g,
+  "I can feel it coming through the hatch", the easing, the cabin five degrees up); the panel shows the heat
+  shield's temperature and the cabin's, which rises from 22 to 31 degrees. Houston is silent from the loss of the
+  radio (28 s) to its return (257 s), then calls.
+- Chapter 12: the apex cover, two drogues, the swing nose-up (a swing at 0.6 rad/s, tested not to jump), the
+  three mains out reefed and opening in two steps, six minutes under them (ten times faster if you like), the sea
+  (`sea`: a disc of water with a swell, the Sun's path on it), the splash, the capsule riding the swell upright,
+  Houston's welcome, "Apollo 17 is home".
+- A fault found on the way: the far pass (the sky, the Sun, the Earth) takes its depth range from the Moon's
+  distance; the new flight did not give one, and nothing far was drawn (a black sky over the sea).
+- Not there, by agreement: no helicopter and no ship (the recovery is heard). Also not there: clouds to fall
+  through, the heat shield's own glow from outside, uprighting bags, the hatch opening on the sea.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

@@ -15,7 +15,7 @@
  *   after lift-off, 18 km up, in an orbit that reaches 85 km on the far side (Apollo's 9 by 48 nautical miles).
  * - Then the orbit, unpowered.
  * The whole flight is worked out once, as a table. GET = ground elapsed time, seconds from the launch from Earth. */
-import { MU_M, HEADING } from './lunar-space.js?v=38';
+import { MU_M, HEADING } from './lunar-space.js?v=39';
 
 export const GETA = { lift: 185 * 3600 + 21 * 60 + 37 };
 GETA.pitch = GETA.lift + 10;              /* the pitch-over */

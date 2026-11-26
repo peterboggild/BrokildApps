@@ -1,0 +1,98 @@
+{
+  "about": "Radio and intercom for chapter 12: the parachutes and the splashdown. Everything is cued by what happens (the apex cover, the drogues, the mains, the last three hundred metres, the sea). No ship or helicopter is drawn; the recovery is heard. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "CMP": "intercom",
+    "LMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "sp01",
+      "t": 1086452.25,
+      "who": "CMP",
+      "text": "Twenty-four thousand feet. Stand by for the apex cover.",
+      "dur": 3.43
+    },
+    {
+      "id": "sp02",
+      "t": null,
+      "who": "CMP",
+      "text": "Cover's gone.",
+      "dur": 1.0,
+      "cue": "cover",
+      "delay": 0
+    },
+    {
+      "id": "sp03",
+      "t": null,
+      "who": "LMP",
+      "text": "Drogues! Two good drogues. Steady as a rock.",
+      "dur": 3.05,
+      "cue": "drogues",
+      "delay": 0.4
+    },
+    {
+      "id": "sp04",
+      "t": null,
+      "who": "CMP",
+      "text": "There go the mains. Reefed. Come on, open up.",
+      "dur": 3.2,
+      "cue": "mains",
+      "delay": 0.6
+    },
+    {
+      "id": "sp05",
+      "t": null,
+      "who": "LMP",
+      "text": "Three good mains! Look at those beauties. Oh, that's a pretty sight.",
+      "dur": 3.92,
+      "cue": "three",
+      "delay": 0
+    },
+    {
+      "id": "sp06",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. The recovery ship has you in sight, three good parachutes. Welcome home.",
+      "dur": 6.24,
+      "cue": "recovery",
+      "delay": 0
+    },
+    {
+      "id": "sp07",
+      "t": null,
+      "who": "CMP",
+      "text": "A thousand feet. Brace for the water.",
+      "dur": 2.27,
+      "cue": "brace",
+      "delay": 0
+    },
+    {
+      "id": "sp08",
+      "t": null,
+      "who": "LMP",
+      "text": "Splashdown! We're down.",
+      "dur": 1.68,
+      "cue": "splash",
+      "delay": 0.6
+    },
+    {
+      "id": "sp09",
+      "t": null,
+      "who": "CMP",
+      "text": "Stable one. She's upright. Parachutes are cut.",
+      "dur": 3.13,
+      "cue": "stable",
+      "delay": 0
+    },
+    {
+      "id": "sp10",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. Apollo seventeen is home. Twelve days, to the valley of Taurus-Littrow and back. Well done, all three of you.",
+      "dur": 8.92,
+      "cue": "home",
+      "delay": 0
+    }
+  ]
+}

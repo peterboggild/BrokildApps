@@ -18,13 +18,13 @@ assistant can only test on the flat screen and in an emulator.
 
 ## 2. Where it stands
 
-Live on main after PR #152 (chapters 7 to 10; the Brokild VR page's card; the cabin's clock), with PR #153 (the
-owner's notes on chapter 10 and the cabin, 12.24 of `MOON-DESIGN.md`: suiting up at the panel, the way out of the
-hatch, things that float bouncing off the crew) open at the time of writing. All moon modules carry `?v=38`
-(`prints.js` its own `?v=4`, `lm.js` and `liftoff.js` `?v=39` in their pages); `moon.html` and `surface.html` load
-`src/main.js?v=31`. Check `git log` for what has landed since. The owner gave a standing yes on 26 November to
-merge each finished, tested piece of the journey home and go on. **A new chapter goes in three places**: the Moon
-app's `index.html`, the card on `vr-apps/index.html`, and `sitemap.xml` with the list in `tools/sync-site.js`.
+Live on main after PR #153, with PR #154 (chapters 11 and 12, the entry and the splashdown, 12.25 of
+`MOON-DESIGN.md`) open at the time of writing: **with it the journey is whole, from the launch pad to the Pacific**.
+All moon modules carry `?v=39` (`prints.js` its own `?v=4`, `lm.js` and `liftoff.js` `?v=40` in their pages);
+`moon.html` and `surface.html` load `src/main.js?v=32`. Check `git log` for what has landed since. The owner gave a
+standing yes on 26 November to merge each finished, tested piece of the journey home. **A new chapter goes in three
+places**: the Moon app's `index.html`, the card on `vr-apps/index.html`, and `sitemap.xml` with the list in
+`tools/sync-site.js`.
 
 | Chapter | Page | State |
 |---|---|---|
@@ -38,6 +38,8 @@ app's `index.html`, the card on `vr-apps/index.html`, and `sitemap.xml` with the
 | 8 The rendezvous | `rendezvous.html` (`src/rendezvous.js`) | to your couch in America; emulator only |
 | 9 Leaving the Moon | `leaving.html` (`src/leaving.js`) | the LM cast off, the burn for home, the Moon behind; emulator only |
 | 10 The coast home | `homeward.html` (`src/homeward.js`) | the walk outside, to 25,000 km from the Earth; emulator only |
+| 11 The entry | `entry.html` (`src/entry.js`) | the fire, 6.7 g, the blackout; emulator only |
+| 12 The splashdown | `splash.html` (`src/entry.js`) | drogues, mains, the sea; the end; emulator only |
 
 Chapter 6 as it now runs: suiting up in the cabin (helmets go on), out through the hatch and down the ladder, the
 Lunar Module Pilot (LMP) follows and lopes about, radio (push-to-talk on X; no microphone is opened), the flag, the
@@ -163,6 +165,7 @@ node test/liftoff.test.cjs <folder for pictures>   # chapter 7, 19 checks, about
 node test/rendezvous.test.cjs <folder>             # chapter 8, 17 checks, about 10 minutes
 node test/leaving.test.cjs <folder>                # chapter 9, 14 checks, about 5 minutes
 node test/homeward.test.cjs <folder>               # chapter 10, 20 checks, about 7 minutes
+node test/entry.test.cjs <folder> [11|12]          # chapters 11 and 12, 18 + 14 checks, about 12 minutes
 node test/xr.test.cjs                              # 12
 node test/lm.test.cjs                              # 14
 node test/descent.test.cjs                         # 20
@@ -199,11 +202,15 @@ node test/chain.test.cjs                           # 5
 
 Waiting for: his headset verdict on #143 (panels, view reset), #145 and chapter 7.
 
-**The journey home** is under way. Agreed with the owner: 7 the lift-off, 8 the rendezvous and docking, 9 leaving
-the Moon, 10 the coast home with the deep-space walk (all four done), 11 re-entry, 12 parachutes and splashdown
-without helicopter and ship. Next: chapter 11, re-entry: new work (the plasma in the windows, the g-load, the
-radio blackout), from the launch chapter's cabin and `earth.js`. After the last chapter the owner wants the flat
-screen to work better, with a band of keys and controls kept at the top.
+**The journey home is built**: chapters 7 to 12 (the lift-off, the rendezvous, leaving the Moon, the coast home
+with the walk outside, the entry, the splashdown), none of it yet seen by the owner in the headset beyond chapter
+10's first try. What he has asked for next:
+- the flat screen (PC) to work better, with a band of keys and controls kept at the top of every chapter;
+- his headset verdicts will bring notes on chapters 7 to 12 (expect comfort notes on the pitch-over, the tunnel
+  upwards, the walk outside, the shaking and greying of the entry, and the swing on to the parachutes);
+- more procedures at the panel where they belong (`src/procedure.js`; he liked flipping the lit SUIT switches
+  and said it need not happen often): candidates are the entry, the parachutes and the casting off of the LM.
+The estimate below is kept for the record.
 
 | Part | What it takes | Size |
 |---|---|---|

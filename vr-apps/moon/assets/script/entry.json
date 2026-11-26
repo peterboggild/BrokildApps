@@ -1,0 +1,166 @@
+{
+  "about": "Radio and intercom for chapter 11: the entry. Everything in the air is cued by what the capsule feels (the heat, the load, the cabin's temperature), so it stays right at any clock speed; Houston is not heard between the loss of the radio and its return. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "LMP": "intercom",
+    "CAPCOM": "houston",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "en01",
+      "t": 1084948,
+      "who": "CAPCOM",
+      "text": "America, Houston. You are go for separation. Your entry angle is right down the middle. We will see you on the water.",
+      "dur": 7.29
+    },
+    {
+      "id": "en02",
+      "t": 1085006,
+      "who": "CMP",
+      "text": "Ten seconds to separation. Hang on to your hats.",
+      "dur": 2.94
+    },
+    {
+      "id": "en03",
+      "t": null,
+      "who": "CMP",
+      "text": "Separation. The Service Module is gone. Just the three of us and the heat shield now.",
+      "dur": 4.66,
+      "cue": "sep",
+      "delay": 0.3
+    },
+    {
+      "id": "en04",
+      "t": 1085058,
+      "who": "LMP",
+      "text": "Coming round to entry attitude. Blunt end forward, heads down.",
+      "dur": 3.66
+    },
+    {
+      "id": "en05",
+      "t": null,
+      "who": "CMP",
+      "text": "One minute to the interface. Everybody tight in your straps.",
+      "dur": 3.38,
+      "cue": "ready",
+      "delay": 0
+    },
+    {
+      "id": "en06",
+      "t": null,
+      "who": "CMP",
+      "text": "Entry interface. Four hundred thousand feet. Here we go.",
+      "dur": 3.56,
+      "cue": "ei",
+      "delay": 0
+    },
+    {
+      "id": "en07",
+      "t": null,
+      "who": "LMP",
+      "text": "There's the glow. Look at the windows. Pale, like a neon light.",
+      "dur": 3.53,
+      "cue": "glow",
+      "delay": 0.2
+    },
+    {
+      "id": "en08",
+      "t": null,
+      "who": "CMP",
+      "text": "Point oh five g. The computer has her.",
+      "dur": 2.58,
+      "cue": "point05",
+      "delay": 1.5
+    },
+    {
+      "id": "en09",
+      "t": null,
+      "who": "LMP",
+      "text": "It's orange now. We're inside a fireball. Bits of the shield going by like sparks.",
+      "dur": 4.46,
+      "cue": "fire",
+      "delay": 0
+    },
+    {
+      "id": "en10",
+      "t": null,
+      "who": "CMP",
+      "text": "Two g and building.",
+      "dur": 1.27,
+      "cue": "g2",
+      "delay": 0
+    },
+    {
+      "id": "en11",
+      "t": null,
+      "who": "LMP",
+      "text": "White hot out there. I can feel it coming through the hatch. It's getting warm in here.",
+      "dur": 4.16,
+      "cue": "hot",
+      "delay": 0
+    },
+    {
+      "id": "en12",
+      "t": null,
+      "who": "CMP",
+      "text": "Four g. Breathe. Short breaths.",
+      "dur": 2.25,
+      "cue": "g4",
+      "delay": 0
+    },
+    {
+      "id": "en13",
+      "t": null,
+      "who": "CMP",
+      "text": "Six. Six and a half. Hold on. Hold on.",
+      "dur": 3.47,
+      "cue": "g6",
+      "delay": 0
+    },
+    {
+      "id": "en14",
+      "t": null,
+      "who": "CMP",
+      "text": "She's easing off. That was the worst of it. We are through the peak.",
+      "dur": 3.5,
+      "cue": "ease",
+      "delay": 0
+    },
+    {
+      "id": "en15",
+      "t": null,
+      "who": "LMP",
+      "text": "Cabin is up five degrees. The shield is doing its job.",
+      "dur": 3.15,
+      "cue": "warm",
+      "delay": 0
+    },
+    {
+      "id": "en16",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. Standing by. America, Houston. How do you read?",
+      "dur": 5.46,
+      "cue": "aos",
+      "delay": 0.5
+    },
+    {
+      "id": "en17",
+      "t": null,
+      "who": "CMP",
+      "text": "Houston, America. Loud and clear, and it is a beautiful day up here.",
+      "dur": 4.32,
+      "cue": "aos2",
+      "delay": 0
+    },
+    {
+      "id": "en18",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Roger, America. We have you on radar. Standing by for the drogues.",
+      "dur": 4.81,
+      "cue": "fall",
+      "delay": 0
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "about": "Radio and intercom for chapter 12: the parachutes and the splashdown. Everything is cued by what happens (the apex cover, the drogues, the mains, the last three hundred metres, the sea). No ship or helicopter is drawn; the recovery is heard. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "voices": {
+    "CAPCOM": { "voice": "Microsoft David Desktop", "rate": 0, "pitch": 1.04, "channel": "houston" },
+    "LMP":    { "voice": "Microsoft Mark",          "rate": 1, "pitch": 1.09, "channel": "intercom" },
+    "CMP":    { "voice": "Microsoft David",         "rate": 1, "pitch": 0.98, "channel": "intercom" }
+  },
+  "lines": [
+    { "id": "sp01", "t": 1086452.25, "who": "CMP", "text": "Twenty-four thousand feet. Stand by for the apex cover." },
+    { "id": "sp02", "cue": "cover", "delay": 0, "who": "CMP", "text": "Cover's gone." },
+    { "id": "sp03", "cue": "drogues", "delay": 0.4, "who": "LMP", "text": "Drogues! Two good drogues. Steady as a rock." },
+    { "id": "sp04", "cue": "mains", "delay": 0.6, "who": "CMP", "text": "There go the mains. Reefed. Come on, open up." },
+    { "id": "sp05", "cue": "three", "delay": 0, "who": "LMP", "text": "Three good mains! Look at those beauties. Oh, that's a pretty sight." },
+    { "id": "sp06", "cue": "recovery", "delay": 0, "who": "CAPCOM", "text": "America, Houston. The recovery ship has you in sight, three good parachutes. Welcome home." },
+    { "id": "sp07", "cue": "brace", "delay": 0, "who": "CMP", "text": "A thousand feet. Brace for the water." },
+    { "id": "sp08", "cue": "splash", "delay": 0.6, "who": "LMP", "text": "Splashdown! We're down." },
+    { "id": "sp09", "cue": "stable", "delay": 0, "who": "CMP", "text": "Stable one. She's upright. Parachutes are cut." },
+    { "id": "sp10", "cue": "home", "delay": 0, "who": "CAPCOM", "text": "America, Houston. Apollo seventeen is home. Twelve days, to the valley of Taurus-Littrow and back. Well done, all three of you." }
+  ]
+}

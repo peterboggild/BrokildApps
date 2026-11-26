@@ -1,0 +1,28 @@
+{
+  "about": "Radio and intercom for chapter 11: the entry. Everything in the air is cued by what the capsule feels (the heat, the load, the cabin's temperature), so it stays right at any clock speed; Houston is not heard between the loss of the radio and its return. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "voices": {
+    "CAPCOM": { "voice": "Microsoft David Desktop", "rate": 0, "pitch": 1.04, "channel": "houston" },
+    "LMP":    { "voice": "Microsoft Mark",          "rate": 1, "pitch": 1.09, "channel": "intercom" },
+    "CMP":    { "voice": "Microsoft David",         "rate": 1, "pitch": 0.98, "channel": "intercom" }
+  },
+  "lines": [
+    { "id": "en01", "t": 1084948, "who": "CAPCOM", "text": "America, Houston. You are go for separation. Your entry angle is right down the middle. We will see you on the water." },
+    { "id": "en02", "t": 1085006, "who": "CMP", "text": "Ten seconds to separation. Hang on to your hats." },
+    { "id": "en03", "cue": "sep", "delay": 0.3, "who": "CMP", "text": "Separation. The Service Module is gone. Just the three of us and the heat shield now." },
+    { "id": "en04", "t": 1085058, "who": "LMP", "text": "Coming round to entry attitude. Blunt end forward, heads down." },
+    { "id": "en05", "cue": "ready", "delay": 0, "who": "CMP", "text": "One minute to the interface. Everybody tight in your straps." },
+    { "id": "en06", "cue": "ei", "delay": 0, "who": "CMP", "text": "Entry interface. Four hundred thousand feet. Here we go." },
+    { "id": "en07", "cue": "glow", "delay": 0.2, "who": "LMP", "text": "There's the glow. Look at the windows. Pale, like a neon light." },
+    { "id": "en08", "cue": "point05", "delay": 1.5, "who": "CMP", "text": "Point oh five g. The computer has her." },
+    { "id": "en09", "cue": "fire", "delay": 0, "who": "LMP", "text": "It's orange now. We're inside a fireball. Bits of the shield going by like sparks." },
+    { "id": "en10", "cue": "g2", "delay": 0, "who": "CMP", "text": "Two g and building." },
+    { "id": "en11", "cue": "hot", "delay": 0, "who": "LMP", "text": "White hot out there. I can feel it coming through the hatch. It's getting warm in here." },
+    { "id": "en12", "cue": "g4", "delay": 0, "who": "CMP", "text": "Four g. Breathe. Short breaths." },
+    { "id": "en13", "cue": "g6", "delay": 0, "who": "CMP", "text": "Six. Six and a half. Hold on. Hold on." },
+    { "id": "en14", "cue": "ease", "delay": 0, "who": "CMP", "text": "She's easing off. That was the worst of it. We are through the peak." },
+    { "id": "en15", "cue": "warm", "delay": 0, "who": "LMP", "text": "Cabin is up five degrees. The shield is doing its job." },
+    { "id": "en16", "cue": "aos", "delay": 0.5, "who": "CAPCOM", "text": "America, Houston. Standing by. America, Houston. How do you read?" },
+    { "id": "en17", "cue": "aos2", "delay": 0, "who": "CMP", "text": "Houston, America. Loud and clear, and it is a beautiful day up here." },
+    { "id": "en18", "cue": "fall", "delay": 0, "who": "CAPCOM", "text": "Roger, America. We have you on radar. Standing by for the drogues." }
+  ]
+}
