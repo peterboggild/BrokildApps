@@ -157,29 +157,45 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     const o = __moon, F = o.ops.st.flagAt, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; }), V3 = o.rig.position.constructor;
     o.S.pos.set(F.x + 0.7, 0, F.z); o.S.heading = 0; await frame(); await frame(); await frame();
     const hand = y => { const v = o.rig.worldToLocal(new V3(F.x, F.y + y, F.z)); c.position.set(v.x, v.y, v.z); };
-    hand(1.4); await frame(); await frame(); c.updateButtonValue('squeeze', 1); await frame(); await frame();
+    hand(1.4); await frame(); await frame(); c.updateButtonValue('trigger', 1); await frame(); await frame();
     for (let k = 1; k <= 12; k++) { hand(1.4 - 0.04 * k); await frame(); }
-    c.updateButtonValue('squeeze', 0); await frame();
-    return { step: o.ops.st.step, planted: +o.ops.st.planted.toFixed(2) };
+    c.updateButtonValue('trigger', 0); await frame();
+    return { step: o.ops.st.step, jumping: !!(o.S.teleporting), planted: +o.ops.st.planted.toFixed(2) };
   });
-  ok('the flag: a grip on the pole and a push down plants it', planted.step === 'flag-up' && planted.planted >= 1, JSON.stringify(planted));
+  ok('the flag: a trigger on the pole and a push down plants it', planted.step === 'flag-up' && planted.planted >= 1, JSON.stringify(planted));
   await p.waitForFunction(() => __moon.ops.st.step === 'rover', null, { timeout: 600000 });
   ok('the flag is out on its crossbar', await p.evaluate(() => __moon.ops.st.unfurl === 1 && __moon.ops.flag.visible));
   /* the rover: a grip by the left seat, the stick drives, he rides along; A steps off */
   const drove = await p.evaluate(async () => {
     const o = __moon, R = o.ops.R, c = __dev.controllers, frame = () => new Promise(r => { o.afterFrame = r; });
-    o.S.pos.set(R.x - 1.3 * Math.cos(R.yaw), 0, R.z + 1.3 * Math.sin(R.yaw)); await frame(); await frame(); await frame();
-    c.right.position.set(0.2, 1.2, -0.3); c.right.updateButtonValue('squeeze', 1); await frame(); await frame(); await frame(); c.right.updateButtonValue('squeeze', 0);
+    /* six metres off, a trigger takes hold of nothing and does not jump: it says why */
+    o.S.pos.set(R.x + 6 * Math.cos(R.yaw), 0, R.z - 6 * Math.sin(R.yaw)); await frame(); await frame(); await frame();
+    c.right.position.set(0.2, 1.2, -0.3); c.right.updateButtonValue('trigger', 1); await frame(); await frame(); await frame();
+    const warn = o.toast.text, far = !o.ops.driving; c.right.updateButtonValue('trigger', 0); await frame(); await frame();
+    const board = o.ops.rover.userData.nav.last;
+    /* beside it, on its right, a trigger seats you */
+    o.S.pos.set(R.x + 2.3 * Math.cos(R.yaw), 0, R.z - 2.3 * Math.sin(R.yaw)); await frame(); await frame(); await frame();
+    c.right.updateButtonValue('trigger', 1); await frame(); await frame(); await frame(); c.right.updateButtonValue('trigger', 0);
     const on = o.ops.driving, x0 = R.x, z0 = R.z;
     c.left.updateAxes('thumbstick', 0, -1);
     for (let k = 0; k < 40; k++) await frame();
+    const snd = +o.suit.driveLevel.toFixed(3), nav = o.ops.rover.userData.nav.last, tracks = o.prints.tracks;
     c.left.updateAxes('thumbstick', 0, 0);
     const d = +Math.hypot(R.x - x0, R.z - z0).toFixed(1), mate = o.lmp.S.phase, eyeUp = +(o.camera.position.clone().setFromMatrixPosition(o.camera.matrixWorld).y - R.y).toFixed(2);
     for (let k = 0; k < 80 && Math.abs(R.v) > 0.25; k++) await frame();
     c.right.updateButtonValue('a-button', 1); await frame(); await frame(); c.right.updateButtonValue('a-button', 0); await frame(); await frame();
-    return { on, d, mate, eyeUp, off: !o.ops.driving, after: o.lmp.S.phase };
+    for (let k = 0; k < 4; k++) await frame();
+    /* the boulders at station 1: there from the start, and solid */
+    const b = o.ops.solids[0], q = o.clearOf(b[0], b[1]);
+    /* messages: off unless asked for (the radio's words in text were skipped), and a long one goes on lines */
+    const skipped = o.toast.skipped; o.toast.say('A long message that would have been squeezed on to one line before, hard to read in the headset, now on lines', 0.5, true);
+    return { on, d, mate, eyeUp, off: !o.ops.driving, after: o.lmp.S.phase, warn, far, board, skipped, lines: o.toast.lines, snd, quiet: o.suit.driveLevel, nav, tracks, laid: o.ops.tr.laid, tg: (o.ops.target() || {}).name,
+      rows: o.ops.status().map(r => r.join(' ')).join(' | '), boulders: o.ops.solids.length, out: +Math.hypot(q[0] - b[0], q[1] - b[1]).toFixed(2), r: b[2] };
   });
-  ok('the rover: seated by a grip, the stick drives it, he rides along, A steps off', drove.on && drove.d > 3 && drove.mate === 'ride' && drove.eyeUp > 1.3 && drove.eyeUp < 1.9 && drove.off && drove.after === 'roam', JSON.stringify(drove));
+  ok('the rover is heard through the suit while it runs, leaves its tracks, and its console shows the way', drove.snd > 0.01 && drove.quiet === 0 && drove.tracks >= 2 * Math.floor(drove.d / 0.5) - 4 && drove.tracks > 4 && /\d/.test(drove.nav), JSON.stringify({ snd: drove.snd, quiet: drove.quiet, tracks: drove.tracks, d: drove.d, nav: drove.nav }));
+  ok('the wrist panel points the way; the boulders of station 1 stand there, solid', drove.tg === 'The rover' && /[←-↙]\s+\d+ m/.test(drove.rows) && drove.boulders >= 6 && drove.out >= drove.r, JSON.stringify({ tg: drove.tg, rows: drove.rows, boulders: drove.boulders, out: drove.out, r: drove.r }));
+  ok('near things a trigger does not jump and says why; messages are off unless asked for, and long ones go on lines', drove.far && /Cannot teleport/.test(drove.warn) && /board/.test(drove.board) && drove.skipped > 0 && drove.lines >= 2, JSON.stringify({ warn: drove.warn, far: drove.far, board: drove.board, skipped: drove.skipped, lines: drove.lines }));
+  ok('the rover: seated by a trigger beside it, the stick drives it, he rides along, A steps off', drove.on && drove.d > 3 && drove.mate === 'ride' && drove.eyeUp > 1.3 && drove.eyeUp < 1.9 && drove.off && drove.after === 'roam', JSON.stringify(drove));
   /* the samples: a rock lifted with a grip and let go at the rover's bags; the rest by the test's short cut */
   const smp = await p.evaluate(async () => {
     const o = __moon, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; }), V3 = o.rig.position.constructor;

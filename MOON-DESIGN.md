@@ -814,6 +814,35 @@ frame (the owner: "ok"), voices of the owner's own. To judge in the headset: whe
 in your shadow and in his visor, the stride of your own legs seen from above, the wait while he climbs (about 25 s
 from the footpad), the count and the red dot, each scene's framing in the film, the film's length (about a minute).
 
+### 12.17 The owner's first drive, and what came of it (26 November 2026, Fable)
+
+His words: "fantastic work on the rover and flag experience", and three things. Sound when driving: "vibrations
+from motor and bumps transmit via spacesuit". "I dont know where the boulder field is, can there be a compas or an
+arrow?" "Can the rover leave tracks?"
+
+Built: the rover heard through the suit (motors, rumble, bumps) and felt in the controllers; wheel tracks; the
+rover's console as its navigation display (the real rover had one: heading, bearing and range), the same arrow and
+distance on the wrist panel on foot, and real boulders at station 1 so that the place can be seen from the LM.
+No marker floats in the world: the arrow is on instruments the crew had or could have had.
+
+To judge in the headset: the sound's level against the suit fan and the radio, whether the tremor in the
+controllers is pleasant or tiring on a long drive, whether the console's display can be read from the seat (the
+LMP's arm lies near it), the tracks' look close up and their cost with many laid, the boulders' look close up
+(they are angular lumps, flat-shaded).
+
+While that was being built he added four more, all done in the same change:
+- The rover's panel "although not authentic" should show the arrow to the rock field, the arrow back to the lander,
+  and the load. It does: yellow arrow and range to the target, blue arrow and range to the LM, the load in kg.
+- "The text messages on the screen are distracting, also they are very compressed (hard to read) - very narrow.
+  Can it be a choice all the way through, to be set in settings and off by default?" A setting in every chapter,
+  'Messages on screen', off by default: hints and the radio's words in text are then not shown. A few things are
+  shown whatever it says (`toast.say(text, secs, true)`): answers to your own button (why the clock stopped, why
+  a trigger did nothing), how to get on the rover and drive it, the recording's prompt, count and cut, and once at
+  the start where the settings are. Long messages go on two or three lines at their natural width.
+- "Its not clear how to enter the rover." A trigger or grip anywhere beside it; the console and a message say so.
+- The pistol triggers grip and work things whenever you are close to something; they teleport only when more than
+  10 m from everything; in between, "Cannot teleport close to other objects or astronauts".
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

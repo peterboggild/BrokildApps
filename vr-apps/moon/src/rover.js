@@ -14,9 +14,14 @@
  *   rover.userData.seat      { driver, mate }: where a seated man's hips are (the rover's frame)
  *   rover.userData.camera    the television camera's lens (an Object3D: its -z looks out of the lens; it pans and tilts)
  *   rover.userData.bag       where the samples go (a point at the back)
- *   rover.userData.handle    the hand controller (a Group: it tips with the stick) */
+ *   rover.userData.handle    the hand controller (a Group: it tips with the stick)
+ *   rover.userData.nav       the console's navigation display, as the real rover had (heading, and the bearing and
+ *                            range of where you are going and of the LM; and, which the real one had not, the
+ *                            samples loaded): nav.draw({ heading (degrees), name, rel (radians, to the right of the
+ *                            nose), range (m), lmRel, lmRange, load: [kg, of] | null, board: true while it stands
+ *                            empty (it then says how to climb on) }) */
 import * as THREE from 'three';
-import { Parts } from './lm-model.js?v=29';
+import { Parts } from './lm-model.js?v=30';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 export const ROVER = { TRACK: 1.83, BASE: 2.29, WHEEL_R: 0.41, LEN: 3.1 };
@@ -124,5 +129,51 @@ export function makeRover(env) {
   }
   g.userData.wheels = wheels; g.userData.seat = seat; g.userData.camera = lens; g.userData.pan = pan; g.userData.tilt = tilt;
   g.userData.bag = V(0, CH + 0.5, 1.15); g.userData.handle = handle; g.userData.deck = CH;
+  /* the navigation display: drawn on a small canvas, on the console's face towards the seats */
+  { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.135), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+    face.rotation.x = -0.35; face.position.set(0, CH + 0.775 + 0.343 * 0.009, -0.325 + 0.939 * 0.009); g.add(face);
+    const F = 'system-ui, Segoe UI, Arial, sans-serif';
+    const arrow = (cx, cy, r, a, col) => {
+      x.save(); x.translate(cx, cy); x.rotate(a); x.fillStyle = col;
+      x.beginPath(); x.moveTo(0, -r); x.lineTo(r * 0.55, r * 0.15); x.lineTo(r * 0.2, r * 0.15); x.lineTo(r * 0.2, r * 0.9); x.lineTo(-r * 0.2, r * 0.9); x.lineTo(-r * 0.2, r * 0.15); x.lineTo(-r * 0.55, r * 0.15); x.closePath(); x.fill();
+      x.restore();
+    };
+    const nav = { face, last: '',
+      draw(o) {
+        const key = [Math.round(o.heading / 2), o.name, Math.round(o.rel * 20), Math.round(o.range), Math.round((o.lmRel || 0) * 12), Math.round(o.lmRange || 0), o.load ? Math.round(o.load[0]) : '', o.board ? 'board' : ''].join();
+        if (key === nav.last) return; nav.last = key;
+        x.fillStyle = '#10140f'; x.fillRect(0, 0, 512, 256);
+        if (o.board) {
+          /* parked and empty: how to get on */
+          x.textAlign = 'center'; x.textBaseline = 'middle';
+          x.fillStyle = '#f0c040'; x.font = 'bold 54px ' + F; x.fillText('CLIMB ON', 256, 78, 480);
+          x.fillStyle = '#e8e4d4'; x.font = 'bold 34px ' + F; x.fillText('pull a trigger or grip', 256, 148, 480); x.fillText('beside the rover', 256, 196, 480);
+          tex.needsUpdate = true; return;
+        }
+        /* the dial: the rover's nose is up; ticks every 30 degrees turn with the heading, N marked */
+        const cx = 128, cy = 128, R = 104;
+        x.strokeStyle = '#6f7a66'; x.lineWidth = 3; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.stroke();
+        for (let d = 0; d < 360; d += 30) {
+          const a = (d - o.heading) * Math.PI / 180, s = Math.sin(a), co = -Math.cos(a);
+          x.strokeStyle = d ? '#6f7a66' : '#e8e4d4'; x.lineWidth = d % 90 ? 2 : 4;
+          x.beginPath(); x.moveTo(cx + s * (R - (d % 90 ? 10 : 18)), cy + co * (R - (d % 90 ? 10 : 18))); x.lineTo(cx + s * R, cy + co * R); x.stroke();
+          if (!d) { x.fillStyle = '#e8e4d4'; x.font = 'bold 26px ' + F; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('N', cx + s * (R - 34), cy + co * (R - 34)); }
+        }
+        const LMC = '#8fd0e8', GO = '#f0c040';
+        if (o.lmRange > 8) arrow(cx, cy, 58, o.lmRel, LMC);                             /* the way back to the LM: small, blue */
+        if (o.name && o.name !== 'The LM') arrow(cx, cy, 88, o.rel, GO);                /* the way to go: large, yellow */
+        x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+        const goLM = o.name === 'The LM';
+        x.fillStyle = GO; x.font = 'bold 26px ' + F; x.fillText(o.name && !goLM ? o.name.toUpperCase() : goLM ? 'BACK TO THE LM' : 'NO TARGET', 262, 44, 240);
+        x.font = 'bold 62px ' + F; x.fillText(o.name && !goLM ? Math.round(o.range) + ' m' : '', 262, 104, 240);
+        x.fillStyle = LMC; x.font = 'bold 34px ' + F; x.fillText('LM  ' + Math.round(o.lmRange || 0) + ' m', 262, 152, 240);
+        x.fillStyle = '#e8e4d4'; x.font = 'bold 30px ' + F; if (o.load) x.fillText('LOAD  ' + Math.round(o.load[0]) + ' / ' + o.load[1] + ' kg', 262, 198, 240);
+        x.fillStyle = '#9aa58e'; x.font = 'bold 22px ' + F; x.fillText('HDG ' + String(Math.round(((o.heading % 360) + 360) % 360)).padStart(3, '0'), 262, 236, 240);
+        tex.needsUpdate = true;
+      } };
+    nav.draw({ heading: 0, name: '', rel: 0, range: 0, lmRel: 0, lmRange: 0 });
+    g.userData.nav = nav; }
   return g;
 }

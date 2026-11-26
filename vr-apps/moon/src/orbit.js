@@ -11,21 +11,21 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=29';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=29';
-import { makeOutside } from './earth.js?v=29';
-import { makeCabin } from './cabin.js?v=29';
-import { makeLaunchSound } from './launch-sound.js?v=29';
-import { makeRadio, combineRadios } from './radio.js?v=29';
-import { makeClock } from './clock.js?v=29';
-import { makeChatter } from './chatter.js?v=29';
-import { handOnCrew } from './crew-life.js?v=29';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=29';
-import { createHand, makeControllers } from './hands.js?v=29';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=29';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=29';
-import { settings, applyCommon, holdsFor } from './settings.js?v=29';
-import { makeFloaters } from './floaters.js?v=29';
+import { state as ascentState, SUN, RE } from './ascent.js?v=30';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=30';
+import { makeOutside } from './earth.js?v=30';
+import { makeCabin } from './cabin.js?v=30';
+import { makeLaunchSound } from './launch-sound.js?v=30';
+import { makeRadio, combineRadios } from './radio.js?v=30';
+import { makeClock } from './clock.js?v=30';
+import { makeChatter } from './chatter.js?v=30';
+import { handOnCrew } from './crew-life.js?v=30';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=30';
+import { createHand, makeControllers } from './hands.js?v=30';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=30';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=30';
+import { settings, applyCommon, holdsFor } from './settings.js?v=30';
+import { makeFloaters } from './floaters.js?v=30';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -83,7 +83,7 @@ const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
 
 /* ---------------------------------------------------------------- the wrist panel (X) and messages */
-const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'body', 'hand']);
+const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
 const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
@@ -129,7 +129,7 @@ renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.
 const clock = makeClock({ holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
 const held = t => !!clock.inHold(t);
 function cycleWarp() { clock.faster(S); }
-function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5); } }
+function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
 function setTime(t) { S.t = t; S.warp = 1; S.ended = false; S.snap = true; clock.reset(); }
 /* the chapter's end: A (or N on the screen) goes on; a page change must leave VR first */
 /* on to the next chapter: the page changes while still in VR, and the next page enters VR by itself where the browser
@@ -404,7 +404,7 @@ async function enterVR() {
   common.all();
   card.show({ title: 'Chapter 2', sub: 'To the Moon' }, 6);
   session.addEventListener('selectstart', () => sound.init());          /* sound needs a press when VR was entered by itself */
-  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6), 7500);
+  setTimeout(() => toast.say('Press the left stick for the status and the settings', 6, true), 7500);
   S.yaw = 0; S.pitch = 0; head.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   SEAT.pending = 1; SEAT.done = false;
   document.body.classList.add('invr');

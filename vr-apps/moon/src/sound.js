@@ -4,6 +4,8 @@
  * - Steps: a dull thud through the boots and legs, and the dry scrape of the overshoe on the regolith, which
  *   is granular, crackly and muffled by the helmet.
  * - The suit fan: the life-support pack's fan and oxygen flow, a soft constant hiss and hum.
+ * - The rover, through the seat and the hand on its controller: the four hub motors' whirr rising with the speed
+ *   and the load, the chassis' low rumble over the ground, and a thump with a rattle at every bump (drive, bump).
  *
  * All synthesised (Web Audio); no recordings. The AudioContext is made on a click (browsers require it). */
 
@@ -73,10 +75,53 @@ export function makeSuitSound() {
     s.connect(bp).connect(sg).connect(out); s.start(t + 0.012);
   }
 
+  /* The rover under you: speed in m/s, the hand controller's throw -1..1 (0, 0 when you are not on it) */
+  let drv = null;
+  function drive(speed, thr) {
+    if (!ctx || ctx.state !== 'running') return;
+    const s = Math.min(1, Math.abs(speed) / 3.6), load = Math.min(1, Math.abs(thr));
+    if (!drv) {
+      if (s < 0.005 && load < 0.02) return;
+      /* the motors: two saws a little apart, well muffled (it comes through structure, not air) */
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = o2.type = 'sawtooth';
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.7;
+      const g = ctx.createGain(); g.gain.value = 0;
+      o1.connect(lp); o2.connect(lp); lp.connect(g).connect(out); o1.start(); o2.start();
+      /* the rumble: slow noise, low */
+      const sr = ctx.sampleRate, n = sr * 2, b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0); let br = 0;
+      for (let i = 0; i < n; i++) { br = 0.97 * br + 0.03 * (Math.random() * 2 - 1); d[i] = br * 5; }
+      const src = ctx.createBufferSource(); src.buffer = b; src.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = 'lowpass'; bp.frequency.value = 140;
+      const rg = ctx.createGain(); rg.gain.value = 0; src.connect(bp).connect(rg).connect(out); src.start();
+      drv = { o1, o2, lp, g, rg, bp };
+    }
+    const t = ctx.currentTime, f = 46 + 150 * s;
+    drv.o1.frequency.setTargetAtTime(f, t, 0.1); drv.o2.frequency.setTargetAtTime(f * 2.02 + 2, t, 0.1);
+    drv.lp.frequency.setTargetAtTime(300 + 500 * s, t, 0.2);
+    drv.g.gain.setTargetAtTime(s < 0.005 && load < 0.02 ? 0 : 0.012 + 0.028 * load + 0.022 * s, t, 0.12);
+    drv.rg.gain.setTargetAtTime(0.5 * s, t, 0.15); drv.bp.frequency.setTargetAtTime(90 + 110 * s, t, 0.2);
+    api.driveLevel = s < 0.005 && load < 0.02 ? 0 : 0.012 + 0.028 * load + 0.022 * s;
+  }
+  /* a wheel takes a bump: the thump through the seat, and the chassis and its load rattling after it */
+  function bump(strength = 1) {
+    if (!ctx || ctx.state !== 'running') return;
+    const t = ctx.currentTime + 0.005, k = Math.min(1.6, strength) * (0.8 + 0.4 * Math.random());
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(70 + 16 * Math.random(), t); o.frequency.exponentialRampToValueAtTime(34, t + 0.16);
+    og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.5 * k, t + 0.008); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    o.connect(og).connect(out); o.start(t); o.stop(t + 0.3);
+    const s = ctx.createBufferSource(); s.buffer = grains[(Math.random() * grains.length) | 0]; s.playbackRate.value = 0.5 + 0.2 * Math.random();
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 260 + 180 * Math.random(); bp.Q.value = 2.5;
+    const sg = ctx.createGain(); sg.gain.value = 0.35 * k;
+    s.connect(bp).connect(sg).connect(out); s.start(t + 0.02);
+    api.bumps++;
+  }
+
   function setFan(on) {
     fanOn = on;
     if (fanGain) fanGain.gain.setTargetAtTime(on ? 0.05 : 0, ctx.currentTime, 0.3);
   }
 
-  return { init, step, setFan, get running() { return !!ctx && ctx.state === 'running'; } };
+  const api = { init, step, setFan, drive, bump, bumps: 0, driveLevel: 0, get running() { return !!ctx && ctx.state === 'running'; } };
+  return api;
 }

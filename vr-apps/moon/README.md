@@ -260,7 +260,10 @@ the mission clock and the time warp; the buttons; the frame rate in small type).
 chapter's end it opens by itself with the way on (A); in the descent it opens when you take over by hand (its
 figures are what you fly by). The settings are kept in the browser and follow you from chapter to chapter: fast
 forward, turning comfort (the fastest the spacecraft turns as you see it: 0.75, 1.5 or 3°/s), frame rate (72, 90,
-120 Hz), foveation, the radio's volume and the engines', your own body, the hand angle. Resolution is not there: a
+120 Hz), foveation, the radio's volume and the engines', your own body, the hand angle. And **messages on screen**,
+**off unless you turn them on**: hints and the radio's words in text (`makeToast` in `wrist.js`). A few are shown
+whatever it says: answers to your own button, and the handful of things you cannot do without (`say(text, secs, true)`).
+Long messages go on two or three lines. Resolution is not there: a
 WebXR session cannot change it while running (the start page).
 
 **Fast forward** (B one step faster, A one step slower, hold A for real time at once; `src/clock.js`, the same in every chapter). While time runs fast a small clock sits low in your view (it follows your head): its hand goes round faster the faster time runs, and the number beside it is the power of ten (1 for ×10 ... 4 for ×10,000):
@@ -437,6 +440,28 @@ What there is to do once you are both down (chapter 6 only).
   the ground on its four wheels (pitch, roll, a soft bounce; your own view stays level), throws dust from the rear
   wheels, casts its shadow, and keeps clear of the LM. A, standing still, and you step off to the left; he gets
   off and stays about the rover. Parked, it is solid to you.
+- **Heard and felt through the suit** (`sound.js`: `drive`, `bump`; nothing comes through the vacuum): the hub
+  motors' muffled whirr, rising with speed and with the throw of the handle; the chassis' low rumble over the
+  ground; a thump and a rattle when the springs take a bump. The controllers tremble with it, the left one (the
+  hand on the T-handle) more, and jolt at a bump.
+- **Tracks** (`prints.js`: `track`): the rear wheels press a stretch of track for every half metre rolled, the
+  wheel's shallow trough with its chevrons, shaded by the ground's own shader like the bootprints (3000 stretches
+  kept on each kind of ground, some 700 m of driving; then the oldest go).
+- **Getting on**: pull a trigger or grip anywhere beside the rover (within 2.9 m of its middle; it was only by
+  the left seat before, and not clear). The console says so while it stands empty, and a message does the first
+  time you come near.
+- **The triggers** (`readControllers` in `main.js`): the pistol triggers take hold like the grips, of the flag's
+  pole, a rock, the rover, the sample bag, the ladder. The right trigger jumps (teleports) only when you are 10 m
+  clear of the LM, the rover, the flag and your crewmate and have nothing in a hand; nearer, a pull that took
+  hold of nothing says "Cannot teleport close to other objects or astronauts".
+- **Finding the way**: the console between the seats is the rover's navigation display, as the real one had:
+  a dial with the rover's nose up and north marked, a large yellow arrow and the range to where you are going, a
+  small blue arrow and the range back to the LM, the heading, and (which the real one had not) the samples
+  loaded (`rover.userData.nav`). While the rover stands empty it says how to get on. On foot the wrist panel has the
+  same: an arrow as you look (up is ahead) and the distance, to the flag, the rover, station 1, the nearest rock,
+  the LM (`ops.target()`). And **station 1 is a boulder field you can see**: seven boulders, from knee-high to
+  taller than you, stand there from the start with their shadows, visible from the LM some 90 m off; they are
+  solid to you and to the rover (`samples.js`: `boulders`).
 - The radio says each step (`flag-go`, `flag-here`, `flag-done`, `rover-go`, `drive`) and what comes next.
 - **The missions**, once you have driven 30 m (Houston says each; the wrist panel shows where you are with it):
   1. *Samples* (`src/samples.js`): station 1 is a boulder field some 90 m ahead of the LM (the panel gives the

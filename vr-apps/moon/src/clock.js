@@ -10,12 +10,12 @@
  *   S.t = clock.advance(S, dt);      every frame, while running
  *   clock.faster(S);                 B: one step faster (it stays at the fastest)
  *   clock.slower(S);                 A: one step slower (down to real time; held: real time at once) */
-import { settings } from './settings.js?v=29';
+import { settings } from './settings.js?v=30';
 
 export function makeClock({ holds, lines, warps, cap = 10, toast }) {
   let skip = -Infinity;                          /* stops at or before this have been passed on purpose */
   const inHold = t => holds().find(([a, b]) => t > a && t < b);
-  const say = s => { if (toast) toast.say(s, 2.6); };
+  const say = s => { if (toast) toast.say(s, 2.6, true); };                 /* (an answer to your own button: shown whatever the messages' setting) */
   return {
     inHold,
     advance(S, dt) {
