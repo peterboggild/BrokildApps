@@ -41,10 +41,10 @@
  *   ops.button('a')                       A pressed; true if it was for the rover
  *   ops.driving, ops.seat                 seated on the rover (the page then places the rig from ops.eye and ops.yaw) */
 import * as THREE from 'three';
-import { makeFlag } from './flag.js?v=37';
-import { makeRover, ROVER } from './rover.js?v=37';
-import { makeSamples } from './samples.js?v=37';
-import { makeRecorder } from './finale.js?v=37';
+import { makeFlag } from './flag.js?v=38';
+import { makeRover, ROVER } from './rover.js?v=38';
+import { makeSamples } from './samples.js?v=38';
+import { makeRecorder } from './finale.js?v=38';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const G = 1.62;

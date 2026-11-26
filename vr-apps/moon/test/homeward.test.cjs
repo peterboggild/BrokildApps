@@ -3,8 +3,9 @@
  *   python -m http.server 8765        (from the repository root)
  *   set NODE_PATH=<dir>\node_modules  (playwright-core, iwer)
  *   node vr-apps/moon/test/homeward.test.cjs [folder for screenshots]
- * Enters VR in the couch; checks the flight's figures, fast forward dropping to real time for the walk, the hatch
- * opening with the clock waiting, going out (where you float, which way you face), pulling yourself along the rail
+ * Enters VR in the couch; checks the flight's figures, fast forward dropping to real time for the walk, suiting up
+ * at the panel (a fingertip on the lit switch, then A), the helmets on before the hatch opens with the clock waiting,
+ * the way out not cancelled at a headset's frame rate, the stick along the rail, things that float kept out of the crew, going out (where you float, which way you face), pulling yourself along the rail
  * with a grip, the walk by itself to the instrument bay, the cassette taken and brought in, the chapter's end, and
  * no errors. Waits on the state, never on time. */
 const fs = require('fs');
@@ -56,12 +57,31 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   ok('fast forward on the coast; real time as the walk comes up', w0 > 1 && w1 === 1, `x${w0} -> x${w1}`);
   /* the hatch opens; the clock waits for you */
   await p.evaluate(() => { const o = __home; o.setTime(o.EVA_T - 3); o.S.running = true; });
+  /* suiting up: the SUIT switches on your panel light one after another; a fingertip flips the lit one */
+  await p.waitForFunction(() => __home.EVA.state === 'suit' && __home.proc.active, null, { timeout: 600000 });
+  const suit = await p.evaluate(async () => { const o = __home, c = __dev.controllers.right, frame = () => new Promise(r => { o.afterFrame = r; }), V = o.rig.position.constructor;
+    const list = o.proc.list.slice(), k = list[0], was = o.cabin.controls.list[k].up, t0 = o.S.t, names = list.map(i => o.cabin.controls.list[i].group);
+    const sw = o.cabin.controls.pos(k, new V()), reach = sw.length(), lamp = o.cabin.controls.lampOn, bare = o.cabin.crewmen.every(m => !m.userData.bubble || !m.userData.bubble.visible);
+    /* bring the fingertip to the switch: move the controller by what the tip still lacks, a few times */
+    for (let n = 0; n < 6 && o.proc.at === 0; n++) { await frame(); await frame(); const tip = o.tips.right; if (!tip) continue; const d = sw.clone().sub(tip); c.position.set(c.position.x + d.x, c.position.y + d.y, c.position.z + d.z); }
+    await frame(); await frame();
+    return { n: list.length, names, reach: +reach.toFixed(2), lamp, bare, flipped: o.proc.at, lever: o.cabin.controls.list[k].up !== was, waited: +(o.S.t - t0).toFixed(2), said: o.toast.text, now: o.info().now }; });
+  ok('suiting up: the SUIT switches within reach light up, a fingertip flips the lit one, the clock waits', suit.n >= 2 && suit.names.every(x => x === 'SUIT') && suit.reach < 0.95 && suit.lamp && suit.bare && suit.flipped === 1 && suit.lever && suit.waited === 0 && /SUIT/.test(suit.said) && /suiting/.test(suit.now), JSON.stringify(suit));
+  if (outDir) await p.screenshot({ path: path.join(outDir, 'homeward-suit.png') });
+  await p.evaluate(() => { __dev.controllers.right.position.set(0.25, 1.1, -0.35); });
+  await tapA();                                                                    /* A: the rest of them */
   await p.waitForFunction(() => __home.EVA.state === 'wait' && /hatch/.test(__home.toast.text || ''), null, { timeout: 600000 });
+  const helm = await p.evaluate(() => ({ on: __home.cabin.crewmen.every(m => !m.userData.bubble || m.userData.bubble.visible), flipped: __home.proc.flipped, lamp: __home.cabin.controls.lampOn, cue: !!__home.S.cues.suited }));
+  ok('the helmets are on before the hatch is opened', helm.on && helm.flipped >= 2 && !helm.lamp && helm.cue, JSON.stringify(helm));
   await frames(6);
   const wait = await p.evaluate(() => ({ t: __home.S.t - __home.EVA_T, cue: !!__home.S.cues.hatch, said: __home.toast.text, now: __home.info().now }));
   ok('the hatch is open, the clock waits, and you are told the way', Math.abs(wait.t) < 0.5 && wait.cue && /A/.test(wait.said) && /hatch/.test(wait.now), JSON.stringify(wait));
   /* out */
-  await tapA();
+  /* the way out is a fade to black, and nothing may end it before it is done (at the headset's frame rate another
+   * line did, and the owner never left his couch; the emulator's few frames a second stepped over the fault) */
+  const fade = await p.evaluate(async () => { const o = __home, frame = () => new Promise(r => { o.afterFrame = r; });
+    o.evaGo(); o.FADE.k = 0.905; await frame(); const a = { state: o.EVA.state, target: o.FADE.target }; return a; });
+  ok('the fade out of the hatch is not cut short', fade.target === 1 || fade.state === 'out', JSON.stringify(fade));
   await p.waitForFunction(() => __home.EVA.state === 'out' && __home.FADE.k < 0.3, null, { timeout: 600000 });
   await frames(3);
   const out = await where();
@@ -77,6 +97,15 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
     const s1 = o.EVA.s; c.updateButtonValue('squeeze', 0); await frame(); await frame();
     return { s0, s1 }; });
   ok('a grip and a pull: you move along the rail, the other way from your hand', pull.s1 - pull.s0 > 0.2 && pull.s1 - pull.s0 < 0.45, JSON.stringify(pull));
+  /* the left stick along the rail */
+  const stick = await p.evaluate(async () => { const o = __home, c = __dev.controllers.left, frame = () => new Promise(r => { o.afterFrame = r; });
+    const s0 = o.EVA.s; let how = '';
+    try { c.updateAxes('thumbstick', 0, -1); how = 'axes'; } catch (e) { how = 'no ' + e.message; }
+    for (let k = 0; k < 10; k++) await frame();
+    const s1 = o.EVA.s; try { c.updateAxes('thumbstick', 0, 0); } catch (e) { /* as above */ }
+    for (let k = 0; k < 3; k++) await frame();
+    return { s0: +s0.toFixed(2), s1: +s1.toFixed(2), how }; });
+  ok('the left stick forward takes you along the rail', stick.s1 - stick.s0 > 0.1, JSON.stringify(stick));
   /* A: by itself to the bay; the cassette is taken; and back in */
   await tapA();
   await p.waitForFunction(() => __home.EVA.has, null, { timeout: 900000 });
@@ -89,6 +118,13 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   await frames(4);
   const back = await where(), backV = await p.evaluate(() => ({ cue: !!__home.S.cues.in, film: __home.cassette.visible, now: __home.info().now }));
   ok('back in your couch with the film', back.state === 'done' && Math.hypot(back.eye[0] - 0.6, back.eye[1], back.eye[2] + 0.15) < 0.4 && backV.cue && !backV.film && /film aboard/.test(backV.now), JSON.stringify(back) + ' ' + JSON.stringify(backV));
+  /* things that float bounce off the crew: the pen thrown at a crewman's chest comes back out of him */
+  const bounce = await p.evaluate(async () => { const o = __home, frame = () => new Promise(r => { o.afterFrame = r; }), fl = o.floaters;
+    fl.findBodies(); const pen = fl.items[1], chest = fl.bodies.find(([c]) => c.x > 0.4 && c.x < 0.9 && c.y < -0.2) || fl.bodies[0];
+    pen.obj.position.copy(chest[0]).add({ x: 0, y: 0, z: -(chest[1] + 0.12) }); pen.v.set(0, 0, 0.35); pen.bounces = 0;
+    let inside = 0; for (let k = 0; k < 14; k++) { await frame(); if (pen.obj.position.distanceTo(chest[0]) < chest[1] - 0.005) inside++; }
+    return { bodies: fl.bodies.length, bounces: pen.bounces, inside, vz: +pen.v.z.toFixed(3) }; });
+  ok('the pen bounces off a crewman', bounce.bodies > 10 && bounce.bounces >= 1 && bounce.inside === 0 && bounce.vz < 0.05, JSON.stringify(bounce));
   /* the end: the Earth close */
   await p.evaluate(() => { const o = __home; o.S.t = o.END - 4; o.S.running = true; });
   await p.waitForFunction(() => __home.S.ended, null, { timeout: 600000 });

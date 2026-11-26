@@ -1,6 +1,7 @@
 /* Things floating free in the cabin, weightlessness made visible, and yours to take: close the grip (the middle
  * finger's button) near one and it is in your hand; open it and it floats on with the speed, direction and spin it
- * had in your hand. Floating, they drift and tumble slowly, and bounce softly off the cabin round you.
+ * had in your hand. Floating, they drift and tumble slowly, and bounce softly off the cabin round you and off the
+ * crew (they passed through the astronauts: owner's headset test).
  *
  * Everything is worked out in the cabin's own frame (the rig's: hands from their poses under the head), never in the
  * world, which moves at kilometres a second.
@@ -63,6 +64,17 @@ export function makeFloaters(parent, opts = {}) {
 
   const _hm = new THREE.Matrix4(), _inv = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _dq = new THREE.Quaternion();
   const prevGrip = { left: false, right: false };
+  /* the crew's bodies, as spheres in the cabin's frame (cabin.js gives every crewman his: userData.touch, in his own
+   * frame; yours too): found among the cabin's things, the hidden left out, looked up again twice a second */
+  let bodies = [], bodiesT = 0; const _b = new THREE.Vector3(), _n = new THREE.Vector3();
+  function findBodies() {
+    bodies = []; parent.updateMatrixWorld(true); _inv.copy(parent.matrixWorld).invert();
+    parent.traverse(m => {
+      if (!m.userData || !m.userData.touch) return;
+      for (let q = m; q && q !== parent; q = q.parent) if (!q.visible) return;
+      for (const [x, y, z, r] of m.userData.touch) { const c = new THREE.Vector3(x, y, z).applyMatrix4(m.matrixWorld).applyMatrix4(_inv); bodies.push([c, r]); }
+    });
+  }
   /* the hand's pose in the cabin's frame */
   function handInCabin(ctl, head, h, out) {
     head.updateMatrix(); ctl.grips[h].updateMatrix(); parent.updateMatrix();
@@ -110,11 +122,21 @@ export function makeFloaters(parent, opts = {}) {
       prevGrip[h] = grip;
       if (hands && hands[h]) hands[h].userData.holding = items.some(it => it.held && it.held.h === h);
     }
-    /* free: drift and tumble, a whisper of air drag, soft bounces off the cabin round you */
+    /* free: drift and tumble, a whisper of air drag, soft bounces off the cabin round you and off the crew */
+    bodiesT -= dt; if (bodiesT <= 0) { bodiesT = 0.5; findBodies(); }
     for (const it of items) {
       if (it.held) continue;
       const o = it.obj;
       o.position.addScaledVector(it.v, dt);
+      for (const [c, r] of bodies) {
+        const reach = r + it.r * 0.45, d = _b.copy(o.position).sub(c).length();
+        if (d >= reach) continue;
+        _n.copy(_b).divideScalar(d || 1); if (d < 1e-6) _n.set(0, 1, 0);
+        o.position.copy(c).addScaledVector(_n, reach);                               /* out of him */
+        const vn = it.v.dot(_n);
+        if (vn < 0) { it.v.addScaledVector(_n, -1.5 * vn); it.w.multiplyScalar(0.7).add(_s.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(-vn * 4)); it.bounces = (it.bounces || 0) + 1; }
+        if (it.v.dot(_n) < 0.004) it.v.addScaledVector(_n, 0.004);                    /* (and never left resting against him) */
+      }
       const wl = it.w.length(); if (wl > 1e-6) o.quaternion.premultiply(_dq.setFromAxisAngle(_s.copy(it.w).divideScalar(wl), wl * dt));
       const drag = Math.exp(-dt * 0.03); it.v.multiplyScalar(drag); it.w.multiplyScalar(Math.exp(-dt * 0.02));
       for (const [ax, lo, hi] of [['x', BOX.x0, BOX.x1], ['y', BOX.y0, BOX.y1], ['z', BOX.z0, BOX.z1]]) {
@@ -123,5 +145,5 @@ export function makeFloaters(parent, opts = {}) {
       }
     }
   }
-  return { group, items, update };
+  return { group, items, update, get bodies() { return bodies; }, findBodies };
 }

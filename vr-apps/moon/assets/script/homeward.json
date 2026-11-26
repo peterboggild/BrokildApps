@@ -1,8 +1,8 @@
 {
   "about": "Radio and intercom for chapter 10: the coast home and the walk outside. Time lines hang on the chapter's start (GET 250:00), the walk (GET 254:54) and the chapter's end; the hatch opening, going out, reaching the instrument bay, taking the cassette and coming in are cued by what happens. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
   "channels": {
-    "CMP": "intercom",
     "CAPCOM": "houston",
+    "CMP": "intercom",
     "LMP": "intercom"
   },
   "lines": [
@@ -31,8 +31,26 @@
       "id": "hw04",
       "t": 917600,
       "who": "CMP",
-      "text": "Cabin pressure coming down. Suits are holding. Everything loose is tied down.",
-      "dur": 4.45
+      "text": "Time to suit up. Everything loose is tied down. The suit circuit is on your panel.",
+      "dur": 4.49
+    },
+    {
+      "id": "hw14",
+      "t": null,
+      "who": "CMP",
+      "text": "Suit circuit is yours. Flip them as they light, one at a time.",
+      "dur": 3.71,
+      "cue": "suit",
+      "delay": 0.5
+    },
+    {
+      "id": "hw15",
+      "t": null,
+      "who": "CMP",
+      "text": "Helmets and gloves locked. Suits are holding. Cabin pressure coming down.",
+      "dur": 4.3,
+      "cue": "suited",
+      "delay": 0.4
     },
     {
       "id": "hw05",
