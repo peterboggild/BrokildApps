@@ -7,7 +7,7 @@ const KEY = 'moon-progress';
 let last = 0;
 const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h + ':' + String(m).padStart(2, '0'); };
 export const CHAPTERS = { 'launch.html': 'chapter 1, the launch', 'orbit.html': 'chapter 2, to the Moon', 'lunar.html': 'chapter 3, lunar orbit',
-  'lm.html': 'chapter 4, into the LM', 'descent.html': 'chapter 5, the descent', 'surface.html': 'chapter 6, on the Moon' };
+  'lm.html': 'chapter 4, into the LM', 'descent.html': 'chapter 5, the descent', 'surface.html': 'chapter 6, on the Moon', 'liftoff.html': 'chapter 7, the lift-off' };
 
 export function loadProgress() {
   try { const p = JSON.parse(localStorage.getItem(KEY) || 'null'); return p && CHAPTERS[p.page] ? p : null; } catch (e) { return null; }

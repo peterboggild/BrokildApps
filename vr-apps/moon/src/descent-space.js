@@ -13,7 +13,7 @@
  * - P66 by hand (descent.js): the commanded descent rate held, the LM's tilt giving the horizontal acceleration.
  * Timed so the autopilot's contact comes at Apollo 17's (GET 110:21:58), where stage 0's Sun stands.
  * GET = ground elapsed time, seconds from liftoff. */
-import { MU_M, HEADING } from './lunar-space.js?v=32';
+import { MU_M, HEADING } from './lunar-space.js?v=33';
 
 export const GETD = { pdi: 110 * 3600 + 9 * 60 + 53, land: 110 * 3600 + 21 * 60 + 58 };
 GETD.hg = GETD.pdi + 510;                 /* high gate */

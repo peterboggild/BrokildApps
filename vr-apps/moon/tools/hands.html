@@ -15,7 +15,7 @@
 <body>
 <script type="module">
 import * as THREE from 'three';
-import { createHand, TH } from '../src/hands.js?v=32';
+import { createHand, TH } from '../src/hands.js?v=33';
 const q = new URLSearchParams(location.search);
 for (const k of ['opp', 'f0', 'f1', 'f2']) if (q.has(k)) TH[k] = +q.get(k);
 if (q.has('len')) TH.len = +q.get('len');

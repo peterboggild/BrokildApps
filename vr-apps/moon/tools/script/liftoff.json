@@ -1,0 +1,25 @@
+{
+  "about": "Radio and intercom for chapter 7: the lift-off from Taurus-Littrow to lunar orbit. Time lines follow the computer's ascent (liftoff-space.js: lift-off at GET 185:21:37, cut-off about 440 s later); ignition, the pitch-over and the cut-off are cued by what happens. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "voices": {
+    "CAPCOM": { "voice": "Microsoft David Desktop", "rate": 0, "pitch": 1.04, "channel": "houston" },
+    "LMP":    { "voice": "Microsoft Mark",          "rate": 1, "pitch": 1.09, "channel": "intercom" }
+  },
+  "lines": [
+    { "id": "as01", "t": 667270, "who": "CAPCOM", "text": "Challenger, Houston. You are go for lift-off. We are watching you on the rover's camera." },
+    { "id": "as02", "t": 667284, "who": "LMP", "text": "Ten seconds. Abort stage. Engine arm, ascent." },
+    { "id": "as03", "t": 667292.8, "who": "LMP", "text": "Three. Two. One." },
+    { "id": "as04", "cue": "ignition", "delay": 0.2, "who": "LMP", "text": "Ignition! We're on our way, Houston!" },
+    { "id": "as05", "cue": "pitch", "delay": 1.5, "who": "LMP", "text": "Pitch-over. There goes the valley." },
+    { "id": "as06", "t": 667323, "who": "CAPCOM", "text": "Challenger, Houston. A beautiful lift-off. Thrust looks good." },
+    { "id": "as07", "t": 667357, "who": "LMP", "text": "One minute. Guidance looks good. She's steady as a rock." },
+    { "id": "as08", "t": 667417, "who": "CAPCOM", "text": "Challenger, Houston. Two minutes, and you are go." },
+    { "id": "as09", "t": 667477, "who": "LMP", "text": "Three minutes. Fifteen hundred feet a second, and the Moon just sliding by down there." },
+    { "id": "as10", "t": 667537, "who": "CAPCOM", "text": "Challenger, Houston. Four minutes. You are go, right down the track." },
+    { "id": "as11", "t": 667627, "who": "LMP", "text": "Five and a half minutes. Thirty-six hundred feet a second." },
+    { "id": "as12", "t": 667693, "who": "CAPCOM", "text": "Challenger, Houston. Standing by for cut-off." },
+    { "id": "as13", "t": 667715, "who": "LMP", "text": "Coming up on cut-off. Five hundred to go." },
+    { "id": "as14", "cue": "cutoff", "delay": 0.3, "who": "LMP", "text": "Shutdown! We're in orbit." },
+    { "id": "as15", "cue": "cutoff", "delay": 5, "who": "CAPCOM", "text": "Challenger, Houston. We copy shutdown. You are in a nine by forty-eight mile orbit, and America is waiting for you up ahead." },
+    { "id": "as16", "cue": "cutoff", "delay": 16, "who": "LMP", "text": "Goodbye, Taurus-Littrow. Now let's go and find America." }
+  ]
+}
