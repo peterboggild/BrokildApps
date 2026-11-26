@@ -677,3 +677,10 @@ then up through the tunnel to your couch in the Command Module. `src/rendezvous.
 `tools/shot-rendezvous.cjs "t=675095&yaw=10&pitch=-3" out.png` (`?float=z` floats you in the tunnel). Test:
 `test/rendezvous.test.cjs`. The front page is `index.html` (the chapters only); the Moon's first test views are
 `moon.html`.
+
+## Chapter 9: leaving the Moon (`leaving.html`)
+
+In your couch in the Command Module: Challenger's ascent stage is cast off; two days later, behind the Moon, the main
+engine burns for home; Earthrise, and the Moon falling away. `src/leaving.js` was made from `src/lunar.js` (chapter 3
+run the other way); the flight is `src/leaving-space.js`. Voices: `tools/script/leaving.json` (`lv01` to `lv17`).
+Pictures: `tools/shot-leaving.cjs "t=842600&out&od=40" out.png`. Test: `test/leaving.test.cjs`.

@@ -16,7 +16,7 @@
  *   degrees before the site, where the powered descent will begin (stage 0's low pass).
  * - Between burns: two-body Kepler propagation, exact at any time warp.
  * GET = ground elapsed time, seconds from liftoff. */
-import { T_SOI } from './space.js?v=34';
+import { T_SOI } from './space.js?v=35';
 
 export const MU_M = 4.9028e12, SOI = 66000e3;
 const D = Math.PI / 180;
@@ -32,7 +32,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const norm = a => scale(a, 1 / len(a));
 
 /* a two-body conic from a state (r, v relative to the Moon's centre) at time t0: ellipse or hyperbola */
-function conic(r0, v0, t0) {
+export function conic(r0, v0, t0) {
   const h = cross(r0, v0), r = len(r0), E = dot(v0, v0) / 2 - MU_M / r, a = -MU_M / (2 * E);
   const evec = add(scale(cross(v0, h), 1 / MU_M), norm(r0), -1), e = len(evec);
   const P = norm(evec), Qv = norm(cross(h, P));
@@ -64,7 +64,7 @@ function conic(r0, v0, t0) {
 }
 
 /* a burn against the motion, step by step from state s at time t0 for dur seconds; acceleration k * (a0 + a1 * f) */
-function burn(s, t0, dur, k, a0, a1, until = t0 + dur) {
+export function burn(s, t0, dur, k, a0, a1, until = t0 + dur) {
   let r = s.r, v = s.v, t = t0;
   const g = rr => { const d = len(rr); return scale(rr, -MU_M / (d * d * d)); };
   while (t < until - 1e-9) {
