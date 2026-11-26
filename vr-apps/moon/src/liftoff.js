@@ -175,11 +175,12 @@ let drag = null;
 renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; renderer.domElement.setPointerCapture(e.pointerId); });
 renderer.domElement.addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
-/* fast forward (clock.js): real time through the lift-off and the pitch-over, and through the cut-off; the long burn
- * between may be run faster */
+/* fast forward (clock.js): real time through the lift-off and the pitch-over, thirty seconds, and through the
+ * cut-off; then you are told that B runs the long burn ten times as fast (owner: seven minutes is too long) */
+const FF_AT = 30;                           /* seconds after lift-off */
 const NEXT = 'index.html';                   /* (the rendezvous is the next chapter to be built) */
-const HOLDS = () => [[GETA.lift - 20, GETA.lift + 75, 'the lift-off'], [GETA.insert - 20, GETA.insert + 12, 'the cut-off']], HOLDS_MAJOR = () => [[GETA.lift - 10, GETA.lift + 35, 'the lift-off']];
-const clock = makeClock({ holds: () => holdsFor(HOLDS(), HOLDS_MAJOR()), lines: () => radio ? radio.lines : [], warps: [1, 2, 4, 10], cap: 10, toast });
+const HOLDS = () => [[GETA.lift - 20, GETA.lift + FF_AT, 'the lift-off'], [GETA.insert - 20, GETA.insert + 12, 'the cut-off']], HOLDS_MAJOR = () => [[GETA.lift - 10, GETA.lift + FF_AT, 'the lift-off']];
+const clock = makeClock({ holds: () => holdsFor(HOLDS(), HOLDS_MAJOR()), lines: () => radio ? radio.lines : [], warps: [1, 10], cap: 10, toast });
 function cycleWarp() { clock.faster(S); }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
 /* on to the next chapter: the page changes while still in VR, and the next page enters VR by itself where the browser
@@ -385,6 +386,7 @@ function frame(now) {
   /* what happens: ignition, the pitch-over, the cut-off, the end */
   if (was < GETA.lift && S.t >= GETA.lift) { cue('ignition'); sound.thump(0.5, 0.5, 240); }
   if (S.t >= GETA.pitch) cue('pitch');
+  if (S.t >= GETA.lift + FF_AT && S.t < GETA.insert - 30 && !S.cues.ff && S.running) { S.cues.ff = true; if (S.warp === 1) toast.say('Fast forward enabled (B)', 6, true); }
   if (was < GETA.insert && S.t >= GETA.insert) { cue('cutoff'); sound.thump(0.25, 0.3, 500); }
   if (S.t >= END && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 7', sub: 'In lunar orbit. The rendezvous with America comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
   moon.setSunOffset(GETL ? (S.t - GETL.land) * 0.508 / 3600 : 0);

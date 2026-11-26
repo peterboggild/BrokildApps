@@ -19,7 +19,7 @@ const ok = (n, c, i = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${i ? '  
   p.on('pageerror', e => errs.push(e.message));
   p.on('console', m => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) errs.push(m.text()); });
   await p.addInitScript({ content: fs.readFileSync(IWER, 'utf8') + ';window.__dev = new IWER.XRDevice(IWER.metaQuest3); window.__dev.stereoEnabled = true; window.__dev.installRuntime({ forceInstall: true });' });
-  await p.goto('http://127.0.0.1:8765/vr-apps/moon/?view=surface&still');
+  await p.goto('http://127.0.0.1:8765/vr-apps/moon/moon.html?view=surface&still');
   await p.waitForFunction(() => window.__moon && __moon.S.ready, null, { timeout: 180000 });
   await p.waitForSelector('#vr:not([disabled])', { timeout: 30000 });
   ok('headset detected: Enter VR is enabled', true);

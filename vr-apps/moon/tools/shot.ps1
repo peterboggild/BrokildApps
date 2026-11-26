@@ -7,7 +7,7 @@ $profile = Join-Path $env:TEMP ("moonshot-" + [guid]::NewGuid().ToString("N").Su
 $log = "$out.log"
 $args = @("--headless=new", "--user-data-dir=$profile", "--use-angle=swiftshader", "--enable-unsafe-swiftshader",
   "--ignore-gpu-blocklist", "--hide-scrollbars", "--window-size=$w,$h", "--virtual-time-budget=$budget",
-  "--enable-logging=stderr", "--v=0", "--screenshot=$out", "http://127.0.0.1:8765/vr-apps/moon/?still&shot&$query")
+  "--enable-logging=stderr", "--v=0", "--screenshot=$out", "http://127.0.0.1:8765/vr-apps/moon/moon.html?still&shot&$query")
 $p = Start-Process $chrome -ArgumentList $args -RedirectStandardError $log -PassThru -WindowStyle Hidden
 if (-not $p.WaitForExit(240000)) { $p.Kill(); "timeout" }
 Select-String -Path $log -Pattern "CONSOLE|ERROR:gl|shader" | Select-Object -First 12 | ForEach-Object { $_.Line.Substring(0, [Math]::Min(300, $_.Line.Length)) }
