@@ -290,6 +290,7 @@ export function makeLM(env) {
   g.add(dep, fol, prb); dep.visible = false; prb.visible = false;
   let legs = false, landed = false;
   const apply = () => { fol.visible = !legs; dep.visible = legs; prb.visible = legs && !landed; };
+  g.userData.deployed = dep;                      /* the legs, the ladder, the porch and its rails: all of the descent stage */
   g.userData.setLegs = on => { legs = on; apply(); };
   g.userData.setLanded = on => { landed = on; apply(); };
   g.userData.top = LM.TOP;

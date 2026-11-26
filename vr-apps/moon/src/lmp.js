@@ -17,8 +17,8 @@
  *   lmp.startOutside()   already down, moving about
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=27';
-import { LM } from './lm-model.js?v=27';
+import { makeEVASuit } from './eva-suit.js?v=28';
+import { LM } from './lm-model.js?v=28';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -173,6 +173,21 @@ export function makeLMP(o) {
       S.spot = 0; spotWorld(0, S.pos); S.yaw = o.model.rotation.y + Math.PI; S.mode = 'act'; S.act = 'look'; S.actT = 0; S.actD = 5;
       set(STAND); apply(0, true);
     },
+    /* his motion for the film: 18 numbers (where he is, his heading, the pose), kept and set again */
+    snapshot(a, off) { a[off] = S.pos.x; a[off + 1] = S.pos.y; a[off + 2] = S.pos.z; a[off + 3] = S.yaw; KEYS.forEach((k, i) => { a[off + 4 + i] = cur[k]; }); },
+    pose(a, off) {
+      S.pos.set(a[off], a[off + 1], a[off + 2]); S.yaw = a[off + 3]; KEYS.forEach((k, i) => { cur[k] = tgt[k] = a[off + 4 + i]; }); apply(0, true);
+      for (const [mt, c] of base) mt.color.copy(c);
+      if (++S.cyc % 5 === 0 && o.renderer) shadow.bake(o.renderer, fig, o.sun);
+      shadow.drape(fig.position.x, fig.position.y, fig.position.z);
+    },
+    /* a stand-in for the film when no motion was kept: standing at (x, z), an arm up and waving */
+    canned(x, z, yaw, t) {
+      const a = new Float32Array(18); a[0] = x; a[1] = o.moon.heightAt(x, z); a[2] = z; a[3] = yaw;
+      const p = { ...STAND, arx: 2.5, arz: 0.35 + 0.3 * Math.sin(t * 5), er: 0.35 }; KEYS.forEach((k, i) => { a[4 + i] = p[k]; }); api.pose(a, 0);
+    },
+    /* into the cabin after you (the cabin's own figure takes over) */
+    board() { S.phase = 'cabin'; S.t = -1e9; S.cmd = null; fig.visible = false; },
     /* told what to do (surface-ops.js): go to (x, z), then act ('hold': stand holding something out at his right;
      * 'salute': facing face[x, z]) for hold seconds; null: as he pleases again. arrived: he is there */
     command(c) { S.cmd = c; S.arrived = false; if (c && S.phase === 'roam') { S.target.set(c.x, 0, c.z); S.mode = 'go'; } else if (!c && S.phase === 'roam' && S.mode === 'act') { S.actT = 1e9; } },
@@ -299,6 +314,8 @@ export function makeLMP(o) {
     } else if (S.act === 'hold') {
       /* something stood on the ground at his right, his hand on it */
       set({ arx: 1.05, arz: 0.2, er: 0.45, wy: 0.15 * Math.sin(S.actT * 0.4) });
+    } else if (S.act === 'wave') {
+      set({ arx: 2.5, arz: 0.35 + 0.3 * Math.sin(S.actT * 5), er: 0.35, wx: -0.02 });
     } else if (S.act === 'salute') {
       set({ arx: 1.75, arz: 0.75, er: 2.1, wx: -0.02 });
     } else if (S.act === 'work') {

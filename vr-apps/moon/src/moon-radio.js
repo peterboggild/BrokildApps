@@ -16,7 +16,7 @@
  *   const mr = makeMoonRadio({ toast, level: () => 0..1, onLMP: () => {} });
  *   mr.init()                 on a click or entering VR (browsers allow sound only then)
  *   mr.update(dt, { ptt, quiet, lmpOut })      every frame */
-import { makeRadio } from './radio.js?v=27';
+import { makeRadio } from './radio.js?v=28';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const NAME = { CAPCOM: 'Houston', LMP: 'Lunar Module Pilot' };
@@ -77,6 +77,18 @@ export function makeMoonRadio(o = {}) {
     bump() { if (T - bumpAt < 25) return; bumpAt = T; push('bump', { keep: 3 }); },
     /* what comes next: Houston says it once it applies (after a pause), and on request */
     setNext(name) { if (name === next) return; next = name; nextDue = T + 6; },
+    /* the ascent engine through the cabin's structure: a low roar (level 0 to 1) */
+    engine(level) {
+      if (!ctx) return;
+      if (!api._eng) {
+        const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0); let v = 0;
+        for (let i = 0; i < d.length; i++) { v = v * 0.985 + (Math.random() * 2 - 1) * 0.12; d[i] = v; }
+        const sN = ctx.createBufferSource(); sN.buffer = b; sN.loop = true;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260;
+        const g = ctx.createGain(); g.gain.value = 0; sN.connect(lp).connect(g).connect(ctx.destination); sN.start(); api._eng = g;
+      }
+      api._eng.gain.cancelScheduledValues(ctx.currentTime); api._eng.gain.linearRampToValueAtTime(0.9 * level * (o.level ? Math.max(0.3, o.level()) : 1), ctx.currentTime + (level ? 0.4 : 1.2));
+    },
     forget() { once.clear(); queue.length = 0; nextDue = -1; nextHeard = -1e9; },
     update(dt, st = {}) {
       T += dt;

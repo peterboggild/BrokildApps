@@ -18,8 +18,8 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=27';
-import { LMC } from './lm-cabin.js?v=27';
+import { LM } from './lm-model.js?v=28';
+import { LMC } from './lm-cabin.js?v=28';
 
 const G_MOON = 1.62;
 
@@ -123,6 +123,7 @@ export function makeEgress(o) {
           o.lmc.setSuitUp((E.t - 1) / 4); o.helmet.set((E.t - 5.2) / 3.8);
         }
         if (E.t > T0 + 2) say('dep', 'The cabin is down to vacuum. The hatch is coming open.', 5);
+        if (E.locked) { /* shut for the lift-off (surface-ops.js) */ } else
         if (E.t > T0 + 4) { E.door = Math.min(1, E.door + dt / 4); o.lmc.setForwardHatch(E.door * E.door * (3 - 2 * E.door)); o.model.userData.hatch.visible = false; }
         if (E.door >= 1) say('go', 'Out backwards through the hatch: grip and pull, or A', 1e6);
         if (!hands.some(h => h.grip)) E.armed = true;                  /* (a grip still closed from the climb in does not send you out again) */

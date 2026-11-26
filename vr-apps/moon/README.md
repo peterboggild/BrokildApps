@@ -438,8 +438,30 @@ What there is to do once you are both down (chapter 6 only).
   wheels, casts its shadow, and keeps clear of the LM. A, standing still, and you step off to the left; he gets
   off and stays about the rover. Parked, it is solid to you.
 - The radio says each step (`flag-go`, `flag-here`, `flag-done`, `rover-go`, `drive`) and what comes next.
-- Still to come: the samples, the film, the lift-off (MOON-DESIGN.md 12.13).
-- Viewer: `tools/suit.html?what=rover` and `?what=flag`. Test: in `test/egress.test.cjs`.
+- **The missions**, once you have driven 30 m (Houston says each; the wrist panel shows where you are with it):
+  1. *Samples* (`src/samples.js`): station 1 is a boulder field some 90 m ahead of the LM (the panel gives the
+     distance and whether it is ahead, to a side or behind). The suit does not bend, so the tongs do it: a grip
+     with your hand over a rock within a long arm lifts it to your hand; carry it to the back of the rover and let
+     go there, and it is in the bags, weighed (9 to 17 kg each; 100 kg wanted). Let go elsewhere and it falls.
+  2. *The film*: park the rover 20 to 30 m from the LM and step off. The camera on its mast turns to the LM; he goes
+     to stand before it and calls you; stand by him, face the rover and wave. Nine seconds are kept: how you both
+     moved (33 numbers, 15 times a second), not pictures.
+  3. *Home*: a grip at the back of the rover gives you the sample bag; up the ladder with it, into the cabin. He
+     follows, the hatch swings shut and is locked, Houston gives the go, he counts, and the ascent stage lifts off
+     (1.75 m/s2 net), the dust blown out flat and the descent stage's foil torn loose.
+  4. *The finale* (`src/finale.js`): at 50 m the view goes dark, and you are at a console in Mission Control: a
+     picture of one, drawn in code (pale green cabinet, lamp buttons, number wheels; no room, no people), its tube
+     drawn large. It plays the film in muted colour with scan lines: the two of you waving, then the lift-off as
+     the rover's camera saw it, its operator a little behind as he was. Then: "You completed the first part of the
+     Apollo 17 mission. Have a safe trip back." A returns to the chapters.
+- **How the film is made**: nothing is recorded as video. The scene is drawn again from the rover's camera into a
+  640 x 480 texture (the view's own two passes), with the kept motion set on the whole suit that stands for you and
+  on him; the console's tube shows that texture through a small shader. If no wave was kept, he waves alone beside
+  a standing suit.
+- **The ascent stage** is the LM's model cut off below its joint by a clipping plane that rises with it; a second
+  model, cut off above, stays as the descent stage (`liftModel` in `main.js`). The LM's baked shadow stays whole
+  (not yet split).
+- Viewer: `tools/suit.html?what=rover`, `?what=flag`, `?what=console&words`. Test: in `test/egress.test.cjs`.
 
 ## The stars
 
