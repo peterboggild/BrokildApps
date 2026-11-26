@@ -15,21 +15,21 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL, HEADING } from './lunar-space.js?v=33';
-import { makeAscent, GETA } from './liftoff-space.js?v=33';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=33';
-import { settleLM, LM } from './lm-model.js?v=33';
-import { makeLMShadow } from './lm-shadow.js?v=33';
-import { makeLaunchSound } from './launch-sound.js?v=33';
-import { makeRadio, combineRadios } from './radio.js?v=33';
-import { makeClock } from './clock.js?v=33';
-import { makeChatter } from './chatter.js?v=33';
-import { handOnCrew } from './crew-life.js?v=33';
-import { makeVehicle, makeLMModel } from './vehicle.js?v=33';
-import { createHand, makeControllers } from './hands.js?v=33';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=33';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=33';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=33';
+import { GETL, HEADING } from './lunar-space.js?v=34';
+import { makeAscent, GETA } from './liftoff-space.js?v=34';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=34';
+import { settleLM, LM } from './lm-model.js?v=34';
+import { makeLMShadow } from './lm-shadow.js?v=34';
+import { makeLaunchSound } from './launch-sound.js?v=34';
+import { makeRadio, combineRadios } from './radio.js?v=34';
+import { makeClock } from './clock.js?v=34';
+import { makeChatter } from './chatter.js?v=34';
+import { handOnCrew } from './crew-life.js?v=34';
+import { makeVehicle, makeLMModel } from './vehicle.js?v=34';
+import { createHand, makeControllers } from './hands.js?v=34';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=34';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=34';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=34';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -153,7 +153,7 @@ function info() {
     after: 'the rendezvous with America', get: S.t, warp: S.warp,
     rows: [['Altitude', (h / FT).toFixed(0) + ' ft  (' + (h >= 2000 ? (h / 1000).toFixed(1) + ' km' : h.toFixed(0) + ' m') + ')'], ['Climbing', (vu / FT).toFixed(0) + ' ft/s'], ['Forward', (vh / FT).toFixed(0) + ' ft/s  (' + fmtSpeed(vh) + ')'],
       o ? ['Orbit', (o.peri / 1000).toFixed(0) + ' by ' + (o.apo / 1000).toFixed(0) + ' km'] : ['To orbit', Math.max(0, D.vI - vh).toFixed(0) + ' m/s to gain'], ['Fast forward', settings.text('ff')]],
-    alert: S.ended ? 'End of chapter 7.  A: back to the chapters' : null,
+    alert: S.ended ? 'End of chapter 7.  A: on to chapter 8' : null,
     keys: [['A', 'slower (hold: real time)'], ['B', 'faster'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
@@ -178,7 +178,7 @@ renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.
 /* fast forward (clock.js): real time through the lift-off and the pitch-over, thirty seconds, and through the
  * cut-off; then you are told that B runs the long burn ten times as fast (owner: seven minutes is too long) */
 const FF_AT = 30;                           /* seconds after lift-off */
-const NEXT = 'index.html';                   /* (the rendezvous is the next chapter to be built) */
+const NEXT = 'rendezvous.html';
 const HOLDS = () => [[GETA.lift - 20, GETA.lift + FF_AT, 'the lift-off'], [GETA.insert - 20, GETA.insert + 12, 'the cut-off']], HOLDS_MAJOR = () => [[GETA.lift - 10, GETA.lift + FF_AT, 'the lift-off']];
 const clock = makeClock({ holds: () => holdsFor(HOLDS(), HOLDS_MAJOR()), lines: () => radio ? radio.lines : [], warps: [1, 10], cap: 10, toast });
 function cycleWarp() { clock.faster(S); }
@@ -388,7 +388,7 @@ function frame(now) {
   if (S.t >= GETA.pitch) cue('pitch');
   if (S.t >= GETA.lift + FF_AT && S.t < GETA.insert - 30 && !S.cues.ff && S.running) { S.cues.ff = true; if (S.warp === 1) toast.say('Fast forward enabled (B)', 6, true); }
   if (was < GETA.insert && S.t >= GETA.insert) { cue('cutoff'); sound.thump(0.25, 0.3, 500); }
-  if (S.t >= END && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 7', sub: 'In lunar orbit. The rendezvous with America comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
+  if (S.t >= END && !S.ended) { S.ended = true; wrist.show(true); card.show({ title: 'End of chapter 7', sub: 'In lunar orbit', a: 'Continue: chapter 8, The rendezvous', b: 'Take a break' }); saveProgress('rendezvous.html', null, 0, true); }
   moon.setSunOffset(GETL ? (S.t - GETL.land) * 0.508 / 3600 : 0);
   _sun.copy(moon.shared.uSun.value);
   sky.userData.setSpin(W_EARTH * (S.t - GETL.land) + 2.1);
@@ -424,7 +424,7 @@ function frame(now) {
   lmc.update(now / 1000, { viewer: camera, radio: combineRadios(radio, chat && chat.radio), busy: S.t > GETA.lift - 30 && S.t < GETA.insert + 20 });
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, OUT.on ? 0 : 1.62, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 7. A (N on this screen): back to the chapters.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 7. A (N on this screen) goes on to chapter 8, the rendezvous.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + prog(S.t) + '  ' + (padH >= 2000 ? (padH / 1000).toFixed(1) + ' km' : Math.max(0, padH).toFixed(0) + ' m') + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);

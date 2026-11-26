@@ -11,21 +11,21 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=33';
-import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=33';
-import { makeOutside } from './earth.js?v=33';
-import { makeCabin } from './cabin.js?v=33';
-import { makeLaunchSound } from './launch-sound.js?v=33';
-import { makeRadio, combineRadios } from './radio.js?v=33';
-import { makeClock } from './clock.js?v=33';
-import { makeChatter } from './chatter.js?v=33';
-import { handOnCrew } from './crew-life.js?v=33';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=33';
-import { createHand, makeControllers } from './hands.js?v=33';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=33';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=33';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=33';
-import { makeFloaters } from './floaters.js?v=33';
+import { state as ascentState, SUN, RE } from './ascent.js?v=34';
+import { where, GET, NORMAL, W_EARTH, T_SOI, R_MOON } from './space.js?v=34';
+import { makeOutside } from './earth.js?v=34';
+import { makeCabin } from './cabin.js?v=34';
+import { makeLaunchSound } from './launch-sound.js?v=34';
+import { makeRadio, combineRadios } from './radio.js?v=34';
+import { makeClock } from './clock.js?v=34';
+import { makeChatter } from './chatter.js?v=34';
+import { handOnCrew } from './crew-life.js?v=34';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=34';
+import { createHand, makeControllers } from './hands.js?v=34';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=34';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=34';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=34';
+import { makeFloaters } from './floaters.js?v=34';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

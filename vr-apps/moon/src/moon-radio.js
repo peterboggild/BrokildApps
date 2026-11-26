@@ -16,7 +16,7 @@
  *   const mr = makeMoonRadio({ toast, level: () => 0..1, onLMP: () => {} });
  *   mr.init()                 on a click or entering VR (browsers allow sound only then)
  *   mr.update(dt, { ptt, quiet, lmpOut })      every frame */
-import { makeRadio } from './radio.js?v=33';
+import { makeRadio } from './radio.js?v=34';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const NAME = { CAPCOM: 'Houston', LMP: 'Lunar Module Pilot' };

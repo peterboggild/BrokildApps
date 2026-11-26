@@ -8,10 +8,10 @@
  * Walls face inwards; the windows and the overhead hatch are holes, so the outside shows through them when this is
  * drawn last as the occluder (as cabin.js). */
 import * as THREE from 'three';
-import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=33';
-import { makeEVASuit } from './eva-suit.js?v=33';
-import { makeCrewLife } from './crew-life.js?v=33';
-import { LM } from './lm-model.js?v=33';
+import { makeCrewman, makePanelTexture, makeDsky, makeBallTexture, makeWallTexture } from './cabin.js?v=34';
+import { makeEVASuit } from './eva-suit.js?v=34';
+import { makeCrewLife } from './crew-life.js?v=34';
+import { LM } from './lm-model.js?v=34';
 
 export const LMC = {
   FLOOR: 2.45, CEIL: 4.3, FRONT: 1.25, STATION_BACK: 0.3, BACK: -0.8, HALF: 0.95,

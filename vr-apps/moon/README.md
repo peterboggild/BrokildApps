@@ -668,3 +668,12 @@ pitch-over, cut-off 18 km up in a 16 by 89 km orbit); `src/liftoff.js` is the pa
 descent stage stays on the ground: two copies of the LM model, each cut at the joint. Voices: `tools/script/liftoff.json`
 (`as01` to `as16`). Pictures: `tools/shot-liftoff.cjs "t=667303&out&od=30" out.png`. Test: `test/liftoff.test.cjs`.
 Not to be confused with `src/ascent.js`, the Saturn V's ascent of chapter 1.
+
+## Chapter 8: the rendezvous and the docking (`rendezvous.html`)
+
+In orbit in the ascent stage: America from a point of light 220 km ahead to a ship before the windows, the docking,
+then up through the tunnel to your couch in the Command Module. `src/rendezvous.js` was made from `src/lm.js`
+(chapter 4 run the other way). Voices: `tools/script/rendezvous.json` (`rv01` to `rv16`). Pictures:
+`tools/shot-rendezvous.cjs "t=675095&yaw=10&pitch=-3" out.png` (`?float=z` floats you in the tunnel). Test:
+`test/rendezvous.test.cjs`. The front page is `index.html` (the chapters only); the Moon's first test views are
+`moon.html`.
