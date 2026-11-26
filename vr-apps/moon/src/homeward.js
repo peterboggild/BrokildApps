@@ -13,29 +13,29 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat  ?eva=s (outside, s metres
  *      along the rail, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState, SUN, RE } from './ascent.js?v=38';
-import { NORMAL, W_EARTH, R_MOON } from './space.js?v=38';
-import { where, GETH } from './home-space.js?v=38';
-import { makeOutside } from './earth.js?v=38';
-import { makeCabin } from './cabin.js?v=38';
-import { makeLaunchSound } from './launch-sound.js?v=38';
-import { makeRadio, combineRadios } from './radio.js?v=38';
-import { makeClock } from './clock.js?v=38';
-import { makeChatter } from './chatter.js?v=38';
-import { handOnCrew } from './crew-life.js?v=38';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=38';
-import { createHand, makeControllers } from './hands.js?v=38';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=38';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=38';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=38';
-import { makeFloaters } from './floaters.js?v=38';
-import { makeProcedure } from './procedure.js?v=38';
+import { state as ascentState, SUN, RE } from './ascent.js?v=39';
+import { NORMAL, W_EARTH, R_MOON } from './space.js?v=39';
+import { where, GETH } from './home-space.js?v=39';
+import { makeOutside } from './earth.js?v=39';
+import { makeCabin } from './cabin.js?v=39';
+import { makeLaunchSound } from './launch-sound.js?v=39';
+import { makeRadio, combineRadios } from './radio.js?v=39';
+import { makeClock } from './clock.js?v=39';
+import { makeChatter } from './chatter.js?v=39';
+import { handOnCrew } from './crew-life.js?v=39';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=39';
+import { createHand, makeControllers } from './hands.js?v=39';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=39';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=39';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=39';
+import { makeFloaters } from './floaters.js?v=39';
+import { makeProcedure } from './procedure.js?v=39';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
 const $ = id => document.getElementById(id);
 
-const START = GETH.start, END = GETH.end, EVA_T = GETH.eva, NEXT = 'index.html';          /* (re-entry is the next chapter to be built) */
+const START = GETH.start, END = GETH.end, EVA_T = GETH.eva, NEXT = 'entry.html';
 const WARPS = [1, 10, 100, 1000, 10000];
 /* never warp across the walk outside */
 const HOLD_ALL = [[EVA_T - 100, EVA_T + 20, 'the walk outside']];
@@ -94,7 +94,7 @@ function info() {
   const out = EVA.state === 'out';
   return { chapter: 'Chapter 10 \u00b7 The coast home', now: phase(S.t), next: S.ended ? null : EVA.state === 'suit' ? ['flip the lit SUIT switches (the clock waits)', NaN] : EVA.state === 'wait' ? ['go out of the hatch (the clock waits)', NaN] : out ? [EVA.has ? 'back to the hatch with the cassette' : 'along the rail to the instrument bay', NaN] : nextOf(EVENTS, S.t), after: 're-entry', get: S.t, warp: S.warp,
     rows: [['To the Earth', fmtDist(w.alt)], ['From the Moon', fmtDist(w.dMoon)], ['Speed', fmtSpeed(w.speed)], ['Fast forward', settings.text('ff')]],
-    alert: S.ended ? 'End of chapter 10.  A: back to the chapters' : null,
+    alert: S.ended ? 'End of chapter 10.  A: on to chapter 11' : null,
     keys: EVA.state === 'suit' ? [['fingertip', 'flip the lit switch'], ['A', 'do it for me'], ['L stick', 'press: panel, settings']] : out || EVA.state === 'wait' ? [['grip', 'pull yourself along the rail'], ['L stick', 'forward and back along it'], ['A', 'go by itself'], ['grip', 'at the bay: take the cassette'], ['L stick', 'press: panel, settings']]
       : [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
@@ -409,7 +409,7 @@ function frame(now) {
     if (EVA.state !== 'in' && EVA.state !== 'done') S.warp = 1;
     if (EVA.state !== 'wait' && EVA.state !== 'suit') S.t = Math.min(END, clock.advance(S, dt));
     if (EVA.state === 'in' && prevT < EVA_T && S.t > EVA_T) S.t = EVA_T;          /* (not past it) */
-    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 10', sub: 'The Earth fills the window. Re-entry comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 10', sub: 'The Earth fills the window', a: 'Continue: chapter 11, The entry', b: 'Take a break' }); saveProgress('entry.html', null, 0, true); }
   }
   updateEVA(dt, xr);
   w = where(S.t);
@@ -458,7 +458,7 @@ function frame(now) {
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 10. A (N on this screen): back to the chapters.' : EVA.state === 'suit' ? 'Suit up: F flips the lit SUIT switches for you.' : EVA.state === 'wait' ? 'The hatch is open: F to go out. Outside: arrow keys along the rail, F by itself, G takes the cassette.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 10. A (N on this screen) goes on to chapter 11, the entry.' : EVA.state === 'suit' ? 'Suit up: F flips the lit SUIT switches for you.' : EVA.state === 'wait' ? 'The hatch is open: F to go out. Outside: arrow keys along the rail, F by itself, G takes the cassette.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);

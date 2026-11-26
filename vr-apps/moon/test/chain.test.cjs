@@ -1,5 +1,7 @@
 /* The journey's chapters hand over to each other: at each chapter's end, A in the (emulated) headset leaves VR and
- * opens the next page. Launch -> to the Moon -> lunar orbit -> into the LM -> the descent -> the surface.
+ * opens the next page. Launch -> to the Moon -> lunar orbit -> into the LM -> the descent -> the surface; and the
+ * journey home: the lift-off -> the rendezvous -> leaving the Moon -> the coast home -> the entry -> the splashdown
+ * -> the chapters.
  *   python -m http.server 8765        (from the repository root)
  *   set NODE_PATH=<dir>\node_modules  (playwright-core, iwer)
  *   node vr-apps/moon/test/chain.test.cjs */
@@ -14,7 +16,14 @@ const CHAIN = [
   ['orbit.html', '__orbit', 'H.S.running = true; H.setTime(H.END - 1);', 'lunar.html'],
   ['lunar.html', '__lunar', 'H.S.running = true; H.setTime(H.END - 1);', 'lm.html'],
   ['lm.html', '__lm', 'H.enterLM(true); H.S.running = true; H.setTime(H.END - 1);', 'descent.html'],
-  ['descent.html', '__descent', 'H.S.running = true; H.S.landed = H.S.t - 41;', 'surface.html']
+  ['descent.html', '__descent', 'H.S.running = true; H.S.landed = H.S.t - 41;', 'surface.html'],
+  /* the journey home (chapter 6's end is its film: not driven here) */
+  ['liftoff.html', '__liftoff', 'H.restart(H.END - 1); H.S.running = true;', 'rendezvous.html'],
+  ['rendezvous.html', '__rdv', "H.setTime(H.OPEN + 5); H.S.mode = 'cm'; H.S.seatedAt = H.S.t - 27; H.S.running = true;", 'leaving.html'],
+  ['leaving.html', '__leaving', 'H.setTime(H.END - 1); H.S.running = true;', 'homeward.html'],
+  ['homeward.html', '__home', 'H.setTime(H.END - 1); H.S.running = true;', 'entry.html'],
+  ['entry.html', '__entry', 'H.setTime(H.END - 1); H.S.running = true;', 'splash.html'],
+  ['splash.html', '__entry', 'H.setTime(H.END - 1); H.S.running = true;', 'index.html']
 ];
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });

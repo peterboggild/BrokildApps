@@ -127,6 +127,14 @@ const EXTRA = {
     alt: "Journey to the Moon: The Coast Home — the Earth growing ahead, and the walk outside in deep space to bring in the film from the Service Module",
     type: "website",
   },
+  "vr-apps/moon/entry.html": {
+    alt: "Journey to the Moon: The Entry — the Command Module meeting the air at eleven kilometres a second, the fire in the windows and six and a half g",
+    type: "website",
+  },
+  "vr-apps/moon/splash.html": {
+    alt: "Journey to the Moon: The Splashdown — the drogues, the three main parachutes and the Command Module on the Pacific swell",
+    type: "website",
+  },
   "vr-apps/moon/index.html": {
     alt: "Journey to the Moon — Apollo 17 for the Meta Quest 3 browser, chapter by chapter",
     type: "website",

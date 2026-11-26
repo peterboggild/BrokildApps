@@ -692,3 +692,12 @@ the rail to the instrument bay in the Service Module's side for the film cassett
 `src/orbit.js` (chapter 2 run the other way); the flight is `src/home-space.js`. Voices: `tools/script/homeward.json`
 (`hw01` to `hw13`). Pictures: `tools/shot-homeward.cjs "eva=3.2&off=5" out.png` (`eva`: metres along the rail;
 `off`: metres off the hull). Test: `test/homeward.test.cjs`.
+
+## Chapters 11 and 12: the entry and the splashdown (`entry.html`, `splash.html`)
+
+One module, `src/entry.js`, on two pages (`<body data-chapter>`); the flight is `src/entry-space.js` (drag and lift
+against an exponential atmosphere, the parachutes). Chapter 11: the Service Module cast off, the fire, 6.7 g, the
+radio lost and found. Chapter 12: the drogues, the three mains, the sea. Voices: `tools/script/entry.json`
+(`en01` to `en18`) and `splash.json` (`sp01` to `sp10`). Pictures: `tools/shot-entry.cjs "t=1086000&out&od=30" out.png`,
+`tools/shot-splash.cjs "t=1086559&out&od=80" out.png` (the sky needs a second to be worked out: the first frames
+after loading have none). Test: `test/entry.test.cjs <folder> [11|12]`.

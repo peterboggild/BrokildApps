@@ -19,8 +19,8 @@
  *                        one on the Moon); lmp.boarding while he is at it, lmp.aboard when he is in
  *   lmp.update(dt, { walking, player })      walking: you are down; player: where you stand (world) */
 import * as THREE from 'three';
-import { makeEVASuit } from './eva-suit.js?v=38';
-import { LM } from './lm-model.js?v=38';
+import { makeEVASuit } from './eva-suit.js?v=39';
+import { LM } from './lm-model.js?v=39';
 
 const G = 1.62;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

@@ -8,7 +8,7 @@
  * shrank on the way out. The Moon is where chapter 2 has it for the mirrored time; its pull is not modelled.
  * The chapter ends 25,000 km up, a little over an hour before the entry, which is chapter 11's.
  * GET = ground elapsed time, seconds from the launch from Earth. */
-import { where as out, GET } from './space.js?v=38';
+import { where as out, GET } from './space.js?v=39';
 
 export const GETH = { start: 250 * 3600, eva: 254 * 3600 + 54 * 60, entry: 301 * 3600 + 38 * 60 + 38 };
 const mirror = t => GET.tliEnd + 400 + (GETH.entry - t);
