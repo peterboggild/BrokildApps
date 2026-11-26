@@ -17,7 +17,7 @@
  * userData.joints: { waist, armL, armR, elbowL, elbowR, legL, legR, kneeL, kneeR } (Groups to turn), .pose(name).
  * One mesh per material in each jointed part: about thirty draw calls a figure. */
 import * as THREE from 'three';
-import { Parts, decal } from './lm-model.js?v=35';
+import { Parts, decal } from './lm-model.js?v=36';
 
 /* what the visor mirrors: a black sky, the sunlit ground below the horizon, the Sun low on one side, the Earth */
 export function suitEnvironment(renderer, sunAz = 1.6, sunEl = 0.23) {

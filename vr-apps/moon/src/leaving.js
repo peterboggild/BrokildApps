@@ -11,31 +11,31 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=35';
+import { state as ascentState } from './ascent.js?v=36';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=35';
-import { makeLeaving, GETT } from './leaving-space.js?v=35';
-import { LM } from './lm-model.js?v=35';
-import { makeCabin } from './cabin.js?v=35';
-import { makeLaunchSound } from './launch-sound.js?v=35';
-import { makeRadio, combineRadios } from './radio.js?v=35';
-import { makeClock } from './clock.js?v=35';
-import { makeChatter } from './chatter.js?v=35';
-import { handOnCrew } from './crew-life.js?v=35';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=35';
-import { createHand, makeControllers } from './hands.js?v=35';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=35';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=35';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=35';
-import { makeFloaters } from './floaters.js?v=35';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=36';
+import { makeLeaving, GETT } from './leaving-space.js?v=36';
+import { LM } from './lm-model.js?v=36';
+import { makeCabin } from './cabin.js?v=36';
+import { makeLaunchSound } from './launch-sound.js?v=36';
+import { makeRadio, combineRadios } from './radio.js?v=36';
+import { makeClock } from './clock.js?v=36';
+import { makeChatter } from './chatter.js?v=36';
+import { handOnCrew } from './crew-life.js?v=36';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=36';
+import { createHand, makeControllers } from './hands.js?v=36';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=36';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=36';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=36';
+import { makeFloaters } from './floaters.js?v=36';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
 const $ = id => document.getElementById(id);
 const BASE = new URL('../assets/moon/', import.meta.url).href;
 
-const START = GETT.jett - 120, NEXT = 'index.html';          /* (the coast home is the next chapter to be built) */
+const START = GETT.jett - 120, NEXT = 'homeward.html';
 let END = GETT.teiEnd + 5400;
 const WARPS = [1, 10, 100, 1000, 10000];
 const W_EARTH = 7.2921159e-5;
@@ -119,7 +119,7 @@ function info() {
   const ev = [[L.EV.jett, 'Challenger is cast off'], [L.EV.los, 'loss of signal, the last time'], [L.EV.tei, 'the burn for home, behind the Moon'], [L.EV.aos, 'Earthrise, and Houston again'], [END, 'end of the chapter']];
   return { chapter: 'Chapter 9 \u00b7 Leaving the Moon', now: phase(S.t) + (w.hidden ? ', out of touch' : ''), next: S.ended ? null : nextOf(ev, S.t), after: 'the coast home', get: S.t, warp: S.warp,
     rows: [['Above the Moon', fmtDist(w.alt)], ['Speed', fmtSpeed(w.speed)], ['Radio', w.hidden ? 'behind the Moon (LOS)' : 'in touch with Houston'], ['Fast forward', settings.text('ff')]],
-    alert: S.ended ? 'End of chapter 9.  A: back to the chapters' : null,
+    alert: S.ended ? 'End of chapter 9.  A: on to chapter 10' : null,
     keys: [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
@@ -333,7 +333,7 @@ function frame(now) {
   /* the clock: warp stops at a held stretch, where it runs at real time or x10, and says so */
   if (S.running && !S.still && !S.ended) {
     S.t = Math.min(END, clock.advance(S, dt));
-    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 9', sub: 'The Moon behind you. The coast home comes next', a: 'Back to the chapters', b: 'Take a break' }); saveProgress('index.html', null, 0, true); }
+    if (S.t >= END) { S.ended = true; S.running = false; wrist.show(true); card.show({ title: 'End of chapter 9', sub: 'The Moon behind you', a: 'Continue: chapter 10, The coast home', b: 'Take a break' }); saveProgress('homeward.html', null, 0, true); }
   }
   w = L.where(S.t);
   moon.setSunOffset(L.sunOffset(S.t));
@@ -389,7 +389,7 @@ function frame(now) {
   cabin.setBody(OPT.body);
   FADE.k += (FADE.target - FADE.k) * Math.min(1, dt * 4);
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
-  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 9. A (N on this screen): back to the chapters.' : ''); }
+  if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 9. A (N on this screen) goes on to chapter 10, the coast home.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (w.hidden ? '  · behind the Moon' : '') + (S.warp > 1 ? '  ×' + S.warp : '');
   wrist.draw(now, info());
   toast.update(dt, camera);

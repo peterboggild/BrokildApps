@@ -21,7 +21,7 @@
  *                            nose), range (m), lmRel, lmRange, load: [kg, of] | null, board: true while it stands
  *                            empty (it then says how to climb on) }) */
 import * as THREE from 'three';
-import { Parts } from './lm-model.js?v=35';
+import { Parts } from './lm-model.js?v=36';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 export const ROVER = { TRACK: 1.83, BASE: 2.29, WHEEL_R: 0.41, LEN: 3.1 };
