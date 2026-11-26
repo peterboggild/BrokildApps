@@ -21,7 +21,7 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
-import { settings } from './settings.js?v=33';
+import { settings } from './settings.js?v=34';
 
 const D = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;

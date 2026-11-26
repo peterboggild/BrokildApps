@@ -12,20 +12,20 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=33';
-import { makeOutside } from './earth.js?v=33';
-import { makeCabin } from './cabin.js?v=33';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=33';
-import { makeRadio, combineRadios } from './radio.js?v=33';
-import { makeClock } from './clock.js?v=33';
-import { makeChatter } from './chatter.js?v=33';
-import { handOnCrew } from './crew-life.js?v=33';
-import { makePad, ARM, WR } from './pad.js?v=33';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=33';
-import { createHand, makeControllers } from './hands.js?v=33';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=33';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=33';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=33';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=34';
+import { makeOutside } from './earth.js?v=34';
+import { makeCabin } from './cabin.js?v=34';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=34';
+import { makeRadio, combineRadios } from './radio.js?v=34';
+import { makeClock } from './clock.js?v=34';
+import { makeChatter } from './chatter.js?v=34';
+import { handOnCrew } from './crew-life.js?v=34';
+import { makePad, ARM, WR } from './pad.js?v=34';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=34';
+import { createHand, makeControllers } from './hands.js?v=34';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=34';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=34';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=34';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);

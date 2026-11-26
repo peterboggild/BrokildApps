@@ -913,6 +913,32 @@ The owner: "are you up for finishing the adventure, and taking me home?" Chapter
 - Not there yet: the rover and the flag left in the valley are not drawn in this chapter; the crew is bare-headed
   as in the descent; the chapter ends 45 s after the cut-off, where the rendezvous will begin.
 
+### 12.21 The journey home, part 2: the rendezvous and the docking (26 November 2026, Fable)
+
+First his notes on chapter 7 and the front page (#147): seven minutes of burn "is too long without fast forward",
+so fast forward opens thirty seconds after lift-off with the word "Fast forward enabled (B)", and B goes straight to
+ten times; the front page's buttons were too tall, the briefing goes first and unnumbered, and "Moon should be
+deleted": `index.html` is now the chapters only, and the Moon's test views live on in `moon.html` (unlinked; the
+tests and the picture tools use it). The same day he gave a standing yes: "merge, merge, merge".
+
+Chapter 8, `rendezvous.html` (`src/rendezvous.js`, `tools/script/rendezvous.json`, `test/rendezvous.test.cjs`), is
+chapter 4 run the other way, and was made from `lm.js`.
+- GET 185:30 to the docking at 187:37:15. You stand in the ascent stage (the model cut at the joint, as in chapter
+  7). America is a point of light 220 km ahead (`star`, bold, placed where the windows look: a first try put it
+  behind the window frame), then a ship; for five minutes it stands 30 m before the windows nose on, then swings
+  overhead and comes down on the drogue (`csmRel`, chapter 4's path backwards with a far leg added).
+- The pair fly a circular orbit 113 km up in the earlier chapters' plane (`where`), over the landing site four
+  minutes after the docking.
+- Forty seconds after the docking the tunnel is opened; the clock is real time from there and the chapter waits.
+  A, a grip or the left stick takes you up (through black into the tunnel's foot); in the tunnel you are turned to
+  face the way you go (half a turn against how you sit: `flip`); by the couches, through black again, you sit.
+- While the tunnel is shut, or seen from outside, the ships are drawn hard docked; with it open, the probe's
+  length apart, the spacing the tunnel is drawn to (chapter 4's compromise).
+- Fast forward runs to a thousand times on the way in; it drops to real time at each line said and at seven
+  minutes before the docking.
+- Not there yet: the sample boxes are spoken of, not seen; the LMP does not follow you up; the CMP's voice comes
+  over the intercom from the start.
+
 ## 13. Testing
 
 - As the other VR apps: serve the repository root, open `/vr-apps/moon/?flat`, Playwright with Chromium and

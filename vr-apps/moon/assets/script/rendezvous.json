@@ -1,0 +1,134 @@
+{
+  "about": "Radio and intercom for chapter 8: the rendezvous and docking in lunar orbit, and the way up through the tunnel. Time lines lead up to the docking at GET 187:37:15; the docking, the opening of the tunnel, setting off up it and sitting down in the Command Module are cued by what happens. t = GET (seconds from liftoff). Original lines in the style of the Apollo air-to-ground; not quotes.",
+  "channels": {
+    "CAPCOM": "houston",
+    "LMP": "intercom",
+    "CMP": "intercom"
+  },
+  "lines": [
+    {
+      "id": "rv01",
+      "t": 667820,
+      "who": "CAPCOM",
+      "text": "Challenger, Houston. Your orbit is good. America is two hundred and twenty kilometres ahead of you.",
+      "dur": 6.61
+    },
+    {
+      "id": "rv02",
+      "t": 667850,
+      "who": "LMP",
+      "text": "There she is. That bright star, dead ahead. Run the clock on, and we'll catch her.",
+      "dur": 4.85
+    },
+    {
+      "id": "rv03",
+      "t": 671835,
+      "who": "CMP",
+      "text": "Challenger, America. I have you on the sextant. You are a little light down there against the Moon.",
+      "dur": 5.25
+    },
+    {
+      "id": "rv04",
+      "t": 673935,
+      "who": "LMP",
+      "text": "Braking. Thirty feet a second, coming down nicely.",
+      "dur": 3.21
+    },
+    {
+      "id": "rv05",
+      "t": 674735,
+      "who": "CMP",
+      "text": "Challenger, America. I can see your thrusters firing. You look beautiful.",
+      "dur": 4.44
+    },
+    {
+      "id": "rv06",
+      "t": 675035,
+      "who": "LMP",
+      "text": "Look at that. America, right outside the window.",
+      "dur": 2.83
+    },
+    {
+      "id": "rv07",
+      "t": 675115,
+      "who": "CMP",
+      "text": "Hold her there, Challenger. I am coming round over the top to dock.",
+      "dur": 3.91
+    },
+    {
+      "id": "rv08",
+      "t": 675235,
+      "who": "CAPCOM",
+      "text": "Challenger, America, Houston. You are go for docking.",
+      "dur": 4.07
+    },
+    {
+      "id": "rv09",
+      "t": 675380,
+      "who": "CMP",
+      "text": "Coming down. Steady. Ten feet.",
+      "dur": 2.38
+    },
+    {
+      "id": "rv10",
+      "t": 675421,
+      "who": "CMP",
+      "text": "Three feet. Two.",
+      "dur": 1.39
+    },
+    {
+      "id": "rv11",
+      "t": null,
+      "who": "LMP",
+      "text": "Capture! And the latches. Hard dock.",
+      "dur": 2.52,
+      "cue": "dock",
+      "delay": 0.3
+    },
+    {
+      "id": "rv12",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "Roger, we copy hard dock. Welcome back, Challenger.",
+      "dur": 4.14,
+      "cue": "dock",
+      "delay": 5
+    },
+    {
+      "id": "rv13",
+      "t": null,
+      "who": "CMP",
+      "text": "The hatch is out. Come on up, and bring those rocks with you.",
+      "dur": 3.37,
+      "cue": "open",
+      "delay": 0.5
+    },
+    {
+      "id": "rv14",
+      "t": null,
+      "who": "LMP",
+      "text": "Go ahead. I'll pass the sample boxes up behind you.",
+      "dur": 2.96,
+      "cue": "up",
+      "delay": 1.5
+    },
+    {
+      "id": "rv15",
+      "t": null,
+      "who": "CMP",
+      "text": "Welcome home. You look like a couple of coal miners.",
+      "dur": 2.89,
+      "cue": "home",
+      "delay": 1
+    },
+    {
+      "id": "rv16",
+      "t": null,
+      "who": "CAPCOM",
+      "text": "America, Houston. Three men and a hundred kilos of Moon, all in one ship. Nice work.",
+      "dur": 6.18,
+      "cue": "home",
+      "delay": 8
+    }
+  ]
+}
