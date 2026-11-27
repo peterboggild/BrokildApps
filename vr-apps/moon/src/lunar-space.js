@@ -16,7 +16,7 @@
  *   degrees before the site, where the powered descent will begin (stage 0's low pass).
  * - Between burns: two-body Kepler propagation, exact at any time warp.
  * GET = ground elapsed time, seconds from liftoff. */
-import { T_SOI } from './space.js?v=39';
+import { T_SOI } from './space.js?v=41';
 
 export const MU_M = 4.9028e12, SOI = 66000e3;
 const D = Math.PI / 180;

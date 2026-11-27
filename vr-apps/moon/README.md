@@ -701,3 +701,17 @@ radio lost and found. Chapter 12: the drogues, the three mains, the sea. Voices:
 (`en01` to `en18`) and `splash.json` (`sp01` to `sp10`). Pictures: `tools/shot-entry.cjs "t=1086000&out&od=30" out.png`,
 `tools/shot-splash.cjs "t=1086559&out&od=80" out.png` (the sky needs a second to be worked out: the first frames
 after loading have none). Test: `test/entry.test.cjs <folder> [11|12]`.
+
+## On a computer: the keys band (`src/keysband.js`)
+
+Every chapter also runs on a flat screen ("Start on this screen"). Once started, a band along the top shows the keys
+that do something at that moment (they change with what you are doing: boarding, in the couch, in the tunnel,
+flying the landing by hand, on the rover, on the rail outside), the chapter, the clock, and under them one amber line
+of what to do now when the chapter waits for you. `P` opens the status and the settings as a panel under the band
+(what the wrist panel is in the headset; the settings change with a click); `H` hides the band. At a chapter's end
+the band and the card offer `N`. Messages that name a control name the key at the keyboard and the button in the
+headset (`isFlat()`, `band.flat`).
+
+Each chapter module has `pcKeys()` and `pcHint()` beside its `info()`; a new mode or a new key goes there, and in
+`test/pc.test.cjs`, which plays every chapter with the keyboard and the mouse only (each listed key, the panel, and
+through to `N` opening the next page; chapter 6 from the cabin to the film).

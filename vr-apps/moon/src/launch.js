@@ -12,20 +12,21 @@
  * URL: ?board (start at the access arm)  ?t=-210 (start time, s from liftoff)  ?yaw= &pitch= (flat preview)
  *      ?still (clock stopped)  ?shot  ?scale= (VR resolution)  ?shake=0..1 */
 import * as THREE from 'three';
-import { state, EVENTS, phase, SUN } from './ascent.js?v=39';
-import { makeOutside } from './earth.js?v=39';
-import { makeCabin } from './cabin.js?v=39';
-import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=39';
-import { makeRadio, combineRadios } from './radio.js?v=39';
-import { makeClock } from './clock.js?v=39';
-import { makeChatter } from './chatter.js?v=39';
-import { handOnCrew } from './crew-life.js?v=39';
-import { makePad, ARM, WR } from './pad.js?v=39';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=39';
-import { createHand, makeControllers } from './hands.js?v=39';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=39';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=39';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=39';
+import { state, EVENTS, phase, SUN } from './ascent.js?v=41';
+import { makeOutside } from './earth.js?v=41';
+import { makeCabin } from './cabin.js?v=41';
+import { makeLaunchSound, makeHaptics, intensity } from './launch-sound.js?v=41';
+import { makeRadio, combineRadios } from './radio.js?v=41';
+import { makeClock } from './clock.js?v=41';
+import { makeChatter } from './chatter.js?v=41';
+import { handOnCrew } from './crew-life.js?v=41';
+import { makePad, ARM, WR } from './pad.js?v=41';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=41';
+import { createHand, makeControllers } from './hands.js?v=41';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=41';
+import { makeKeysBand, seatKeys } from './keysband.js?v=41';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=41';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=41';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -88,9 +89,10 @@ let chat = null, radio = null;
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
 const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
+const band = makeKeysBand({ settings: ['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand'] });          /* on a computer screen: the keys along the top, the status and settings on P */
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
-const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
+const card = makeCard(); head.add(card.mesh); card.flat = () => band.flat;                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 const LEVENTS = [[EVENTS.liftoff, 'liftoff'], [EVENTS.maxQ, 'max Q'], [EVENTS.sicCutoff, 'first staging'], [EVENTS.towerJett, 'tower jettison'],
   [EVENTS.siiCutoff, 'second staging'], [EVENTS.seco, 'orbit insertion'], [END, 'end of the chapter']];
@@ -104,6 +106,18 @@ function info() {
       : [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
+/* ---------------------------------------------------------------- on a computer screen: the keys that do something now, and what to do */
+function pcKeys() {
+  if (S.mode !== 'seated') return [['W A S D', 'walk', true], ['E', 'climb in at once', true], ['Mouse', 'drag to look round'], ['P', 'status, settings'], ['H', 'hide']];
+  return seatKeys({ running: S.running && S.started, ended: S.t >= END }, { win: true, out: OUT, jump: '1–5', next: 'on to chapter 2, to the Moon', first: S.started ? [] : [['Space', 'start the count', true]] });
+}
+function pcHint() {
+  if (S.t >= END) return 'End of chapter 1. N goes on to chapter 2, to the Moon.';
+  if (S.mode !== 'seated') return 'Walk along the swing arm, through the White Room and in at the hatch (W A S D), or E to climb in at once.';
+  if (!S.started) return 'You are in your couch, the count holding. Space starts it.';
+  return S.running ? null : 'Paused. Space goes on.';
+}
+
 /* ---------------------------------------------------------------- input */
 const keys = {};
 addEventListener('keydown', e => {
@@ -111,7 +125,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { startCount(); S.running = !S.running || !S.started; S.started = true; }
   if (e.code === 'KeyW' && S.mode === 'seated') cycleWarp();
   if (e.code === 'KeyS' && S.mode === 'seated') clock.slower(S);
-  if (e.code === 'KeyP') wrist.press();
+  if (e.code === 'KeyP') { if (band.flat) band.toggle(); else wrist.press(); }
   if (e.code === 'KeyE' && S.mode === 'boarding') boardNow();
   if (e.code === 'KeyC' && S.mode === 'seated') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO' && S.mode === 'seated') OUT.want = !OUT.want;
@@ -131,7 +145,7 @@ renderer.domElement.addEventListener('pointermove', e => {
 /* fast forward (clock.js): x4 at most from fifteen seconds before liftoff to the tower jettison, through the second
  * staging (every event) and at orbit insertion */
 const LHOLD_ALL = [[-15, EVENTS.towerJett + 20, 'liftoff and the first stage'], [EVENTS.siiCutoff - 15, EVENTS.sivbIgnition + 8, 'the second staging'], [EVENTS.seco - 12, END + 1, 'orbit insertion']];
-const clock = makeClock({ holds: () => holdsFor(LHOLD_ALL, [LHOLD_ALL[0], LHOLD_ALL[2]]), lines: () => radio ? radio.lines : [], warps: [1, 4, 16], cap: 4, toast });
+const clock = makeClock({ key: () => (band.flat ? 'W' : 'B'), holds: () => holdsFor(LHOLD_ALL, [LHOLD_ALL[0], LHOLD_ALL[2]]), lines: () => radio ? radio.lines : [], warps: [1, 4, 16], cap: 4, toast });
 function cycleWarp() { clock.faster(S); }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
 function setTime(t) { S.t = t; S.warp = 1; clock.reset(); }
@@ -202,7 +216,7 @@ function walk(dt) {
 function boardNow() {
   if (S.mode !== 'boarding') return;
   headPad(_hp);
-  if (_hp.z < WR.z0 - 0.2) return;                    /* only from the White Room */
+  if (_hp.z < WR.z0 - 0.2 && !band.flat) return;      /* only from the White Room (at a keyboard E is a plain choice: from anywhere) */
   S.mode = 'seating'; FADE.target = 1;
 }
 function seatAfterBoarding() {
@@ -441,7 +455,7 @@ function frame(now) {
   else if (!xr) { head.position.set(0, S.mode === 'seated' ? 0 : 1.65, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : ''; }
   if ($('clock')) $('clock').textContent = (S.t < 0 ? 'T−' : 'T+') + fmt(Math.abs(S.t)) + '  ' + (S.running ? phase(S.t) : 'holding') + (S.warp > 1 ? '  ×' + S.warp : '');
-  wrist.draw(now, info());
+  { const i = info(); wrist.draw(now, i); band.update(now, i, pcKeys(), pcHint()); }
   toast.update(dt, camera);
   badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && S.mode === 'seated' && S.t < END) saveProgress('launch.html', S.t, now);

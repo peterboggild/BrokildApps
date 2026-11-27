@@ -15,21 +15,22 @@ import * as THREE from 'three';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky, makeRocks } from './extras.js?v=5';
 import { makeGround } from './ground.js?v=4';
-import { GETL } from './lunar-space.js?v=39';
-import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=39';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=39';
-import { settleLM } from './lm-model.js?v=39';
-import { makeLMShadow } from './lm-shadow.js?v=39';
-import { makeLaunchSound } from './launch-sound.js?v=39';
-import { makeRadio, combineRadios } from './radio.js?v=39';
-import { makeClock } from './clock.js?v=39';
-import { makeChatter } from './chatter.js?v=39';
-import { handOnCrew } from './crew-life.js?v=39';
-import { makeVehicle } from './vehicle.js?v=39';
-import { createHand, makeControllers } from './hands.js?v=39';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=39';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=39';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=39';
+import { GETL } from './lunar-space.js?v=41';
+import { makeDescent, GETD, PAD_DROP } from './descent-space.js?v=41';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=41';
+import { settleLM } from './lm-model.js?v=41';
+import { makeLMShadow } from './lm-shadow.js?v=41';
+import { makeLaunchSound } from './launch-sound.js?v=41';
+import { makeRadio, combineRadios } from './radio.js?v=41';
+import { makeClock } from './clock.js?v=41';
+import { makeChatter } from './chatter.js?v=41';
+import { handOnCrew } from './crew-life.js?v=41';
+import { makeVehicle } from './vehicle.js?v=41';
+import { createHand, makeControllers } from './hands.js?v=41';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtSpeed } from './wrist.js?v=41';
+import { makeKeysBand, seatKeys } from './keysband.js?v=41';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=41';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=41';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -138,9 +139,10 @@ let cur = null, padH = 15000;
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
 const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
+const band = makeKeysBand({ settings: ['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand'] });          /* on a computer screen: the keys along the top, the status and settings on P */
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
-const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
+const card = makeCard(); head.add(card.mesh); card.flat = () => band.flat;                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!cur) return null;
@@ -156,6 +158,21 @@ function info() {
       : [['A', 'slower (hold: real time)'], ['B', 'faster'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
+/* ---------------------------------------------------------------- on a computer screen: the keys that do something now, and what to do */
+function pcKeys() {
+  if (S.ended) return seatKeys(S, { next: 'on to chapter 6, on the Moon' });
+  if (S.mode === 'hand') return [['← → ↑ ↓', 'tilt the LM', true], ['[  ]', 'descend faster, slower', true], ['T', 'give her back to the computer'], ['Mouse', 'drag to look round'], ['Space', S.running ? 'pause' : 'go on', !S.running], ['P', 'the figures'], ['H', 'hide']];
+  const offer = S.landed < 0 && padH < 150 && S.t > GETD.lg - 20;
+  return seatKeys(S, { out: OUT, jump: '1–4', first: offer ? [['T', 'take over and land her yourself', true]] : [] });
+}
+function pcHint() {
+  if (S.ended) return 'End of chapter 5. N: out on to the surface.';
+  if (!S.running) return 'Paused. Space goes on.';
+  if (S.mode === 'hand') return 'You have her. Arrow keys tilt (she goes where she leans), [ and ] set the rate of descent. The figures are in the panel (P). Slow and level at the ground.';
+  if (S.landed < 0 && padH < 150 && S.t > GETD.lg - 20) return 'The computer is landing her. T: take over and set her down yourself.';
+  return null;
+}
+
 /* ---------------------------------------------------------------- input */
 const keys = {};
 addEventListener('keydown', e => {
@@ -163,7 +180,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { startSound(); S.running = !S.running; }
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyS') clock.slower(S);
-  if (e.code === 'KeyP') wrist.press();
+  if (e.code === 'KeyP') { if (band.flat) band.toggle(); else wrist.press(); }
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyT') toggleHand();
   if (e.code === 'KeyN' && S.ended) nextChapter('surface.html');
@@ -180,7 +197,7 @@ renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.
 /* fast forward (clock.js): real time through the landing from high gate (every event) or low gate (major), on the
  * autopilot only; flying it yourself is always real time */
 const LANDING = [[GETD.hg - 60, GETD.land + 60, 'the landing']], LANDING_MAJOR = [[GETD.lg - 30, GETD.land + 60, 'the landing']];
-const clock = makeClock({ holds: () => holdsFor(LANDING, LANDING_MAJOR), lines: () => radio ? radio.lines : [], warps: [1, 2, 4, 10], cap: 10, toast });
+const clock = makeClock({ key: () => (band.flat ? 'W' : 'B'), holds: () => holdsFor(LANDING, LANDING_MAJOR), lines: () => radio ? radio.lines : [], warps: [1, 2, 4, 10], cap: 10, toast });
 const warpOk = () => S.mode === 'table' && S.landed < 0;
 function cycleWarp() { if (!warpOk()) { S.warp = 1; toast.say('Real time while you fly', 3, true); return; } clock.faster(S); }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
@@ -198,7 +215,7 @@ function toggleHand() {
   if (S.mode === 'hand') { S.mode = 'live'; if (radio) radio.cue('auto'); return; }
   if (padH > 160 || S.t < GETD.lg - 30) return;                        /* offered below about 150 m */
   S.mode = 'hand'; S.took = true; S.live = S.live || { ...cur }; S.warp = 1;
-  wrist.show(true);                                                      /* its figures are what you fly by */
+  wrist.show(true); if (band.flat) band.toggle(true);                    /* its figures are what you fly by */
   const up = D.upAt(cur.r); S.rod = Math.max(-3, Math.min(-0.3, cur.v[0] * up[0] + cur.v[1] * up[1] + cur.v[2] * up[2])); S.tilt = [0, 0];
   if (radio) radio.cue('manual');
 }
@@ -482,7 +499,7 @@ function frame(now) {
   if (!xr) { head.position.set(0, OUT.on ? 0 : 1.62, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 5. A (N on this screen): out onto the surface.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + prog(S.t) + '  ' + Math.max(0, padH).toFixed(0) + ' m' + (S.warp > 1 ? '  ×' + S.warp : '');
-  wrist.draw(now, info());
+  { const i = info(); wrist.draw(now, i); band.update(now, i, pcKeys(), pcHint()); }
   toast.update(dt, camera);
   badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && S.mode === 'table' && S.landed < 0) saveProgress('descent.html', S.t, now);

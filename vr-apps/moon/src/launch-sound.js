@@ -7,7 +7,7 @@
  *   firing above you; the third stage quiet.
  * - The controllers vibrate with it (the view itself is never shaken).
  * - The radio (radio.js) feeds in here, so all sound goes through one compressor. */
-import { EVENTS } from './ascent.js?v=39';
+import { EVENTS } from './ascent.js?v=41';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 

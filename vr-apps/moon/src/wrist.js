@@ -10,7 +10,7 @@
  * At the end of a chapter the chapter shows it by itself, as it carries the way on (A).
  * Hand it to the left grip (controllers.grips.left.add(wrist.mesh)). */
 import * as THREE from 'three';
-import { settings, DEFS } from './settings.js?v=39';
+import { settings, DEFS } from './settings.js?v=41';
 
 export const fmtGET = s => { const n = s < 0, a = Math.abs(s), h = Math.floor(a / 3600), m = Math.floor(a % 3600 / 60), x = Math.floor(a % 60);
   return (n ? '-' : '') + h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -185,8 +185,9 @@ export function makeCard() {
   mesh.renderOrder = 1004; mesh.visible = false;
   const want = new THREE.Vector3(), F = 'system-ui, Segoe UI, Arial, sans-serif';
   let placed = false;
-  const C = { mesh, k: 0, left: 0, on: false,
+  const C = { mesh, k: 0, left: 0, on: false, flat: null,          /* flat(): true at a computer's keyboard (N goes on; no B) */
     show(o, secs = 1e9) {
+      const pc = !!(C.flat && C.flat());
       C.left = secs; C.on = true; placed = false;
       g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(8,9,10,0.88)'; g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 30); g.fill();
       g.strokeStyle = 'rgba(240,208,112,0.5)'; g.lineWidth = 3; g.stroke();
@@ -196,7 +197,7 @@ export function makeCard() {
         const btn = (x, key, text, hot) => { g.fillStyle = hot ? 'rgba(240,208,112,0.22)' : 'rgba(255,255,255,0.08)'; g.beginPath(); g.roundRect(x, 262, 452, 112, 20); g.fill();
           g.fillStyle = '#f0d070'; g.font = 'bold 52px ' + F; g.textAlign = 'left'; g.fillText(key, x + 26, 337);
           g.fillStyle = '#f2f0e8'; g.font = '34px ' + F; g.fillText(text, x + 84, 332, 350); };
-        btn(44, 'A', o.a, true); btn(528, 'B', o.b || 'Take a break', false);
+        if (pc) btn(286, 'N', o.a, true); else { btn(44, 'A', o.a, true); btn(528, 'B', o.b || 'Take a break', false); }
       }
       tex.needsUpdate = true;
     },

@@ -14,24 +14,25 @@
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)
  *      ?float=z (floating on the tunnel's axis at cabin z, for pictures) */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=39';
+import { state as ascentState } from './ascent.js?v=41';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=39';
-import { makeCabin } from './cabin.js?v=39';
-import { makeLMCabin, LMC } from './lm-cabin.js?v=39';
-import { LM } from './lm-model.js?v=39';
+import { makeLunarFlight, GETL, MU_M } from './lunar-space.js?v=41';
+import { makeCabin } from './cabin.js?v=41';
+import { makeLMCabin, LMC } from './lm-cabin.js?v=41';
+import { LM } from './lm-model.js?v=41';
 const AS_Y = LM.AS_Y;
-import { makeLaunchSound } from './launch-sound.js?v=39';
-import { makeRadio, combineRadios } from './radio.js?v=39';
-import { makeClock } from './clock.js?v=39';
-import { makeChatter } from './chatter.js?v=39';
-import { handOnCrew } from './crew-life.js?v=39';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=39';
-import { createHand, makeControllers } from './hands.js?v=39';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=39';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=39';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=39';
+import { makeLaunchSound } from './launch-sound.js?v=41';
+import { makeRadio, combineRadios } from './radio.js?v=41';
+import { makeClock } from './clock.js?v=41';
+import { makeChatter } from './chatter.js?v=41';
+import { handOnCrew } from './crew-life.js?v=41';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=41';
+import { createHand, makeControllers } from './hands.js?v=41';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=41';
+import { makeKeysBand, seatKeys } from './keysband.js?v=41';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=41';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=41';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -125,9 +126,10 @@ function phase(t) {
 const ctl = makeControllers(renderer, head);
 const common = applyCommon(renderer, sound);
 const wrist = makeWrist(['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
+const band = makeKeysBand({ settings: ['ff', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand'] });          /* on a computer screen: the keys along the top, the status and settings on P */
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
-const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
+const card = makeCard(); head.add(card.mesh); card.flat = () => band.flat;                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!w) return null;
@@ -142,6 +144,20 @@ function info() {
 }
 let RANGE = 0;
 
+/* ---------------------------------------------------------------- on a computer screen: the keys that do something now, and what to do */
+function pcKeys() {
+  if (S.ended || (S.mode === 'lm' && S.t < OPEN)) return seatKeys(S, { out: OUT, jump: '1–4', next: 'on to chapter 9, leaving the Moon' });
+  if (S.mode === 'cm') return [['Mouse', 'drag to look round'], ['Space', S.running ? 'pause' : 'go on', !S.running], ['1–4', 'jump in time'], ['P', 'status, settings'], ['H', 'hide']];
+  return [['F', S.mode === 'lm' ? 'up the tunnel to America' : S.auto ? 'stop' : 'float by itself', true], ['↑ ↓', 'float along'], ['Mouse', 'drag to look round'], ['Space', S.running ? 'pause' : 'go on', !S.running], ['O', OUT.on ? 'back inside' : 'outside view'], ['1–4', 'jump in time'], ['P', 'status, settings'], ['H', 'hide']];
+}
+function pcHint() {
+  if (S.ended) return 'End of chapter 8. N goes on to chapter 9, leaving the Moon.';
+  if (!S.running) return 'Paused. Space goes on.';
+  if (S.mode === 'lm' && S.t >= OPEN) return 'Docked, the hatches open: F takes you up through the tunnel overhead to America (the clock waits for you).';
+  if (S.mode === 'crawl') return 'In the tunnel: arrow up floats you on, F does it for you.';
+  return null;
+}
+
 /* ---------------------------------------------------------------- input */
 const keys = {};
 addEventListener('keydown', e => {
@@ -149,7 +165,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { startSound(); S.running = !S.running; }
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyS') clock.slower(S);
-  if (e.code === 'KeyP') wrist.press();
+  if (e.code === 'KeyP') { if (band.flat) band.toggle(); else wrist.press(); }
   if (e.code === 'KeyF') goUp();
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyN' && S.ended) nextChapter(NEXT);
@@ -161,7 +177,7 @@ let drag = null;
 renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; renderer.domElement.setPointerCapture(e.pointerId); });
 renderer.domElement.addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
-const clock = makeClock({ holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
+const clock = makeClock({ key: () => (band.flat ? 'W' : 'B'), holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
 const held = t => !!clock.inHold(t);
 function cycleWarp() {
   if (S.t >= OPEN - 1 || S.mode !== 'lm') { S.warp = 1; if (!S.ended) toast.say('Real time from here', 3, true); return; }
@@ -473,8 +489,8 @@ function frame(now) {
     if (xr && STICK.y < -0.4) beginCrawl();
     if (S.hintT > 6) {
       S.hintT = -14; S.hints = (S.hints || 0) + 1;
-      toast.say('To America: up through the tunnel. Left stick forward, or grip and pull, or A', 8, true);
-      if (S.hints >= 2) card.show({ title: 'To America: up through the tunnel overhead', sub: 'Left stick forward  \u00b7  or grip and pull  \u00b7  or A' }, 12);
+      toast.say(band.flat ? 'To America: up through the tunnel. F takes you up' : 'To America: up through the tunnel. Left stick forward, or grip and pull, or A', 8, true);
+      if (S.hints >= 2) card.show({ title: 'To America: up through the tunnel overhead', sub: band.flat ? 'F takes you up' : 'Left stick forward  \u00b7  or grip and pull  \u00b7  or A' }, 12);
     }
   }
   /* through black: into the tunnel's foot; and at its end into your couch */
@@ -534,7 +550,7 @@ function frame(now) {
   if (!xr) { head.position.set(0, (S.mode === 'lm' || S.mode === 'leaving') && !OUT.on ? 1.62 : 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 8. A (N on this screen) goes on to chapter 9, leaving the Moon.' : S.mode === 'lm' && S.t >= OPEN ? 'Up through the tunnel to America: F on this screen (arrow keys to float yourself).' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (S.warp > 1 ? '  ×' + S.warp : '');
-  wrist.draw(now, info());
+  { const i = info(); wrist.draw(now, i); band.update(now, i, pcKeys(), pcHint()); }
   toast.update(dt, camera);
   badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && !S.ended) saveProgress('rendezvous.html', Math.min(S.t, OPEN + 1), now);

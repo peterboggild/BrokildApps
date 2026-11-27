@@ -18,8 +18,9 @@
  * Everything is in the LM's own frame (lm-model.js: y up from the engine bell, +z forward), carried to the site by the
  * model's matrix. */
 import * as THREE from 'three';
-import { LM } from './lm-model.js?v=39';
-import { LMC } from './lm-cabin.js?v=39';
+import { LM } from './lm-model.js?v=41';
+import { LMC } from './lm-cabin.js?v=41';
+import { isFlat } from './keysband.js?v=41';
 
 const G_MOON = 1.62;
 
@@ -125,7 +126,7 @@ export function makeEgress(o) {
         if (E.t > T0 + 2) say('dep', 'The cabin is down to vacuum. The hatch is coming open.', 5);
         if (E.locked) { /* shut for the lift-off (surface-ops.js) */ } else
         if (E.t > T0 + 4) { E.door = Math.min(1, E.door + dt / 4); o.lmc.setForwardHatch(E.door * E.door * (3 - 2 * E.door)); o.model.userData.hatch.visible = false; }
-        if (E.door >= 1) say('go', 'Out backwards through the hatch: grip and pull, or A', 1e6);
+        if (E.door >= 1) say('go', isFlat() ? 'Out backwards through the hatch: F' : 'Out backwards through the hatch: grip and pull, or A', 1e6);
         if (!hands.some(h => h.grip)) E.armed = true;                  /* (a grip still closed from the climb in does not send you out again) */
         if (E.door >= 1 && E.armed && hands.some(h => h.grip)) { E.stage = 'turn'; E.fadeTo = 1; E.dir = 1; }
       } else if (E.stage === 'turn') {
@@ -158,14 +159,14 @@ export function makeEgress(o) {
         if (E.fade > 0.93) {
           E.stage = 'cabin'; E.t = 1e3; E.door = 1; E.armed = false; E.dir = 1; E.fadeTo = 0; capture();
           E.theta = ry() + Math.PI - o.yaw(); o.lmc.setBody(true); for (const h of hands) h.prev = null;
-          o.toast.say('Back in the cabin. Out again: grip and pull, or A', 6);
+          o.toast.say(isFlat() ? 'Back in the cabin. Out again: F' : 'Back in the cabin. Out again: grip and pull, or A', 6);
         }
       } else if (E.stage === 'drop') {
         const D = E.drop; E.vy -= G_MOON * dt; D.y += E.vy * dt;
         const k = Math.min(1, (D.from.y - D.y) / (D.from.y - D.to.y));
         _p.lerpVectors(D.from, D.to, k); _p.y = Math.max(D.to.y, D.y);
         place(_p, E.theta);
-        if (D.y <= D.to.y) { E.stage = 'pad'; E.s = nodes[iDrop + 1].s; E.t = 0; E.acc = 0; if (o.suit) o.suit.step(1.2); say('pad', 'On the footpad. One push back from the ladder, and you are on the Moon', 6); }
+        if (D.y <= D.to.y) { E.stage = 'pad'; E.s = nodes[iDrop + 1].s; E.t = 0; E.acc = 0; if (o.suit) o.suit.step(1.2); say('pad', isFlat() ? 'On the footpad. F: one push back from the ladder, and you are on the Moon' : 'On the footpad. One push back from the ladder, and you are on the Moon', 6); }
       } else if (E.stage === 'mount') {
         /* from the ground (the view blinks): onto the footpad, facing the ladder, whichever way you stood */
         if (E.fade > 0.93) {
@@ -174,7 +175,7 @@ export function makeEgress(o) {
           E.stage = 'pad'; E.s = nodes[iDrop + 1].s; E.t = 0; E.acc = 0; E.auto = false; E.dir = -1; E.fadeTo = 0;
           for (const h of hands) h.prev = null;
           place(nodes[iDrop + 1], E.theta);
-          o.toast.say('On the footpad, at the ladder. Pull yourself up, or A. A push back sets you down again', 7);
+          o.toast.say(isFlat() ? 'On the footpad, at the ladder. F takes you up' : 'On the footpad, at the ladder. Pull yourself up, or A. A push back sets you down again', 7);
         }
       } else if (E.stage === 'pad') {
         /* standing on the pad, the ladder before you. One push back from it (or A, coming down) and you glide back

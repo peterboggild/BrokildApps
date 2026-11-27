@@ -11,24 +11,25 @@
  *
  * URL: ?t= (GET, seconds)  ?yaw= &pitch=  ?still  ?shot  ?out (&od= &oa= &oe=)  ?cheat */
 import * as THREE from 'three';
-import { state as ascentState } from './ascent.js?v=39';
+import { state as ascentState } from './ascent.js?v=41';
 import { loadMoon } from './moon.js?v=4';
 import { makeSky } from './extras.js?v=5';
-import { makeLunarFlight, GETL } from './lunar-space.js?v=39';
-import { makeLeaving, GETT } from './leaving-space.js?v=39';
-import { LM } from './lm-model.js?v=39';
-import { makeCabin } from './cabin.js?v=39';
-import { makeLaunchSound } from './launch-sound.js?v=39';
-import { makeRadio, combineRadios } from './radio.js?v=39';
-import { makeClock } from './clock.js?v=39';
-import { makeChatter } from './chatter.js?v=39';
-import { handOnCrew } from './crew-life.js?v=39';
-import { makeVehicle, EYE_OFF } from './vehicle.js?v=39';
-import { createHand, makeControllers } from './hands.js?v=39';
-import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=39';
-import { saveProgress, offerContinue, autoEnter } from './progress.js?v=39';
-import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=39';
-import { makeFloaters } from './floaters.js?v=39';
+import { makeLunarFlight, GETL } from './lunar-space.js?v=41';
+import { makeLeaving, GETT } from './leaving-space.js?v=41';
+import { LM } from './lm-model.js?v=41';
+import { makeCabin } from './cabin.js?v=41';
+import { makeLaunchSound } from './launch-sound.js?v=41';
+import { makeRadio, combineRadios } from './radio.js?v=41';
+import { makeClock } from './clock.js?v=41';
+import { makeChatter } from './chatter.js?v=41';
+import { handOnCrew } from './crew-life.js?v=41';
+import { makeVehicle, EYE_OFF } from './vehicle.js?v=41';
+import { createHand, makeControllers } from './hands.js?v=41';
+import { makeWrist, makeToast, makeWarpBadge, makeCard, nextOf, fmtDist, fmtSpeed } from './wrist.js?v=41';
+import { makeKeysBand, seatKeys } from './keysband.js?v=41';
+import { saveProgress, offerContinue, autoEnter } from './progress.js?v=41';
+import { settings, applyCommon, holdsFor, watchRecentre } from './settings.js?v=41';
+import { makeFloaters } from './floaters.js?v=41';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -110,9 +111,10 @@ function phase(t) {
 }
 /* ---------------------------------------------------------------- the wrist panel (X) and messages */
 const wrist = makeWrist(['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand']);
+const band = makeKeysBand({ settings: ['ff', 'turn', 'hz', 'fov', 'voices', 'sound', 'text', 'body', 'hand'] });          /* on a computer screen: the keys along the top, the status and settings on P */
 ctl.grips.left.add(wrist.mesh);
 const toast = makeToast(); head.add(toast.mesh);
-const card = makeCard(); head.add(card.mesh);                 /* the chapter's title, and at its end the way on */
+const card = makeCard(); head.add(card.mesh); card.flat = () => band.flat;                 /* the chapter's title, and at its end the way on */
 const badge = makeWarpBadge(); head.add(badge.mesh);          /* the small clock while time runs fast */
 function info() {
   if (!L || !w) return null;
@@ -123,6 +125,10 @@ function info() {
     keys: [['A', 'slower (hold: real time)'], ['B', 'faster'], ['X', 'cheat window'], ['Y', 'outside view'], ['L stick', 'press: panel, settings'], ['grip', 'take things'], ['R stick', 'press: re-seat']], fps: S.fps };
 }
 
+/* ---------------------------------------------------------------- on a computer screen: the keys that do something now, and what to do */
+function pcKeys() { return seatKeys(S, { win: true, out: OUT, jump: '1–6', next: 'on to chapter 10, the coast home' }); }
+function pcHint() { return S.ended ? 'End of chapter 9. N goes on to chapter 10, the coast home.' : S.running ? null : 'Paused. Space goes on.'; }
+
 /* ---------------------------------------------------------------- input */
 const keys = {};
 const JUMPS = { Digit1: START, Digit2: GETT.jett - 10, Digit3: GETT.tei - 1500, Digit4: GETT.tei - 60, Digit5: GETT.teiEnd + 500, Digit6: GETT.teiEnd + 3600 };
@@ -131,7 +137,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { startSound(); S.running = !S.running; }
   if (e.code === 'KeyW') cycleWarp();
   if (e.code === 'KeyS') clock.slower(S);
-  if (e.code === 'KeyP') wrist.press();
+  if (e.code === 'KeyP') { if (band.flat) band.toggle(); else wrist.press(); }
   if (e.code === 'KeyC') cabin.setCheat(!cabin.cheat);
   if (e.code === 'KeyO') OUT.want = !OUT.want;
   if (e.code === 'KeyN' && S.ended) nextChapter(NEXT);
@@ -142,7 +148,7 @@ let drag = null;
 renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; renderer.domElement.setPointerCapture(e.pointerId); });
 renderer.domElement.addEventListener('pointerup', () => { drag = null; });
 renderer.domElement.addEventListener('pointermove', e => { if (!drag) return; S.yaw -= (e.clientX - drag[0]) * 0.2; S.pitch = Math.max(-89, Math.min(89, S.pitch - (e.clientY - drag[1]) * 0.2)); drag = [e.clientX, e.clientY]; });
-const clock = makeClock({ holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
+const clock = makeClock({ key: () => (band.flat ? 'W' : 'B'), holds, lines: () => radio ? radio.lines : [], warps: WARPS, cap: 10, toast });
 const held = t => !!clock.inHold(t);
 function cycleWarp() { clock.faster(S); }
 function realTime() { if (S.warp > 1) { S.warp = 1; toast.say('Real time', 1.5, true); } }
@@ -391,7 +397,7 @@ function frame(now) {
   if (!xr) { head.position.set(0, 0, 0); head.rotation.set(S.pitch * Math.PI / 180, S.yaw * Math.PI / 180, 0, 'YXZ'); }
   if ($('sub') && radio) { const l = radio.current(S.t); $('sub').textContent = l ? l.who + ': ' + l.text : (S.ended ? 'End of chapter 9. A (N on this screen) goes on to chapter 10, the coast home.' : ''); }
   if ($('clock')) $('clock').textContent = 'GET ' + fmt(S.t) + '  ' + phase(S.t) + (w.hidden ? '  · behind the Moon' : '') + (S.warp > 1 ? '  ×' + S.warp : '');
-  wrist.draw(now, info());
+  { const i = info(); wrist.draw(now, i); band.update(now, i, pcKeys(), pcHint()); }
   toast.update(dt, camera);
   badge.update(dt, camera, S.warp); card.update(dt, camera);
   if (S.running && !S.ended) saveProgress('leaving.html', S.t, now);

@@ -6,9 +6,10 @@
  *
  * URL: ?slide=1..12  ?shot  ?yaw= &pitch= */
 import * as THREE from 'three';
-import { SLIDES, W, H } from './briefing-slides.js?v=39';
-import { makeVehicle } from './vehicle.js?v=39';
-import { createHand, makeControllers } from './hands.js?v=39';
+import { makeKeysBand } from './keysband.js?v=41';
+import { SLIDES, W, H } from './briefing-slides.js?v=41';
+import { makeVehicle } from './vehicle.js?v=41';
+import { createHand, makeControllers } from './hands.js?v=41';
 
 const Q = new URLSearchParams(location.search);
 const num = (k, d) => (Q.has(k) && Q.get(k) !== '' && isFinite(+Q.get(k)) ? +Q.get(k) : d);
@@ -98,6 +99,7 @@ function leave() {
 }
 
 /* ---------------- input */
+const band = makeKeysBand({ settings: [] });          /* on a computer screen: the keys along the top */
 addEventListener('keydown', e => { initAudio(); if (e.code === 'ArrowRight' || e.code === 'Space') next(); if (e.code === 'ArrowLeft') back(); });
 $('next')?.addEventListener('click', () => { initAudio(); next(); });
 $('back')?.addEventListener('click', () => { initAudio(); back(); });
@@ -140,6 +142,7 @@ function frame(now) {
   if (S.slide === 2) {               /* the falling stages stay near the model (they are scaled with it) */
     for (const p of [vehicle.parts.sic, vehicle.parts.skirt, vehicle.parts.sii, vehicle.parts.les]) if (Math.abs(p.position.y) > 160) p.visible = false;
   }
+  band.update(now, { chapter: 'Mission briefing', now: 'board ' + (S.slide + 1) + ' of ' + SLIDES.length }, [['→', S.slide === SLIDES.length - 1 ? 'on to chapter 1, the launch' : 'the next board', true], ['←', 'back'], ['Mouse', 'drag to look round'], ['H', 'hide']], null);
   renderer.render(scene, camera);
   S.frames++;
   if (window.__brief.afterFrame) { const f = window.__brief.afterFrame; window.__brief.afterFrame = null; f(); }

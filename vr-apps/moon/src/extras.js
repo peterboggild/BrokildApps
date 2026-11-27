@@ -2,7 +2,7 @@
  * The LM here is a placeholder (stage 5 replaces it). */
 import * as THREE from 'three';
 import { LUNAR_GLSL } from './moon.js?v=4';
-import { makeStars, ECLIPTIC_POLE } from './stars.js?v=39';
+import { makeStars, ECLIPTIC_POLE } from './stars.js?v=41';
 
 const SKY_D = 2.0e6;                 /* sky bodies are drawn at this distance, inside the far plane */
 

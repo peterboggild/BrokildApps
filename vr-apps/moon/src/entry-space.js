@@ -16,9 +16,9 @@
  * - The parachutes: the two drogues at 7.3 km, the three mains at 3.2 km, the sea at 8.5 m/s, a little over
  *   thirteen minutes after the interface (Apollo 17: 13 min 21 s).
  * The whole flight is worked out once, as a table. GET = ground elapsed time, seconds from the launch from Earth. */
-import { RE, SUN } from './ascent.js?v=39';
-import { MU } from './space.js?v=39';
-import { where as coast, GETH } from './home-space.js?v=39';
+import { RE, SUN } from './ascent.js?v=41';
+import { MU } from './space.js?v=41';
+import { where as coast, GETH } from './home-space.js?v=41';
 
 export const GETE = { ei: GETH.entry, sep: GETH.entry - 15 * 60 };
 

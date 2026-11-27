@@ -10,9 +10,9 @@
  *   S.t = clock.advance(S, dt);      every frame, while running
  *   clock.faster(S);                 B: one step faster (it stays at the fastest)
  *   clock.slower(S);                 A: one step slower (down to real time; held: real time at once) */
-import { settings } from './settings.js?v=39';
+import { settings } from './settings.js?v=41';
 
-export function makeClock({ holds, lines, warps, cap = 10, toast }) {
+export function makeClock({ holds, lines, warps, cap = 10, toast, key = () => 'B' }) {          /* key: the faster button's name (W at the keyboard) */
   let skip = -Infinity;                          /* stops at or before this have been passed on purpose */
   const inHold = t => holds().find(([a, b]) => t > a && t < b);
   const say = s => { if (toast) toast.say(s, 2.6, true); };                 /* (an answer to your own button: shown whatever the messages' setting) */
@@ -31,7 +31,7 @@ export function makeClock({ holds, lines, warps, cap = 10, toast }) {
         }
         if (stop) {
           nt = stop.at; S.warp = 1; skip = stop.at + 0.3;
-          if (stop.why) say('Real time: ' + stop.why + '.  B: fast again');
+          if (stop.why) say('Real time: ' + stop.why + '.  ' + key() + ': fast again');
         }
       }
       if (mode !== 'free' && S.warp > cap && inHold(nt)) { S.warp = cap; say('x' + cap + ' at most through ' + inHold(nt)[2]); }
